@@ -1,0 +1,155 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #E8E0D8;
+  padding: 32px 24px;
+  min-height: 100vh;
+}
+
+.page-title {
+  text-align: center;
+  margin-bottom: 28px;
+  color: #1A1A1A;
+}
+
+.page-title h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  margin-bottom: 6px;
+}
+
+.page-title p {
+  font-size: 0.85rem;
+  color: #5A4A3A;
+}
+
+.print-btn {
+  display: block;
+  margin: 0 auto 32px;
+  padding: 12px 32px;
+  background: #E8612C;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+
+.print-btn:hover { background: #C4501F; }
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 90mm);
+  gap: 10mm;
+  justify-content: center;
+}
+
+.card {
+  width: 90mm;
+  background: #FFFFFF;
+  border-radius: 6mm;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  page-break-inside: avoid;
+}
+
+.card-header {
+  background: #1A1A1A;
+  padding: 6mm 5mm 5mm;
+  text-align: center;
+}
+
+.card-restaurant-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 5.5mm;
+  color: #FFFFFF;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+
+.card-tagline {
+  font-size: 2.8mm;
+  color: #E8612C;
+  margin-top: 1.5mm;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.card-body {
+  padding: 5mm 6mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FFF8F0;
+}
+
+.card-ada       { font-size: 9mm; margin-bottom: 3mm; line-height: 1; }
+
+.card-cta-top {
+  font-size: 3mm;
+  font-weight: 700;
+  color: #1A1A1A;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 3.5mm;
+}
+
+.card-qr {
+  width: 38mm;
+  height: 38mm;
+  border-radius: 3mm;
+  display: block;
+  border: 0.5mm solid #F0E4D8;
+}
+
+.card-cta-bottom {
+  margin-top: 3mm;
+  font-size: 2.8mm;
+  color: #6B6B6B;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.card-no-app {
+  margin-top: 1.5mm;
+  font-size: 2.5mm;
+  color: #E8612C;
+  font-weight: 700;
+  text-align: center;
+}
+
+.card-footer {
+  background: #1A1A1A;
+  padding: 3.5mm 5mm;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-table-number {
+  font-size: 3.5mm;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.card-brand {
+  font-size: 2.2mm;
+  color: #E8612C;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+@media print {
+  body { background: white; padding: 0; }
+  .page-title, .print-btn { display: none; }
+  .cards-grid { gap: 8mm; padding: 8mm; }
+  .card { box-shadow: none; border: 0.3mm solid #DDD; }
+  @page { size: A4; margin: 8mm; }
+}

@@ -109,7 +109,10 @@ let activeCategory = null;
 let idleTimer      = null;
 
 function getTableNumber() {
-  return new URLSearchParams(window.location.search).get('table') || '1';
+  const raw = new URLSearchParams(window.location.search).get('table');
+  const n   = parseInt(raw, 10);
+  // Only accept whole numbers between 1 and 999 — reject anything else
+  return (Number.isInteger(n) && n >= 1 && n <= 999) ? String(n) : '1';
 }
 
 function formatPrice(amount) {
@@ -260,3 +263,10 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// Register service worker — moved here so index.html has no inline scripts
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
