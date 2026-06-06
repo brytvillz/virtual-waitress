@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nnewi Buka — Table QR Cards</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Screen styles ───────────────────────────── */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #E8E0D8;
+      padding: 32px 24px;
+      min-height: 100vh;
+    }
+
+    .page-title {
+      text-align: center;
+      margin-bottom: 28px;
+      color: #1A1A1A;
+    }
+
+    .page-title h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      margin-bottom: 6px;
+    }
+
+    .page-title p {
+      font-size: 0.85rem;
+      color: #5A4A3A;
+    }
+
+    .print-btn {
+      display: block;
+      margin: 0 auto 32px;
+      padding: 12px 32px;
+      background: #E8612C;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+    }
+
+    .print-btn:hover { background: #C4501F; }
+
+    /* ── Card grid ───────────────────────────────── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 90mm);
+      gap: 10mm;
+      justify-content: center;
+    }
+
+    /* ── Single card ─────────────────────────────── */
+    .card {
+      width: 90mm;
+      background: #FFFFFF;
+      border-radius: 6mm;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+      page-break-inside: avoid;
+    }
+
+    .card-header {
+      background: #1A1A1A;
+      padding: 6mm 5mm 5mm;
+      text-align: center;
+    }
+
+    .card-restaurant-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 5.5mm;
+      color: #FFFFFF;
+      letter-spacing: 0.03em;
+      line-height: 1.2;
+    }
+
+    .card-tagline {
+      font-size: 2.8mm;
+      color: #E8612C;
+      margin-top: 1.5mm;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 5mm 6mm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #FFF8F0;
+    }
+
+    .card-ada {
+      font-size: 9mm;
+      margin-bottom: 3mm;
+      line-height: 1;
+    }
+
+    .card-cta-top {
+      font-size: 3mm;
+      font-weight: 700;
+      color: #1A1A1A;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 3.5mm;
+    }
+
+    .card-qr {
+      width: 38mm;
+      height: 38mm;
+      border-radius: 3mm;
+      display: block;
+      border: 0.5mm solid #F0E4D8;
+    }
+
+    .card-cta-bottom {
+      margin-top: 3mm;
+      font-size: 2.8mm;
+      color: #6B6B6B;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .card-no-app {
+      margin-top: 1.5mm;
+      font-size: 2.5mm;
+      color: #E8612C;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .card-footer {
+      background: #1A1A1A;
+      padding: 3.5mm 5mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-table-number {
+      font-size: 3.5mm;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .card-brand {
+      font-size: 2.2mm;
+      color: #E8612C;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Print styles ────────────────────────────── */
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+
+      .page-title,
+      .print-btn {
+        display: none;
+      }
+
+      .cards-grid {
+        gap: 8mm;
+        padding: 8mm;
+      }
+
+      .card {
+        box-shadow: none;
+        border: 0.3mm solid #DDD;
+      }
+
+      @page {
+        size: A4;
+        margin: 8mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-title">
+    <h1>Nnewi Buka — Table QR Cards</h1>
+    <p>Print this page on A4 paper · Cut out each card · Place in table stands</p>
+  </div>
+
+  <button class="print-btn" onclick="window.print()">🖨️ Print Cards</button>
+
+  <div class="cards-grid" id="cardsGrid"></div>
+
+  <script>
+    const RESTAURANT = "Nnewi Buka";
+    const TAGLINE    = "Authentic Igbo Home Cooking";
+    const MENU_URL   = "https://virtual-waitress.vercel.app";
+    const TABLES     = 8; // change this number to print more or fewer tables
+
+    const grid = document.getElementById('cardsGrid');
+
+    for (let t = 1; t <= TABLES; t++) {
+      const url = `${MENU_URL}/?table=${t}`;
+      const qr  = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=6&color=1A1A1A&bgcolor=FFF8F0&data=${encodeURIComponent(url)}`;
+
+      grid.innerHTML += `
+        <div class="card">
+          <div class="card-header">
+            <div class="card-restaurant-name">${RESTAURANT}</div>
+            <div class="card-tagline">${TAGLINE}</div>
+          </div>
+          <div class="card-body">
+            <div class="card-ada">👩🏾‍🍳</div>
+            <div class="card-cta-top">Scan to view our menu</div>
+            <img class="card-qr" src="${qr}" alt="QR code for Table ${t}" loading="lazy" />
+            <div class="card-cta-bottom">
+              Point your camera at the code<br/>No app download needed
+            </div>
+            <div class="card-no-app">✓ Works on any phone</div>
+          </div>
+          <div class="card-footer">
+            <span class="card-table-number">Table ${t}</span>
+            <span class="card-brand">Virtual Waitress</span>
+          </div>
+        </div>
+      `;
+    }
+  </script>
+
+</body>
+</html>
