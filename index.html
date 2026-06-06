@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="theme-color" content="#1A1A1A" />
+    <title>Nnewi Buka — Menu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+
+    <!-- Header -->
+    <header class="header">
+      <div>
+        <h1 class="restaurant-name" id="restaurantName">Loading…</h1>
+        <p class="restaurant-tagline" id="restaurantTagline"></p>
+      </div>
+      <div class="table-badge" id="tableBadge">Table —</div>
+    </header>
+
+    <!-- Category tabs -->
+    <nav class="category-nav" aria-label="Menu categories">
+      <div class="category-tabs" id="categoryTabs"></div>
+    </nav>
+
+    <!-- Menu items -->
+    <main class="menu-content">
+      <div class="menu-grid" id="menuGrid">
+        <div class="loading">Loading menu…</div>
+      </div>
+    </main>
+
+    <!-- Ada character -->
+    <div class="ada-container" id="adaContainer">
+      <div class="speech-bubble" id="speechBubble" role="status" aria-live="polite">
+        <p id="speechText"></p>
+      </div>
+      <button class="ada-character" id="adaCharacter" aria-label="Chat with Ada, your virtual waitress">
+        <span class="ada-emoji">👩🏾‍🍳</span>
+      </button>
+    </div>
+
+    <!-- Call waiter -->
+    <div class="call-waiter-bar">
+      <button class="call-waiter-btn" id="callWaiterBtn">
+        <span class="btn-icon">📲</span>
+        <span>Call Waiter</span>
+      </button>
+    </div>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>
