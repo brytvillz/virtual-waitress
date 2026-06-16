@@ -32,28 +32,45 @@
         </div>
       </header>
 
-      <main class="dash-content">
-        <section class="dash-column">
-          <h2>🔔 Waiter Calls <span class="count-badge" id="callsCount">0</span></h2>
-          <div id="callsList" class="card-list">
-            <p class="empty-state">No active calls</p>
-          </div>
-        </section>
+      <!-- View tabs -->
+      <div class="dash-tab-bar">
+        <button class="dash-tab-btn active" data-tab="live">🔴 Live</button>
+        <button class="dash-tab-btn" data-tab="shift">📋 My Shift</button>
+      </div>
 
-        <section class="dash-column">
-          <h2>🛒 Orders <span class="count-badge" id="ordersCount">0</span></h2>
-          <div id="ordersList" class="card-list">
-            <p class="empty-state">No active orders</p>
-          </div>
-        </section>
+      <!-- Live view -->
+      <div id="liveView">
+        <main class="dash-content">
+          <section class="dash-column">
+            <h2>🔔 Waiter Calls <span class="count-badge" id="callsCount">0</span></h2>
+            <div id="callsList" class="card-list">
+              <p class="empty-state">No active calls</p>
+            </div>
+          </section>
 
-        <section class="dash-column">
-          <h2>📋 Menu — Mark Sold Out</h2>
-          <div id="menuToggleList" class="card-list">
-            <p class="empty-state">Loading menu…</p>
-          </div>
-        </section>
-      </main>
+          <section class="dash-column">
+            <h2>🛒 Orders <span class="count-badge" id="ordersCount">0</span></h2>
+            <div id="ordersList" class="card-list">
+              <p class="empty-state">No active orders</p>
+            </div>
+          </section>
+
+          <section class="dash-column">
+            <h2>📋 Menu — Mark Sold Out</h2>
+            <div id="menuToggleList" class="card-list">
+              <p class="empty-state">Loading menu…</p>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      <!-- My Shift view -->
+      <div id="shiftView" class="admin-hidden">
+        <div class="shift-history-container" id="shiftHistory">
+          <p class="empty-state">Loading shift history…</p>
+        </div>
+      </div>
+
     </div>
 
     <script src="js/vendor/supabase.js"></script>

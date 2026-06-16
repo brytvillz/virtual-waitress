@@ -1,9 +1,11 @@
 // Virtual Waitress — Staff Dashboard
-// Logs in staff via Supabase Auth, then shows live orders + waiter calls
-// for this restaurant using Supabase Realtime.
+// Logs in staff via Supabase Auth, shows live orders + waiter calls filtered
+// by today's table assignments, plus a 7-day personal shift history.
 
 let realtimeChannel = null;
 let currentStaffRole = null;
+let myTableNumbers = new Set();    // tables assigned to this waiter today
+let othersTableNumbers = new Set(); // tables assigned to OTHER waiters today
 
 function formatPrice(amount) {
   return '₦' + amount.toLocaleString();
@@ -12,8 +14,12 @@ function formatPrice(amount) {
 function timeAgo(isoString) {
   const seconds = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
   if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}m ago`;
+  return `${Math.floor(seconds / 60)}m ago`;
+}
+
+function todayDate() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function playBeep() {
@@ -27,12 +33,10 @@ function playBeep() {
     gain.gain.setValueAtTime(0.15, ctx.currentTime);
     osc.start();
     osc.stop(ctx.currentTime + 0.18);
-  } catch (e) {
-    // Audio not available — silently skip, the visual update still happens
-  }
+  } catch (e) { /* audio unavailable */ }
 }
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 
 function showDashboard() {
   document.getElementById('loginScreen').style.display = 'none';
@@ -45,17 +49,12 @@ function showLogin() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('dashboard').classList.remove('visible');
   document.getElementById('dashboard').setAttribute('aria-hidden', 'true');
-  if (realtimeChannel) {
-    db.removeChannel(realtimeChannel);
-    realtimeChannel = null;
-  }
+  if (realtimeChannel) { db.removeChannel(realtimeChannel); realtimeChannel = null; }
 }
 
 async function initAuth() {
   const { data: { session } } = await db.auth.getSession();
-  if (session) {
-    showDashboard();
-  }
+  if (session) showDashboard();
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -63,12 +62,8 @@ async function initAuth() {
     const password = document.getElementById('loginPassword').value;
     const errorEl = document.getElementById('loginError');
     errorEl.textContent = '';
-
     const { error } = await db.auth.signInWithPassword({ email, password });
-    if (error) {
-      errorEl.textContent = 'Login failed — check your email and password.';
-      return;
-    }
+    if (error) { errorEl.textContent = 'Login failed — check your email and password.'; return; }
     showDashboard();
   });
 
@@ -77,61 +72,91 @@ async function initAuth() {
     showLogin();
   });
 
-  document.getElementById('refreshBtn').addEventListener('click', () => {
+  document.getElementById('refreshBtn').addEventListener('click', async () => {
+    await loadAssignments();
     refreshOrders();
     refreshCalls();
     refreshMenuToggleList();
   });
 }
 
-// ── Data loading ─────────────────────────────────────────────────────────────
+// ── Table assignments ──────────────────────────────────────────────────────────
+
+async function loadAssignments() {
+  const { data: { user } } = await db.auth.getUser();
+  if (!user) return;
+
+  const { data, error } = await db
+    .from('shift_assignments')
+    .select('waiter_id, tables(table_number)')
+    .eq('restaurant_id', RESTAURANT_ID)
+    .eq('assigned_date', todayDate());
+
+  if (error) { console.error('Failed to load assignments', error); return; }
+
+  myTableNumbers = new Set();
+  othersTableNumbers = new Set();
+
+  (data || []).forEach(a => {
+    const num = a.tables?.table_number;
+    if (num == null) return;
+    if (a.waiter_id === user.id) {
+      myTableNumbers.add(num);
+    } else {
+      othersTableNumbers.add(num);
+    }
+  });
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────────
 
 async function refreshOrders() {
-  const { data, error } = await db
+  let query = db
     .from('orders')
     .select('*, order_items(*)')
     .eq('restaurant_id', RESTAURANT_ID)
     .in('status', ['pending', 'preparing'])
     .order('created_at', { ascending: true });
 
-  if (error) {
-    console.error('Failed to load orders', error);
-    return;
+  // Exclude tables claimed by other waiters
+  if (othersTableNumbers.size > 0) {
+    query = query.not('table_number', 'in', `(${[...othersTableNumbers].join(',')})`);
   }
+
+  const { data, error } = await query;
+  if (error) { console.error('Failed to load orders', error); return; }
   renderOrders(data);
 }
 
 async function refreshCalls() {
-  const { data, error } = await db
+  let query = db
     .from('waiter_calls')
     .select('*')
     .eq('restaurant_id', RESTAURANT_ID)
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
 
-  if (error) {
-    console.error('Failed to load waiter calls', error);
-    return;
+  if (othersTableNumbers.size > 0) {
+    query = query.not('table_number', 'in', `(${[...othersTableNumbers].join(',')})`);
   }
+
+  const { data, error } = await query;
+  if (error) { console.error('Failed to load waiter calls', error); return; }
   renderCalls(data);
 }
 
-// ── Rendering ────────────────────────────────────────────────────────────────
+// ── Rendering ─────────────────────────────────────────────────────────────────
 
 function renderOrders(orders) {
   const list = document.getElementById('ordersList');
   document.getElementById('ordersCount').textContent = orders.length;
 
-  if (orders.length === 0) {
-    list.innerHTML = '<p class="empty-state">No active orders</p>';
-    return;
-  }
+  if (orders.length === 0) { list.innerHTML = '<p class="empty-state">No active orders</p>'; return; }
 
   list.innerHTML = orders.map(order => {
     const itemsHtml = (order.order_items || []).map(item => `
       <div><span>${item.quantity}x ${item.item_name}</span><span>${formatPrice(item.quantity * item.price)}</span></div>
     `).join('');
-
     const isPreparing = order.status === 'preparing';
     const actionLabel = isPreparing ? 'Mark Served' : 'Start Preparing';
     const nextStatus = isPreparing ? 'served' : 'preparing';
@@ -139,7 +164,7 @@ function renderOrders(orders) {
     return `
       <div class="dash-card" data-order-id="${order.id}">
         <div class="dash-card-top">
-          <span class="dash-card-table">Table ${order.table_number} ${isPreparing ? '· 👨‍🍳 Preparing' : ''}</span>
+          <span class="dash-card-table">Table ${order.table_number}${isPreparing ? ' · 👨‍🍳 Preparing' : ''}</span>
           <span class="dash-card-time">${timeAgo(order.created_at)}</span>
         </div>
         <div class="dash-card-items">${itemsHtml}</div>
@@ -161,10 +186,7 @@ function renderCalls(calls) {
   const list = document.getElementById('callsList');
   document.getElementById('callsCount').textContent = calls.length;
 
-  if (calls.length === 0) {
-    list.innerHTML = '<p class="empty-state">No active calls</p>';
-    return;
-  }
+  if (calls.length === 0) { list.innerHTML = '<p class="empty-state">No active calls</p>'; return; }
 
   list.innerHTML = calls.map(call => `
     <div class="dash-card" data-call-id="${call.id}">
@@ -179,15 +201,19 @@ function renderCalls(calls) {
   `).join('');
 
   list.querySelectorAll('.dash-card').forEach(card => {
-    const btn = card.querySelector('.dash-btn');
-    btn.addEventListener('click', () => acknowledgeCall(card.dataset.callId));
+    card.querySelector('.dash-btn').addEventListener('click', () => acknowledgeCall(card.dataset.callId));
   });
 }
 
-// ── Actions ──────────────────────────────────────────────────────────────────
+// ── Actions ───────────────────────────────────────────────────────────────────
 
 async function updateOrderStatus(orderId, status) {
-  const { error } = await db.from('orders').update({ status }).eq('id', orderId);
+  const payload = { status };
+  if (status === 'preparing') {
+    const { data: { user } } = await db.auth.getUser();
+    if (user) payload.handled_by = user.id;
+  }
+  const { error } = await db.from('orders').update(payload).eq('id', orderId);
   if (error) console.error('Failed to update order', error);
   refreshOrders();
 }
@@ -198,39 +224,33 @@ async function acknowledgeCall(callId) {
   refreshCalls();
 }
 
-// ── Realtime ─────────────────────────────────────────────────────────────────
+// ── Realtime ──────────────────────────────────────────────────────────────────
 
 function startRealtime() {
-  if (realtimeChannel) return; // already subscribed — avoid duplicate channel/listeners
+  if (realtimeChannel) return;
 
   realtimeChannel = db
     .channel('dashboard-' + RESTAURANT_ID)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${RESTAURANT_ID}` }, () => {
-      playBeep();
-      refreshOrders();
-    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${RESTAURANT_ID}` }, () => { playBeep(); refreshOrders(); })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${RESTAURANT_ID}` }, refreshOrders)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_items' }, refreshOrders)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waiter_calls', filter: `restaurant_id=eq.${RESTAURANT_ID}` }, () => {
-      playBeep();
-      refreshCalls();
-    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waiter_calls', filter: `restaurant_id=eq.${RESTAURANT_ID}` }, () => { playBeep(); refreshCalls(); })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'waiter_calls', filter: `restaurant_id=eq.${RESTAURANT_ID}` }, refreshCalls)
     .subscribe();
 }
 
+// ── Staff role + admin link ───────────────────────────────────────────────────
+
 async function loadStaffRole() {
   const { data: { user } } = await db.auth.getUser();
   if (!user) return;
-
   const { data, error } = await db.from('staff').select('role').eq('id', user.id).single();
-  if (error) {
-    console.error('Failed to load staff role', error);
-    return;
-  }
+  if (error) { console.error('Failed to load staff role', error); return; }
   currentStaffRole = data.role;
   document.getElementById('adminLink').style.display = currentStaffRole === 'manager' ? 'inline-block' : 'none';
 }
+
+// ── Menu sold-out toggles ─────────────────────────────────────────────────────
 
 async function refreshMenuToggleList() {
   const { data, error } = await db
@@ -239,16 +259,10 @@ async function refreshMenuToggleList() {
     .eq('restaurant_id', RESTAURANT_ID)
     .order('name');
 
-  if (error) {
-    console.error('Failed to load menu for sold-out toggles', error);
-    return;
-  }
+  if (error) { console.error('Failed to load menu for sold-out toggles', error); return; }
 
   const list = document.getElementById('menuToggleList');
-  if (!data.length) {
-    list.innerHTML = '<p class="empty-state">No menu items yet</p>';
-    return;
-  }
+  if (!data.length) { list.innerHTML = '<p class="empty-state">No menu items yet</p>'; return; }
 
   list.innerHTML = data.map(item => `
     <div class="dash-card menu-toggle-card" data-item-id="${item.id}">
@@ -268,25 +282,93 @@ async function refreshMenuToggleList() {
       const card = e.target.closest('.menu-toggle-card');
       const itemId = card.dataset.itemId;
       const { error } = await db.from('menu_items').update({ available: e.target.checked }).eq('id', itemId);
-      if (error) {
-        console.error('Failed to update item availability', error);
-        e.target.checked = !e.target.checked; // revert on failure
-      }
+      if (error) { console.error('Failed to update item availability', error); e.target.checked = !e.target.checked; }
     });
   });
 }
 
-function startDashboard() {
-  loadStaffRole();
-  refreshOrders();
-  refreshCalls();
-  refreshMenuToggleList();
-  startRealtime();
-  initPushSubscription();
-  setInterval(() => { refreshOrders(); refreshCalls(); }, 30000); // keep "Xm ago" labels fresh
+// ── My Shift history ──────────────────────────────────────────────────────────
+
+async function loadShiftHistory() {
+  const { data: { user } } = await db.auth.getUser();
+  if (!user) return;
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const { data, error } = await db
+    .from('orders')
+    .select('*, order_items(*)')
+    .eq('restaurant_id', RESTAURANT_ID)
+    .eq('handled_by', user.id)
+    .gte('created_at', sevenDaysAgo.toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) { console.error('Failed to load shift history', error); return; }
+  renderShiftHistory(data || []);
 }
 
-// ── Web Push subscription ───────────────────────────────────────────────────
+function renderShiftHistory(orders) {
+  const container = document.getElementById('shiftHistory');
+  if (!orders.length) {
+    container.innerHTML = '<p class="empty-state">No orders in the last 7 days</p>';
+    return;
+  }
+
+  const grouped = {};
+  orders.forEach(order => {
+    const d = new Date(order.created_at);
+    const key = d.toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(order);
+  });
+
+  container.innerHTML = Object.entries(grouped).map(([date, dayOrders]) => {
+    const dayTotal = dayOrders.reduce((s, o) => s + o.total, 0);
+
+    const orderCards = dayOrders.map(order => {
+      const items = (order.order_items || []).map(i => `${i.quantity}× ${i.item_name}`).join(', ');
+      const time = new Date(order.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="dash-card">
+          <div class="dash-card-top">
+            <span class="dash-card-table">Table ${order.table_number}</span>
+            <span class="dash-card-time">${time}</span>
+          </div>
+          <div class="dash-card-items"><div>${items || '—'}</div></div>
+          <div class="dash-card-total">${formatPrice(order.total)}</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="shift-day-group">
+        <div class="shift-day-header">
+          <span class="shift-day-date">${date}</span>
+          <span class="shift-day-summary">${dayOrders.length} order${dayOrders.length !== 1 ? 's' : ''} · ${formatPrice(dayTotal)}</span>
+        </div>
+        <div class="card-list">${orderCards}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+
+function initDashTabs() {
+  document.querySelectorAll('.dash-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.dash-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      document.getElementById('liveView').classList.toggle('admin-hidden', tab !== 'live');
+      document.getElementById('shiftView').classList.toggle('admin-hidden', tab !== 'shift');
+      if (tab === 'shift') loadShiftHistory();
+    });
+  });
+}
+
+// ── Web Push ──────────────────────────────────────────────────────────────────
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -299,10 +381,8 @@ function urlBase64ToUint8Array(base64String) {
 
 async function initPushSubscription() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-
   try {
     const registration = await navigator.serviceWorker.register('/sw.js');
-
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
 
@@ -326,6 +406,25 @@ async function initPushSubscription() {
   } catch (err) {
     console.error('Push subscription setup failed', err);
   }
+}
+
+// ── Dashboard start ───────────────────────────────────────────────────────────
+
+async function startDashboard() {
+  await loadAssignments();
+  loadStaffRole();
+  refreshOrders();
+  refreshCalls();
+  refreshMenuToggleList();
+  initDashTabs();
+  startRealtime();
+  initPushSubscription();
+
+  setInterval(async () => {
+    await loadAssignments();
+    refreshOrders();
+    refreshCalls();
+  }, 30000);
 }
 
 document.addEventListener('DOMContentLoaded', initAuth);

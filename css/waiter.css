@@ -286,3 +286,67 @@ body {
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(18px);
 }
+
+/* ── Dashboard view tabs ──────────────────── */
+
+.dash-tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+}
+
+.dash-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.88rem;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.dash-tab-btn.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Shift history ────────────────────────── */
+
+.shift-history-container {
+  padding: 20px;
+}
+
+.shift-day-group {
+  margin-bottom: 28px;
+}
+
+.shift-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.shift-day-date {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.shift-day-summary {
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Utility (used by admin.html too via waiter.css import) ─── */
+
+.admin-hidden {
+  display: none !important;
+}

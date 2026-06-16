@@ -318,3 +318,49 @@ alter table restaurants add column if not exists tagline text;
 
 update restaurants set tagline = 'Authentic Igbo Home Cooking'
 where id = '78698609-5135-4d35-8eb3-7f33dd828ecc';
+
+-- 13. Shift management: per-waiter table assignments + waiter performance tracking
+
+alter table restaurants
+  add column if not exists max_tables_per_waiter int not null default 3;
+
+-- Physical tables defined by the restaurant
+create table if not exists tables (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references restaurants(id) on delete cascade,
+  table_number  int  not null,
+  label         text,
+  created_at    timestamptz not null default now(),
+  unique(restaurant_id, table_number)
+);
+alter table tables enable row level security;
+
+create policy "staff_read_tables"     on tables for select to authenticated using (restaurant_id = current_staff_restaurant());
+create policy "manager_insert_tables" on tables for insert to authenticated with check (current_staff_role()='manager' and restaurant_id=current_staff_restaurant());
+create policy "manager_update_tables" on tables for update to authenticated using (current_staff_role()='manager' and restaurant_id=current_staff_restaurant()) with check (current_staff_role()='manager' and restaurant_id=current_staff_restaurant());
+create policy "manager_delete_tables" on tables for delete to authenticated using (current_staff_role()='manager' and restaurant_id=current_staff_restaurant());
+
+-- Seed 15 tables for Nnewi Buka
+insert into tables (restaurant_id, table_number, label)
+select '78698609-5135-4d35-8eb3-7f33dd828ecc', n, 'Table ' || n
+from generate_series(1, 15) as n
+on conflict do nothing;
+
+-- Daily shift assignments: one waiter per table per day
+create table if not exists shift_assignments (
+  id            uuid primary key default gen_random_uuid(),
+  restaurant_id uuid not null references restaurants(id) on delete cascade,
+  waiter_id     uuid not null references staff(id) on delete cascade,
+  table_id      uuid not null references tables(id) on delete cascade,
+  assigned_date date not null default current_date,
+  created_at    timestamptz not null default now(),
+  unique(restaurant_id, table_id, assigned_date)
+);
+alter table shift_assignments enable row level security;
+
+create policy "staff_read_assignments"    on shift_assignments for select to authenticated using (restaurant_id=current_staff_restaurant());
+create policy "manager_insert_assignments" on shift_assignments for insert to authenticated with check (current_staff_role()='manager' and restaurant_id=current_staff_restaurant());
+create policy "manager_delete_assignments" on shift_assignments for delete to authenticated using (current_staff_role()='manager' and restaurant_id=current_staff_restaurant());
+
+-- Track which waiter handled each order (stamped when waiter clicks "Start Preparing")
+alter table orders add column if not exists handled_by uuid references staff(id);

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0D0D0D" />
-    <title>Virtual Waitress — Admin Dashboard</title>
+    <title>Virtual Waitress — Admin</title>
     <link rel="stylesheet" href="css/waiter.css" />
     <link rel="stylesheet" href="css/admin.css" />
   </head>
@@ -22,96 +22,234 @@
       </form>
     </section>
 
-    <!-- Access denied (logged in but not a manager) -->
+    <!-- Access denied -->
     <section id="deniedScreen" class="login-screen denied-screen">
       <div class="login-card">
         <h1>Managers Only</h1>
-        <p class="login-sub">Your account doesn't have access to the admin dashboard. Use the staff dashboard instead.</p>
+        <p class="login-sub">Your account doesn't have access to this dashboard.</p>
         <a href="waiter.html" class="logout-btn denied-link">Go to Staff Dashboard</a>
         <button id="deniedLogoutBtn">Log Out</button>
       </div>
     </section>
 
     <!-- Dashboard -->
-    <div id="dashboard" class="dashboard" aria-hidden="true">
-      <header class="dash-header">
-        <h1>📊 Admin Dashboard</h1>
-        <div class="dash-header-actions">
-          <button id="refreshBtn" class="logout-btn" type="button" title="Refresh">🔄</button>
-          <a href="waiter.html" class="logout-btn">Staff Dashboard</a>
-          <button id="logoutBtn" class="logout-btn">Log Out</button>
-        </div>
-      </header>
+    <div id="dashboard" class="admin-dashboard" aria-hidden="true">
 
-      <nav class="admin-tabs">
-        <button class="admin-tab active" data-tab="analytics">Analytics</button>
-        <button class="admin-tab" data-tab="menu">Menu Editor</button>
+      <!-- Mobile sidebar overlay -->
+      <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+      <!-- Sidebar -->
+      <aside id="adminSidebar" class="admin-sidebar">
+        <div class="sidebar-brand">
+          <span class="sidebar-brand-icon">🍽️</span>
+          <div>
+            <p class="sidebar-brand-name">Virtual Waitress</p>
+            <p class="sidebar-restaurant-name" id="sidebarRestaurantName">Loading…</p>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="sidebar-nav-item active" data-section="analytics">
+            <span class="sidebar-nav-icon">📊</span>Analytics
+          </button>
+          <button class="sidebar-nav-item" data-section="menu">
+            <span class="sidebar-nav-icon">🍽️</span>Menu Editor
+          </button>
+          <button class="sidebar-nav-item" data-section="staff">
+            <span class="sidebar-nav-icon">👥</span>Staff
+          </button>
+          <button class="sidebar-nav-item" data-section="tables">
+            <span class="sidebar-nav-icon">🪑</span>Tables
+          </button>
+          <button class="sidebar-nav-item" data-section="settings">
+            <span class="sidebar-nav-icon">⚙️</span>Settings
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <a href="waiter.html" class="sidebar-footer-link">↗ Staff Dashboard</a>
+          <button id="logoutBtn" class="sidebar-logout-btn">Log Out</button>
+        </div>
+      </aside>
+
+      <!-- Main content -->
+      <div class="admin-main">
+
+        <!-- Mobile topbar -->
+        <header class="admin-topbar">
+          <button id="sidebarToggleBtn" class="topbar-menu-btn" type="button" aria-label="Open menu">☰</button>
+          <h1 class="topbar-title" id="topbarTitle">Analytics</h1>
+          <button id="refreshBtn" class="topbar-action-btn" type="button" title="Refresh">🔄</button>
+        </header>
+
+        <!-- Analytics section -->
+        <section id="analyticsSection" class="admin-section">
+          <div class="section-header">
+            <h2 class="section-title">Analytics</h2>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat-card">
+              <span class="stat-label">Today's Orders</span>
+              <span class="stat-value" id="statTodayOrders">—</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Today's Revenue</span>
+              <span class="stat-value" id="statTodayRevenue">—</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">All-Time Orders</span>
+              <span class="stat-value" id="statAllOrders">—</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">All-Time Revenue</span>
+              <span class="stat-value" id="statAllRevenue">—</span>
+            </div>
+          </div>
+
+          <h3 class="subsection-title">👥 Waiter Performance Today</h3>
+          <div id="waiterPerformanceList" class="card-list">
+            <p class="empty-state">Loading…</p>
+          </div>
+
+          <h3 class="subsection-title">🔥 Best Sellers</h3>
+          <div id="bestSellersList" class="card-list">
+            <p class="empty-state">Loading…</p>
+          </div>
+
+          <h3 class="subsection-title">🧾 Recent Orders</h3>
+          <div id="recentOrdersList" class="card-list">
+            <p class="empty-state">Loading…</p>
+          </div>
+        </section>
+
+        <!-- Menu editor section -->
+        <section id="menuSection" class="admin-section admin-hidden">
+          <div class="section-header">
+            <h2 class="section-title">Menu Editor</h2>
+            <button id="addCategoryBtn" class="btn-primary">+ New Category</button>
+          </div>
+          <div id="categoriesEditor"></div>
+        </section>
+
+        <!-- Staff section -->
+        <section id="staffSection" class="admin-section admin-hidden">
+          <div class="section-header">
+            <h2 class="section-title">Staff</h2>
+          </div>
+          <div id="staffList" class="card-list">
+            <p class="empty-state">Loading…</p>
+          </div>
+        </section>
+
+        <!-- Tables section -->
+        <section id="tablesSection" class="admin-section admin-hidden">
+          <div class="section-header">
+            <h2 class="section-title">Tables</h2>
+            <button id="addTableBtn" class="btn-primary">+ Add Table</button>
+          </div>
+          <p class="section-description">Assign waiters to tables for today's shift. One waiter per table, but a waiter can hold multiple tables.</p>
+          <div id="tableGrid" class="table-grid">
+            <p class="empty-state">Loading…</p>
+          </div>
+        </section>
+
+        <!-- Settings section -->
+        <section id="settingsSection" class="admin-section admin-hidden">
+          <div class="section-header">
+            <h2 class="section-title">Settings</h2>
+          </div>
+          <form id="settingsForm" class="settings-form">
+            <div class="settings-group">
+              <h3 class="settings-group-title">Restaurant Details</h3>
+              <label class="settings-label">
+                Restaurant Name
+                <input type="text" id="settingName" />
+              </label>
+              <label class="settings-label">
+                Tagline
+                <input type="text" id="settingTagline" />
+              </label>
+            </div>
+            <div class="settings-group">
+              <h3 class="settings-group-title">Shift Rules</h3>
+              <label class="settings-label">
+                Max tables per waiter (soft cap — manager can override)
+                <input type="number" id="settingMaxTables" min="1" max="30" />
+                <span class="settings-hint">A warning appears when assigning beyond this limit.</span>
+              </label>
+            </div>
+            <button type="submit" class="btn-primary">Save Settings</button>
+            <p id="settingsSavedMsg" class="settings-saved-msg"></p>
+          </form>
+        </section>
+
+      </div><!-- /.admin-main -->
+
+      <!-- Mobile bottom nav -->
+      <nav class="admin-bottom-nav">
+        <button class="bottom-nav-item active" data-section="analytics">
+          <span class="bottom-nav-icon">📊</span>
+          <span class="bottom-nav-label">Analytics</span>
+        </button>
+        <button class="bottom-nav-item" data-section="menu">
+          <span class="bottom-nav-icon">🍽️</span>
+          <span class="bottom-nav-label">Menu</span>
+        </button>
+        <button class="bottom-nav-item" data-section="staff">
+          <span class="bottom-nav-icon">👥</span>
+          <span class="bottom-nav-label">Staff</span>
+        </button>
+        <button class="bottom-nav-item" data-section="tables">
+          <span class="bottom-nav-icon">🪑</span>
+          <span class="bottom-nav-label">Tables</span>
+        </button>
+        <button class="bottom-nav-item" data-section="settings">
+          <span class="bottom-nav-icon">⚙️</span>
+          <span class="bottom-nav-label">Settings</span>
+        </button>
       </nav>
 
-      <!-- Analytics tab -->
-      <main id="analyticsTab" class="admin-panel">
-        <div class="stat-grid">
-          <div class="stat-card">
-            <span class="stat-label">Today's Orders</span>
-            <span class="stat-value" id="statTodayOrders">—</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">Today's Revenue</span>
-            <span class="stat-value" id="statTodayRevenue">—</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">All-Time Orders</span>
-            <span class="stat-value" id="statAllOrders">—</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-label">All-Time Revenue</span>
-            <span class="stat-value" id="statAllRevenue">—</span>
-          </div>
-        </div>
+    </div><!-- /#dashboard -->
 
-        <h2 class="admin-section-title">🔥 Best Sellers</h2>
-        <div id="bestSellersList" class="card-list">
-          <p class="empty-state">Loading…</p>
-        </div>
-
-        <h2 class="admin-section-title">🧾 Recent Orders</h2>
-        <div id="recentOrdersList" class="card-list">
-          <p class="empty-state">Loading…</p>
-        </div>
-      </main>
-
-      <!-- Menu editor tab -->
-      <main id="menuTab" class="admin-panel admin-panel-hidden">
-        <button id="addCategoryBtn" class="dash-btn primary admin-add-category-btn">+ New Category</button>
-        <div id="categoriesEditor"></div>
-      </main>
-    </div>
-
-    <!-- Item edit modal -->
-    <div id="itemModal" class="modal-overlay modal-hidden">
+    <!-- Item modal -->
+    <div id="itemModal" class="modal-overlay admin-hidden">
       <form id="itemForm" class="modal-card">
         <h2 id="itemModalTitle">Edit Item</h2>
-        <label>Name<input type="text" id="itemName" required /></label>
-        <label>Price (₦)<input type="number" id="itemPrice" min="0" required /></label>
-        <label>Description<textarea id="itemDescription" rows="2"></textarea></label>
-        <label>Ada's message<textarea id="itemAdaMessage" rows="2"></textarea></label>
+        <label class="modal-field-label">Name<input type="text" id="itemName" required /></label>
+        <label class="modal-field-label">Price (₦)<input type="number" id="itemPrice" min="0" required /></label>
+        <label class="modal-field-label">Description<textarea id="itemDescription" rows="2"></textarea></label>
+        <label class="modal-field-label">Ada's message<textarea id="itemAdaMessage" rows="2"></textarea></label>
         <div class="modal-actions">
-          <button type="button" id="itemCancelBtn" class="dash-btn secondary">Cancel</button>
-          <button type="submit" class="dash-btn primary">Save</button>
+          <button type="button" id="itemCancelBtn" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Save</button>
         </div>
       </form>
     </div>
 
-    <!-- Category edit modal -->
-    <div id="categoryModal" class="modal-overlay modal-hidden">
+    <!-- Category modal -->
+    <div id="categoryModal" class="modal-overlay admin-hidden">
       <form id="categoryForm" class="modal-card">
         <h2 id="categoryModalTitle">Edit Category</h2>
-        <label>Name<input type="text" id="categoryName" required /></label>
-        <label>Emoji<input type="text" id="categoryEmoji" maxlength="4" /></label>
-        <label>Ada's message for this category<textarea id="categoryAdaMessage" rows="2"></textarea></label>
+        <label class="modal-field-label">Name<input type="text" id="categoryName" required /></label>
+        <label class="modal-field-label">Emoji<input type="text" id="categoryEmoji" maxlength="4" /></label>
+        <label class="modal-field-label">Ada's message<textarea id="categoryAdaMessage" rows="2"></textarea></label>
         <div class="modal-actions">
-          <button type="button" id="categoryCancelBtn" class="dash-btn secondary">Cancel</button>
-          <button type="submit" class="dash-btn primary">Save</button>
+          <button type="button" id="categoryCancelBtn" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Add table modal -->
+    <div id="tableModal" class="modal-overlay admin-hidden">
+      <form id="tableForm" class="modal-card">
+        <h2>Add Table</h2>
+        <label class="modal-field-label">Table Number<input type="number" id="tableNumber" min="1" required /></label>
+        <label class="modal-field-label">Label (optional)<input type="text" id="tableLabel" placeholder="e.g. VIP Table 1" /></label>
+        <div class="modal-actions">
+          <button type="button" id="tableCancelBtn" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Add Table</button>
         </div>
       </form>
     </div>
