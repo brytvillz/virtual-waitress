@@ -10,7 +10,7 @@
   display: none;
 }
 
-.modal-hidden {
+.modal-overlay.modal-hidden {
   display: none;
 }
 
