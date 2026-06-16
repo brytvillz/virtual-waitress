@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
 
     <!-- PWA: theme and background -->
-    <meta name="theme-color" content="#1A1A1A" />
-    <meta name="background-color" content="#FFF8F0" />
+    <meta name="theme-color" content="#0D0D0D" />
+    <meta name="background-color" content="#0D0D0D" />
 
-    <!-- PWA: makes it installable as a standalone app on iOS -->
+    <!-- PWA: makes it installable as a standalone app on iOS and Android -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="VW Menu" />
@@ -29,45 +30,90 @@
   </head>
   <body>
 
-    <!-- Header -->
-    <header class="header">
-      <div>
-        <h1 class="restaurant-name" id="restaurantName">Loading…</h1>
-        <p class="restaurant-tagline" id="restaurantTagline"></p>
+    <!-- ── Landing / Advert Screen ───────────────────────────────────────── -->
+    <section id="landing" aria-label="Welcome screen">
+      <div class="landing-bg"></div>
+      <div class="landing-inner">
+        <div class="landing-food-wrap">
+          <img src="images/hero-food.jpg" alt="" class="landing-food" role="presentation" />
+        </div>
+        <p class="landing-eyebrow">Welcome to</p>
+        <h1 class="landing-title" id="landingTitle">Nnewi Buka</h1>
+        <p class="landing-tagline" id="landingTagline">Authentic Igbo Home Cooking</p>
+        <div class="landing-actions">
+          <button class="btn-view-menu" id="btnViewMenu">✦ &nbsp;View Full Menu</button>
+          <button class="btn-specials" id="btnSpecials">⚡ &nbsp;Today's Specials</button>
+        </div>
       </div>
-      <div class="table-badge" id="tableBadge">Table —</div>
-    </header>
+      <img src="images/ada.png" alt="Ada, your virtual waitress" class="landing-ada" />
+    </section>
 
-    <!-- Category tabs -->
-    <nav class="category-nav" aria-label="Menu categories">
-      <div class="category-tabs" id="categoryTabs"></div>
-    </nav>
+    <!-- ── Main App (revealed after landing) ─────────────────────────────── -->
+    <div id="app" aria-hidden="true">
 
-    <!-- Menu items -->
-    <main class="menu-content">
-      <div class="menu-grid" id="menuGrid">
-        <div class="loading">Loading menu…</div>
+      <!-- Hero Section (also serves as the header) -->
+      <header class="hero-section">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+          <div>
+            <h1 class="restaurant-name" id="restaurantName">Loading…</h1>
+            <p class="restaurant-tagline" id="restaurantTagline"></p>
+          </div>
+          <div class="table-badge" id="tableBadge">Table —</div>
+        </div>
+      </header>
+
+      <!-- Category tabs — existing pills, now auto-sliding -->
+      <nav class="category-nav" aria-label="Menu categories">
+        <div class="category-tabs" id="categoryTabs"></div>
+      </nav>
+
+      <!-- New category box grid -->
+      <section class="category-grid-section" aria-label="Browse categories">
+        <div class="category-grid" id="categoryGrid"></div>
+        <button class="all-categories-btn" id="allCategoriesBtn">🍽️ &nbsp;Show All Items</button>
+      </section>
+
+      <!-- Menu items -->
+      <main class="menu-content">
+        <div class="menu-grid" id="menuGrid">
+          <div class="loading">Loading menu…</div>
+        </div>
+      </main>
+
+      <!-- Ada character -->
+      <div class="ada-container" id="adaContainer">
+        <div class="speech-bubble" id="speechBubble" role="status" aria-live="polite">
+          <p id="speechText"></p>
+        </div>
+        <button class="ada-character" id="adaCharacter" aria-label="Chat with Ada, your virtual waitress">
+          <img src="images/ada.png" alt="Ada" class="ada-img" id="adaImg" />
+        </button>
       </div>
-    </main>
 
-    <!-- Ada character -->
-    <div class="ada-container" id="adaContainer">
-      <div class="speech-bubble" id="speechBubble" role="status" aria-live="polite">
-        <p id="speechText"></p>
+      <!-- Order summary — appears once an item is added -->
+      <div class="order-summary-bar" id="orderSummaryBar">
+        <span id="orderItemCount">0 items</span>
+        <span id="orderTotal">₦0</span>
       </div>
-      <button class="ada-character" id="adaCharacter" aria-label="Chat with Ada, your virtual waitress">
-        <span class="ada-emoji">👩🏾‍🍳</span>
-      </button>
-    </div>
 
-    <!-- Call waiter -->
-    <div class="call-waiter-bar">
-      <button class="call-waiter-btn" id="callWaiterBtn">
-        <span class="btn-icon">📲</span>
-        <span>Call Waiter</span>
-      </button>
-    </div>
+      <!-- Action bar: Call Waiter + Place Order -->
+      <div class="action-bar">
+        <button class="call-waiter-btn" id="callWaiterBtn">
+          <span class="btn-icon">📲</span>
+          <span>Call Waiter</span>
+        </button>
+        <button class="place-order-btn" id="placeOrderBtn">
+          <span class="place-order-badge" id="placeOrderBadge">0</span>
+          <span class="place-order-main">🛒 Place Order</span>
+          <span class="place-order-sub">and get served</span>
+        </button>
+      </div>
 
+    </div><!-- /#app -->
+
+    <script src="js/vendor/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>

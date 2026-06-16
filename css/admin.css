@@ -1,0 +1,264 @@
+.denied-screen {
+  display: none;
+}
+
+.denied-link {
+  text-align: center;
+}
+
+.admin-panel-hidden {
+  display: none;
+}
+
+.modal-hidden {
+  display: none;
+}
+
+.sold-out-label {
+  color: #E85A5A;
+}
+
+/* ── Admin tabs ───────────────────────────── */
+
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-tab {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 14px 6px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.admin-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.admin-panel {
+  padding: 20px;
+}
+
+/* ── Analytics ────────────────────────────── */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.admin-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 24px 0 12px;
+}
+
+.best-seller-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.best-seller-rank {
+  color: var(--accent);
+  font-weight: 800;
+  margin-right: 10px;
+}
+
+/* ── Menu editor ──────────────────────────── */
+
+.admin-add-category-btn {
+  width: auto;
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 10px 18px;
+}
+
+.category-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.category-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.category-section-title {
+  font-weight: 800;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-section-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-btn {
+  background: #252525;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.icon-btn.danger {
+  color: #E85A5A;
+}
+
+.item-edit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.item-edit-row:first-of-type {
+  border-top: none;
+}
+
+.item-edit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.item-edit-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.item-edit-price {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.item-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.add-item-btn {
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 9px;
+  width: 100%;
+  margin-top: 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+/* ── Modals ───────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.modal-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-card h2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.modal-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.modal-card input,
+.modal-card textarea {
+  background: #111;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.modal-card input:focus,
+.modal-card textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.modal-actions .dash-btn {
+  flex: 1;
+}

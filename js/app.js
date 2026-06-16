@@ -1,112 +1,85 @@
 // Virtual Waitress MVP — NgwaNgwa Digital
 // Demo restaurant: Nnewi Buka
 
-const MENU_DATA = {
-  restaurant: {
-    name: "Nnewi Buka",
-    tagline: "Authentic Igbo Home Cooking",
-    whatsapp: "2347076077265",
-    accentColor: "#E8612C"
-  },
-  ada: {
-    name: "Ada",
-    emoji: "👩🏾‍🍳",
-    welcome: "Welcome to Nnewi Buka! 👋🏾 I'm Ada, your virtual waitress. Browse the menu and tap any dish to learn more!",
-    idle: "Take your time! When you're ready, tap 'Call Waiter' and I'll send someone to your table right away 😊",
-    categoryMessages: {
-      soups: "Our soups are made fresh every morning! 🥣 Tap any soup to learn more about it.",
-      swallows: "Pounded yam is our most popular swallow! 😋 It pairs perfectly with any soup on our menu.",
-      rice: "Our Jollof Rice is smoky and cooked the party way 🍚 — the real deal, I promise!",
-      grills: "Everything here is grilled fresh to order 🔥 The suya is an absolute must-try!",
-      "small-chops": "Perfect for sharing or a light snack! Our puff puff is made fresh every morning 🤤",
-      drinks: "⭐ Special today: Buy 1 Guinness Stout, get 1 absolutely FREE! Don't miss it 🍺"
-    }
-  },
-  categories: [
-    {
-      id: "soups",
-      name: "Soups",
-      emoji: "🥣",
-      items: [
-        { name: "Egusi Soup",    price: 1500, description: "Rich in protein and healthy fats, cooked with assorted meat",                   ada: "Egusi is loaded with protein and healthy fats — gives you real energy! Great with pounded yam 💪" },
-        { name: "Ofe Onugbu",    price: 1500, description: "Bitterleaf soup with assorted meat and stockfish — a true Igbo classic",         ada: "A true Igbo classic! The slight bitterness is what makes it special. Cooked just like mama would 😋" },
-        { name: "Oha Soup",      price: 1800, description: "Seasonal delicacy with cocoyam thickener and oha leaves",                       ada: "Oha leaves are packed with vitamins A and C — very nutritious and only available seasonally! 🌿" },
-        { name: "Ogbono Soup",   price: 1500, description: "Draw soup with assorted meat — smooth and filling",                              ada: "Ogbono is great for digestion and keeps you full for hours. A real comfort soup 👌" },
-        { name: "Nsala Soup",    price: 2000, description: "White soup with fresh catfish — light and fragrant",                             ada: "Light and fresh! The catfish in this soup is delivered same morning. Very popular with our guests 🐟" },
-        { name: "Ofe Akwu",      price: 1500, description: "Palm fruit soup — a true Eastern Nigerian classic",                              ada: "Rich in vitamin E and antioxidants — good for your skin and heart too! A real Eastern classic ✨" }
-      ]
-    },
-    {
-      id: "swallows",
-      name: "Swallows",
-      emoji: "🫓",
-      items: [
-        { name: "Pounded Yam",   price: 800,  description: "Smooth and satisfying — our most popular swallow",                              ada: "Our number one! Freshly pounded, smooth and stretchy — pairs with literally any soup on this menu 🤩" },
-        { name: "Eba (Garri)",   price: 400,  description: "Light and quick — perfect everyday meal",                                       ada: "Eba is light on the stomach, very filling, and quick to prepare. A Nigerian staple for a reason!" },
-        { name: "Fufu",          price: 500,  description: "Traditional and filling — the original swallow",                                ada: "High in resistant starch which feeds the good bacteria in your gut — keeps you healthy inside out! 💚" },
-        { name: "Semolina",      price: 600,  description: "Smooth texture, easy on the stomach",                                           ada: "Super smooth and easy to swallow — popular with our older guests and those with sensitive stomachs 😊" },
-        { name: "Wheat",         price: 600,  description: "High in fibre — the healthy swallow choice",                                    ada: "The healthiest swallow we offer! High in fibre and nutrients — great for managing weight too 🌾" }
-      ]
-    },
-    {
-      id: "rice",
-      name: "Rice Dishes",
-      emoji: "🍚",
-      items: [
-        { name: "Jollof Rice",          price: 1500, description: "Smoky party-style jollof — cooked over firewood",                        ada: "This is the real deal! Smoky bottom-pot jollof cooked over firewood 🍚🔥 You will not regret it!" },
-        { name: "Fried Rice",           price: 1500, description: "Colourful and flavourful with mixed vegetables and proteins",            ada: "Colourful, flavourful, and loaded with vegetables — great for kids and adults alike! 🥕" },
-        { name: "White Rice & Stew",    price: 1200, description: "Classic comfort food with rich tomato stew",                             ada: "Classic Nigerian comfort food — rich tomato stew, perfectly seasoned. Sometimes simple is best 🍅" },
-        { name: "Coconut Rice",         price: 1800, description: "Fragrant and creamy — our weekend special",                              ada: "Our weekend special! Fragrant coconut rice that sells out fast — if you see it, grab it! 🥥" }
-      ]
-    },
-    {
-      id: "grills",
-      name: "Grills & Peppered",
-      emoji: "🍗",
-      items: [
-        { name: "Peppered Chicken",  price: 2500, description: "Spicy and tender — marinated and grilled to perfection",                   ada: "Marinated for hours before hitting the grill — the flavour goes all the way in! Seriously good 🔥" },
-        { name: "Suya",              price: 1500, description: "Skewered beef with our secret spice blend",                                 ada: "Our suya spice blend is a family secret — you will not find this flavour anywhere else in Nnewi! 🥩" },
-        { name: "Peppered Gizzard",  price: 1200, description: "Crunchy, spicy, and completely addictive",                                  ada: "High in protein, low in fat — and absolutely addictive! Most people order a second plate 😄" },
-        { name: "Peppered Fish",     price: 2000, description: "Fresh catfish, heavily peppered and grilled",                               ada: "Fresh catfish delivered every morning, heavily peppered the Anambra way 🐟🔥 A real crowd favourite!" },
-        { name: "Peppered Ponmo",    price: 1000, description: "Soft cow skin, peppered and stewed",                                        ada: "A Nigerian favourite! Soft, chewy ponmo in our peppered sauce — great as a side or on its own 😋" }
-      ]
-    },
-    {
-      id: "small-chops",
-      name: "Small Chops",
-      emoji: "🫔",
-      items: [
-        { name: "Puff Puff",       price: 500, description: "6 pieces — soft, sweet, freshly fried every morning",                         ada: "Made fresh every single morning — soft, golden, and slightly sweet. The smell alone will get you! 🤤" },
-        { name: "Meat Pie",        price: 400, description: "Flaky pastry filled with spiced minced meat",                                  ada: "Baked fresh, never reheated! Flaky golden crust with perfectly spiced filling inside 🥧" },
-        { name: "Moi Moi",         price: 500, description: "Steamed bean pudding — high in plant protein",                                 ada: "Moi moi is loaded with plant protein — great for energy, muscle, and keeping you full 💪" },
-        { name: "Spring Roll",     price: 600, description: "4 pieces — crispy fried rolls with vegetable filling",                        ada: "Crispy on the outside, loaded with veggies inside — perfect for sharing with the table! 🥬" },
-        { name: "Buns",            price: 300, description: "Sweet fried dough balls — a Nigerian childhood classic",                      ada: "A Nigerian childhood classic! Sweet, soft, and dangerously addictive. You have been warned 😄" }
-      ]
-    },
-    {
-      id: "drinks",
-      name: "Drinks",
-      emoji: "🥤",
-      items: [
-        { name: "Coca-Cola",      price: 300, description: "Ice cold",                                          ada: "Nothing beats an ice cold Coke with your meal — especially with the spicy dishes! 🥤" },
-        { name: "Fanta Orange",   price: 300, description: "Ice cold",                                          ada: "Sweet and fizzy — great for cooling down after our peppered dishes! 🍊" },
-        { name: "Sprite",         price: 300, description: "Ice cold",                                          ada: "Light and refreshing — perfect to cleanse the palate between dishes 💚" },
-        { name: "Maltina",        price: 400, description: "Rich in B vitamins — great energy boost",           ada: "Maltina is loaded with B vitamins — gives you a natural energy boost without the alcohol! 🌟" },
-        { name: "Water (50cl)",   price: 200, description: "Ice cold",                                          ada: "Stay hydrated! Especially important if you are having the peppered or spicy dishes 💧" },
-        { name: "Trophy Lager",   price: 600, description: "Ice cold",                                          ada: "Ice cold Trophy — smooth, crisp, and refreshing. The Anambra man's drink of choice! 🍺" },
-        { name: "Star Lager",     price: 600, description: "Ice cold",                                          ada: "Star Lager — Nigeria's favourite! Smooth and refreshing. Best enjoyed ice cold 🌟🍺" },
-        { name: "Guinness Stout", price: 700, description: "⭐ Special offer today: Buy 1 get 1 FREE!",         ada: "⭐ TODAY ONLY: Buy 1 Guinness Stout, get 1 completely FREE! Call your waiter now to grab this deal 🍺🎉" },
-        { name: "Chivita Juice",  price: 500, description: "Assorted flavours — apple, orange, mango",         ada: "100% fruit juice — great for kids, non-drinkers, or anyone who wants something sweet and healthy 🧃" }
-      ]
-    }
-  ]
+// Character roster — images added as they're generated
+const CHARACTERS = {
+  ada:       { src: 'images/ada.png',       name: 'Ada'         },
+  chisom:    { src: 'images/chisom.png',    name: 'Chisom'      },
+  emeka:     { src: 'images/emeka.png',     name: 'Emeka'       },
+  mamachef:  { src: 'images/mamachef.png',  name: 'Mama Chef'   },
+  cheftunde: { src: 'images/cheftunde.png', name: 'Chef Tunde'  },
 };
+
+// Which character speaks per category
+const CATEGORY_CHARACTER = {
+  soups:        'ada',
+  swallows:     'ada',
+  rice:         'emeka',
+  grills:       'cheftunde',
+  'small-chops':'chisom',
+  drinks:       'chisom',
+};
+
+// Menu content (restaurant info, categories, items, Ada's messages) now lives
+// in Supabase — see loadMenuData() below. A copy is cached in localStorage so
+// the menu still loads if a customer opens the app with a bad connection.
+const MENU_CACHE_KEY = 'vw_menu_cache_' + RESTAURANT_ID;
+
+async function loadMenuData() {
+  try {
+    const [{ data: restaurant, error: rErr }, { data: categories, error: cErr }, { data: items, error: iErr }] = await Promise.all([
+      db.from('restaurants').select('*').eq('id', RESTAURANT_ID).single(),
+      db.from('menu_categories').select('*').eq('restaurant_id', RESTAURANT_ID).order('sort_order'),
+      db.from('menu_items').select('*').eq('restaurant_id', RESTAURANT_ID).order('sort_order')
+    ]);
+    if (rErr) throw rErr;
+    if (cErr) throw cErr;
+    if (iErr) throw iErr;
+
+    const categoryMessages = { all: "Here's everything we serve, all in one place! 🍽️ Tap any dish to learn more, or use the + to start your order." };
+    categories.forEach(c => { categoryMessages[c.slug] = c.ada_message; });
+
+    const data = {
+      restaurant: {
+        name: restaurant.name,
+        tagline: restaurant.tagline,
+        whatsapp: restaurant.whatsapp,
+        accentColor: restaurant.accent_color
+      },
+      ada: {
+        name: restaurant.ada_name,
+        emoji: restaurant.ada_emoji,
+        welcome: restaurant.ada_welcome,
+        idle: restaurant.ada_idle,
+        categoryMessages
+      },
+      categories: categories.map(c => ({
+        id: c.slug,
+        name: c.name,
+        emoji: c.emoji,
+        items: items
+          .filter(i => i.category_id === c.id)
+          .map(i => ({ name: i.name, price: i.price, description: i.description, ada: i.ada_message, available: i.available }))
+      }))
+    };
+
+    localStorage.setItem(MENU_CACHE_KEY, JSON.stringify(data));
+    return data;
+  } catch (err) {
+    console.error('Failed to load menu from Supabase, trying cached copy', err);
+    const cached = localStorage.getItem(MENU_CACHE_KEY);
+    if (cached) return JSON.parse(cached);
+    throw err;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 let menuData       = null;
 let activeCategory = null;
 let idleTimer      = null;
+let orderState      = {}; // { itemName: { qty, price } }
+let tabAutoSlideTimer = null;
 
 function getTableNumber() {
   const raw = new URLSearchParams(window.location.search).get('table');
@@ -117,6 +90,44 @@ function getTableNumber() {
 
 function formatPrice(amount) {
   return '₦' + amount.toLocaleString();
+}
+
+function getCategoryById(id) {
+  if (id === 'all') {
+    return {
+      id: 'all',
+      name: 'All Items',
+      emoji: '🍽️',
+      items: menuData.categories.flatMap(c => c.items)
+    };
+  }
+  return menuData.categories.find(c => c.id === id);
+}
+
+// ── Character swap ────────────────────────────────────────────────────────────
+
+function setCharacter(key) {
+  const char = CHARACTERS[key];
+  if (!char) return;
+  const img = document.getElementById('adaImg');
+  if (!img) return;
+
+  // Only swap if image actually exists (gracefully skips ungenerated characters)
+  const test = new Image();
+  test.onload = () => {
+    img.style.opacity = '0';
+    img.style.transform = 'scale(0.85)';
+    setTimeout(() => {
+      img.src = char.src;
+      img.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+      img.style.opacity = '1';
+      img.style.transform = 'scale(1)';
+    }, 200);
+  };
+  test.onerror = () => {
+    // Image not yet generated — stay on current character
+  };
+  test.src = char.src;
 }
 
 // ── Ada controller ────────────────────────────────────────────────────────────
@@ -165,6 +176,27 @@ function renderTabs(categories, activeId) {
   });
 }
 
+// ── Render category box grid ─────────────────────────────────────────────────
+
+function renderCategoryGrid(categories, activeId) {
+  const grid = document.getElementById('categoryGrid');
+  grid.innerHTML = categories.map(cat => `
+    <button class="cat-box ${cat.id === activeId ? 'active' : ''}" data-category="${cat.id}">
+      <span class="cat-box-emoji">${cat.emoji}</span>
+      <span class="cat-box-name">${cat.name}</span>
+    </button>
+  `).join('');
+
+  grid.querySelectorAll('.cat-box').forEach(box => {
+    box.addEventListener('click', () => {
+      switchCategory(box.dataset.category);
+      Ada.resetIdleTimer();
+    });
+  });
+
+  document.getElementById('allCategoriesBtn').classList.toggle('active', activeId === 'all');
+}
+
 // ── Render items ──────────────────────────────────────────────────────────────
 
 function renderItems(category) {
@@ -179,14 +211,23 @@ function renderItems(category) {
 
   const cards = category.items.map(item => {
     const isSpecial = item.description.includes('⭐') || item.description.toUpperCase().includes('FREE');
+    const soldOut = item.available === false;
+    const qty = (orderState[item.name] && orderState[item.name].qty) || 0;
     return `
-      <div class="menu-item ${isSpecial ? 'has-special' : ''}" data-item="${item.name}">
+      <div class="menu-item ${isSpecial ? 'has-special' : ''} ${soldOut ? 'sold-out' : ''}" data-item="${item.name}">
         <div class="item-info">
           <div class="item-name">${item.name}</div>
           <div class="item-description">${item.description}</div>
-          ${isSpecial ? '<span class="item-special-tag">⭐ Special Offer</span>' : ''}
+          ${soldOut ? '<span class="item-sold-out-tag">Sold Out</span>' : isSpecial ? '<span class="item-special-tag">⭐ Special Offer</span>' : ''}
         </div>
-        <div class="item-price">${formatPrice(item.price)}</div>
+        <div class="item-side">
+          <div class="item-price">${formatPrice(item.price)}</div>
+          <div class="qty-stepper" data-item="${item.name}" data-price="${item.price}">
+            <button class="qty-btn qty-minus" aria-label="Decrease quantity" ${soldOut ? 'disabled' : ''}>−</button>
+            <span class="qty-value">${qty}</span>
+            <button class="qty-btn qty-plus" aria-label="Increase quantity" ${soldOut ? 'disabled' : ''}>+</button>
+          </div>
+        </div>
       </div>
     `;
   }).join('');
@@ -200,18 +241,80 @@ function renderItems(category) {
       Ada.resetIdleTimer();
     });
   });
+
+  container.querySelectorAll('.qty-stepper').forEach(stepper => {
+    const name  = stepper.dataset.item;
+    const price = Number(stepper.dataset.price);
+    const item  = category.items.find(i => i.name === name);
+    if (item && item.available === false) return;
+
+    stepper.querySelector('.qty-minus').addEventListener('click', (e) => {
+      e.stopPropagation();
+      changeQty(name, price, -1);
+    });
+    stepper.querySelector('.qty-plus').addEventListener('click', (e) => {
+      e.stopPropagation();
+      changeQty(name, price, 1);
+    });
+  });
+}
+
+// ── Order state ───────────────────────────────────────────────────────────────
+
+function changeQty(name, price, delta) {
+  const current = orderState[name] || { qty: 0, price };
+  const next = Math.max(0, current.qty + delta);
+
+  if (next === 0) {
+    delete orderState[name];
+  } else {
+    orderState[name] = { qty: next, price };
+  }
+
+  syncQtyDisplays();
+  updateOrderSummary();
+}
+
+function syncQtyDisplays() {
+  document.querySelectorAll('.qty-stepper').forEach(stepper => {
+    const name  = stepper.dataset.item;
+    const qty   = (orderState[name] && orderState[name].qty) || 0;
+    stepper.querySelector('.qty-value').textContent = qty;
+  });
+}
+
+function updateOrderSummary() {
+  const items     = Object.values(orderState);
+  const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
+  const total      = items.reduce((sum, i) => sum + i.qty * i.price, 0);
+
+  const bar   = document.getElementById('orderSummaryBar');
+  const ada   = document.getElementById('adaContainer');
+  const badge = document.getElementById('placeOrderBadge');
+
+  document.getElementById('orderItemCount').textContent = itemCount === 1 ? '1 item' : `${itemCount} items`;
+  document.getElementById('orderTotal').textContent     = formatPrice(total);
+  badge.textContent = itemCount;
+
+  const hasItems = itemCount > 0;
+  bar.classList.toggle('visible', hasItems);
+  ada.classList.toggle('lifted', hasItems);
 }
 
 // ── Switch category ───────────────────────────────────────────────────────────
 
 function switchCategory(categoryId) {
   activeCategory = categoryId;
-  const category = menuData.categories.find(c => c.id === categoryId);
+  const category = getCategoryById(categoryId);
   if (!category) return;
 
   renderTabs(menuData.categories, categoryId);
+  renderCategoryGrid(menuData.categories, categoryId);
   renderItems(category);
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  const charKey = CATEGORY_CHARACTER[categoryId] || 'ada';
+  setCharacter(charKey);
 
   const message = menuData.ada.categoryMessages[categoryId];
   if (message) setTimeout(() => Ada.speak(message, 5500), 350);
@@ -221,13 +324,135 @@ function switchCategory(categoryId) {
 
 function initCallWaiter() {
   const table = getTableNumber();
-  document.getElementById('callWaiterBtn').addEventListener('click', () => {
-    const number  = menuData.restaurant.whatsapp;
-    const message = encodeURIComponent(`Hello, Table ${table} is calling for assistance 🙋`);
-    window.open(`https://wa.me/${number}?text=${message}`, '_blank');
+  const btn = document.getElementById('callWaiterBtn');
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+
+    const { error } = await db.from('waiter_calls').insert({
+      restaurant_id: RESTAURANT_ID,
+      table_number: Number(table),
+      status: 'pending'
+    });
+
+    btn.disabled = false;
+
+    if (error) {
+      console.error('Failed to call waiter', error);
+      Ada.speak("Hmm, that didn't go through — please try again in a moment 🙏", 5500);
+      Ada.resetIdleTimer();
+      return;
+    }
+
     Ada.speak(`I've called your waiter! 😊 Someone will be at Table ${table} very shortly.`, 6000);
     Ada.resetIdleTimer();
   });
+}
+
+// ── All-categories button ────────────────────────────────────────────────────
+
+function initAllCategoriesButton() {
+  document.getElementById('allCategoriesBtn').addEventListener('click', () => {
+    switchCategory('all');
+    Ada.resetIdleTimer();
+  });
+}
+
+// ── Place order ───────────────────────────────────────────────────────────────
+
+function initPlaceOrder() {
+  const btn = document.getElementById('placeOrderBtn');
+
+  btn.addEventListener('click', async () => {
+    const items = Object.entries(orderState);
+    if (items.length === 0) {
+      Ada.speak("Your order is empty! Tap the + next to a dish to add it first 😊", 5000);
+      Ada.resetIdleTimer();
+      return;
+    }
+
+    const table = getTableNumber();
+    const total = items.reduce((sum, [, i]) => sum + i.qty * i.price, 0);
+
+    btn.disabled = true;
+
+    // Generate the order ID client-side so we never have to read the row back —
+    // customers (anon) can only INSERT, not SELECT, so .select() after insert
+    // would fail under our RLS policies.
+    const orderId = crypto.randomUUID();
+
+    const { error: orderError } = await db.from('orders').insert({
+      id: orderId,
+      restaurant_id: RESTAURANT_ID,
+      table_number: Number(table),
+      status: 'pending',
+      total
+    });
+
+    if (orderError) {
+      console.error('Failed to place order', orderError);
+      btn.disabled = false;
+      Ada.speak("Hmm, that didn't go through — please try again in a moment 🙏", 5500);
+      Ada.resetIdleTimer();
+      return;
+    }
+
+    const orderItems = items.map(([name, i]) => ({
+      order_id: orderId,
+      item_name: name,
+      quantity: i.qty,
+      price: i.price
+    }));
+
+    const { error: itemsError } = await db.from('order_items').insert(orderItems);
+
+    btn.disabled = false;
+
+    if (itemsError) {
+      console.error('Failed to save order items', itemsError);
+      Ada.speak("Your order started but something went wrong saving the items — please call your waiter to confirm 🙏", 6000);
+      Ada.resetIdleTimer();
+      return;
+    }
+
+    Ada.speak(`Order sent! 🎉 The kitchen has your order for Table ${table}. Sit tight!`, 6000);
+    Ada.resetIdleTimer();
+
+    orderState = {};
+    syncQtyDisplays();
+    updateOrderSummary();
+  });
+}
+
+// ── Auto-slide category tabs ─────────────────────────────────────────────────
+
+function initAutoSlideTabs() {
+  const tabs = document.getElementById('categoryTabs');
+  let direction = 1;
+  let paused = false;
+
+  const resume = () => { paused = false; };
+  const pause = () => {
+    paused = true;
+    clearTimeout(tabs._resumeTimer);
+    tabs._resumeTimer = setTimeout(resume, 3000);
+  };
+
+  tabs.addEventListener('touchstart', pause, { passive: true });
+  tabs.addEventListener('pointerdown', pause);
+  tabs.addEventListener('wheel', pause, { passive: true });
+
+  clearInterval(tabAutoSlideTimer);
+  tabAutoSlideTimer = setInterval(() => {
+    if (paused) return;
+    const maxScroll = tabs.scrollWidth - tabs.clientWidth;
+    if (maxScroll <= 0) return;
+
+    if (tabs.scrollLeft >= maxScroll - 2) direction = -1;
+    if (tabs.scrollLeft <= 2) direction = 1;
+
+    tabs.scrollLeft += direction * 1.2;
+  }, 30);
 }
 
 // ── Ada tap ───────────────────────────────────────────────────────────────────
@@ -240,11 +465,46 @@ function initAdaClick() {
   });
 }
 
+// ── Landing ───────────────────────────────────────────────────────────────────
+
+function initLanding() {
+  const landing = document.getElementById('landing');
+  const app     = document.getElementById('app');
+
+  function dismiss(openSpecials) {
+    landing.classList.add('exit');
+    app.classList.add('visible');
+    app.removeAttribute('aria-hidden');
+
+    setTimeout(() => {
+      landing.style.display = 'none';
+      Ada.speak(menuData.ada.welcome, 7000);
+      Ada.resetIdleTimer();
+    }, 600);
+
+    if (openSpecials) {
+      setTimeout(() => switchCategory('drinks'), 750);
+    }
+  }
+
+  document.getElementById('btnViewMenu').addEventListener('click', () => dismiss(false));
+  document.getElementById('btnSpecials').addEventListener('click', () => dismiss(true));
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
-function init() {
-  menuData = MENU_DATA;
+async function init() {
+  try {
+    menuData = await loadMenuData();
+  } catch (err) {
+    console.error('Could not load the menu', err);
+    document.getElementById('landingTitle').textContent = 'Unable to load menu';
+    document.getElementById('landingTagline').textContent = 'Please check your connection and reload the page.';
+    return;
+  }
 
+  document.getElementById('landingTitle').textContent      = menuData.restaurant.name;
+  document.getElementById('landingTagline').textContent    = menuData.restaurant.tagline;
   document.getElementById('restaurantName').textContent    = menuData.restaurant.name;
   document.getElementById('restaurantTagline').textContent = menuData.restaurant.tagline;
   document.getElementById('tableBadge').textContent        = 'Table ' + getTableNumber();
@@ -253,13 +513,15 @@ function init() {
   const first = menuData.categories[0];
   activeCategory = first.id;
   renderTabs(menuData.categories, activeCategory);
+  renderCategoryGrid(menuData.categories, activeCategory);
   renderItems(first);
 
   initCallWaiter();
+  initPlaceOrder();
+  initAllCategoriesButton();
   initAdaClick();
-
-  setTimeout(() => Ada.speak(menuData.ada.welcome, 7000), 900);
-  Ada.resetIdleTimer();
+  initLanding();
+  initAutoSlideTabs();
 }
 
 document.addEventListener('DOMContentLoaded', init);

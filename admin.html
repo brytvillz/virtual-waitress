@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0D0D0D" />
+    <title>Virtual Waitress — Admin Dashboard</title>
+    <link rel="stylesheet" href="css/waiter.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+  </head>
+  <body>
+
+    <!-- Login screen -->
+    <section id="loginScreen" class="login-screen">
+      <form id="loginForm" class="login-card">
+        <h1>Manager Login</h1>
+        <p class="login-sub">Virtual Waitress — Admin Dashboard</p>
+        <input type="email" id="loginEmail" placeholder="Email" autocomplete="username" required />
+        <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" required />
+        <button type="submit">Log In</button>
+        <p id="loginError" class="login-error"></p>
+      </form>
+    </section>
+
+    <!-- Access denied (logged in but not a manager) -->
+    <section id="deniedScreen" class="login-screen denied-screen">
+      <div class="login-card">
+        <h1>Managers Only</h1>
+        <p class="login-sub">Your account doesn't have access to the admin dashboard. Use the staff dashboard instead.</p>
+        <a href="waiter.html" class="logout-btn denied-link">Go to Staff Dashboard</a>
+        <button id="deniedLogoutBtn">Log Out</button>
+      </div>
+    </section>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard" aria-hidden="true">
+      <header class="dash-header">
+        <h1>📊 Admin Dashboard</h1>
+        <div class="dash-header-actions">
+          <button id="refreshBtn" class="logout-btn" type="button" title="Refresh">🔄</button>
+          <a href="waiter.html" class="logout-btn">Staff Dashboard</a>
+          <button id="logoutBtn" class="logout-btn">Log Out</button>
+        </div>
+      </header>
+
+      <nav class="admin-tabs">
+        <button class="admin-tab active" data-tab="analytics">Analytics</button>
+        <button class="admin-tab" data-tab="menu">Menu Editor</button>
+      </nav>
+
+      <!-- Analytics tab -->
+      <main id="analyticsTab" class="admin-panel">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-label">Today's Orders</span>
+            <span class="stat-value" id="statTodayOrders">—</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Today's Revenue</span>
+            <span class="stat-value" id="statTodayRevenue">—</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">All-Time Orders</span>
+            <span class="stat-value" id="statAllOrders">—</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">All-Time Revenue</span>
+            <span class="stat-value" id="statAllRevenue">—</span>
+          </div>
+        </div>
+
+        <h2 class="admin-section-title">🔥 Best Sellers</h2>
+        <div id="bestSellersList" class="card-list">
+          <p class="empty-state">Loading…</p>
+        </div>
+
+        <h2 class="admin-section-title">🧾 Recent Orders</h2>
+        <div id="recentOrdersList" class="card-list">
+          <p class="empty-state">Loading…</p>
+        </div>
+      </main>
+
+      <!-- Menu editor tab -->
+      <main id="menuTab" class="admin-panel admin-panel-hidden">
+        <button id="addCategoryBtn" class="dash-btn primary admin-add-category-btn">+ New Category</button>
+        <div id="categoriesEditor"></div>
+      </main>
+    </div>
+
+    <!-- Item edit modal -->
+    <div id="itemModal" class="modal-overlay modal-hidden">
+      <form id="itemForm" class="modal-card">
+        <h2 id="itemModalTitle">Edit Item</h2>
+        <label>Name<input type="text" id="itemName" required /></label>
+        <label>Price (₦)<input type="number" id="itemPrice" min="0" required /></label>
+        <label>Description<textarea id="itemDescription" rows="2"></textarea></label>
+        <label>Ada's message<textarea id="itemAdaMessage" rows="2"></textarea></label>
+        <div class="modal-actions">
+          <button type="button" id="itemCancelBtn" class="dash-btn secondary">Cancel</button>
+          <button type="submit" class="dash-btn primary">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Category edit modal -->
+    <div id="categoryModal" class="modal-overlay modal-hidden">
+      <form id="categoryForm" class="modal-card">
+        <h2 id="categoryModalTitle">Edit Category</h2>
+        <label>Name<input type="text" id="categoryName" required /></label>
+        <label>Emoji<input type="text" id="categoryEmoji" maxlength="4" /></label>
+        <label>Ada's message for this category<textarea id="categoryAdaMessage" rows="2"></textarea></label>
+        <div class="modal-actions">
+          <button type="button" id="categoryCancelBtn" class="dash-btn secondary">Cancel</button>
+          <button type="submit" class="dash-btn primary">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <script src="js/vendor/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/admin.js"></script>
+  </body>
+</html>

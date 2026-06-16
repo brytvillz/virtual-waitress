@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0D0D0D" />
+    <title>Virtual Waitress — Staff Dashboard</title>
+    <link rel="stylesheet" href="css/waiter.css" />
+  </head>
+  <body>
+
+    <!-- Login screen -->
+    <section id="loginScreen" class="login-screen">
+      <form id="loginForm" class="login-card">
+        <h1>Staff Login</h1>
+        <p class="login-sub">Virtual Waitress — Nnewi Buka</p>
+        <input type="email" id="loginEmail" placeholder="Email" autocomplete="username" required />
+        <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" required />
+        <button type="submit">Log In</button>
+        <p id="loginError" class="login-error"></p>
+      </form>
+    </section>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard" aria-hidden="true">
+      <header class="dash-header">
+        <h1>🍽️ Staff Dashboard</h1>
+        <div class="dash-header-actions">
+          <button id="refreshBtn" class="logout-btn" type="button" title="Refresh">🔄</button>
+          <a id="adminLink" href="admin.html" class="logout-btn">Admin</a>
+          <button id="logoutBtn" class="logout-btn">Log Out</button>
+        </div>
+      </header>
+
+      <main class="dash-content">
+        <section class="dash-column">
+          <h2>🔔 Waiter Calls <span class="count-badge" id="callsCount">0</span></h2>
+          <div id="callsList" class="card-list">
+            <p class="empty-state">No active calls</p>
+          </div>
+        </section>
+
+        <section class="dash-column">
+          <h2>🛒 Orders <span class="count-badge" id="ordersCount">0</span></h2>
+          <div id="ordersList" class="card-list">
+            <p class="empty-state">No active orders</p>
+          </div>
+        </section>
+
+        <section class="dash-column">
+          <h2>📋 Menu — Mark Sold Out</h2>
+          <div id="menuToggleList" class="card-list">
+            <p class="empty-state">Loading menu…</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="js/vendor/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/waiter.js"></script>
+  </body>
+</html>
