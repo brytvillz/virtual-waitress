@@ -5,7 +5,16 @@
 const SUPABASE_URL = 'https://rewdizxixvfytxnkcjyh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJld2RpenhpeHZmeXR4bmtjanloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1OTUyMjQsImV4cCI6MjA5NzE3MTIyNH0.JalhUqRkH4mHdZZsyZD0N3iNQWStCKptHc1fn8zLOas';
 
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Use separate storage keys per page so admin and waiter sessions
+// don't overwrite each other when testing on the same browser/device.
+const _path = window.location.pathname;
+const _storageKey = _path.includes('admin') ? 'vw_admin_auth'
+                  : _path.includes('waiter') ? 'vw_waiter_auth'
+                  : 'vw_customer_auth';
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { storageKey: _storageKey }
+});
 
 // TODO: paste the UUID returned by the `insert into restaurants ...` query here
 const RESTAURANT_ID = '78698609-5135-4d35-8eb3-7f33dd828ecc';

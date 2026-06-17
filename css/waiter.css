@@ -97,7 +97,9 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+.dash-header-identity { display: flex; flex-direction: column; gap: 2px; }
 .dash-header h1 { font-size: 1.15rem; font-weight: 800; }
+.waiter-table-badge { font-size: 0.75rem; color: var(--accent); font-weight: 600; }
 
 .dash-header-actions {
   display: flex;

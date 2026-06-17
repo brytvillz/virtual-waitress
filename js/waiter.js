@@ -443,8 +443,31 @@ async function initPushSubscription() {
 
 // ── Dashboard start ───────────────────────────────────────────────────────────
 
+async function loadWaiterProfile() {
+  const { data: { user } } = await db.auth.getUser();
+  if (!user) return;
+  const { data } = await db.from('staff').select('name').eq('id', user.id).single();
+  if (data?.name) {
+    document.getElementById('waiterName').textContent = `👋 ${data.name}`;
+  }
+  updateTableBadge();
+}
+
+function updateTableBadge() {
+  const badge = document.getElementById('waiterTableBadge');
+  if (!badge) return;
+  if (myTableNumbers.size > 0) {
+    const sorted = [...myTableNumbers].sort((a, b) => a - b).join(', ');
+    badge.textContent = `Tables: ${sorted}`;
+  } else {
+    badge.textContent = 'No tables assigned today';
+  }
+  badge.classList.remove('admin-hidden');
+}
+
 async function startDashboard() {
   await loadAssignments();
+  loadWaiterProfile();
   loadStaffRole();
   refreshOrders();
   refreshCalls();
@@ -455,6 +478,7 @@ async function startDashboard() {
 
   setInterval(async () => {
     await loadAssignments();
+    updateTableBadge();
     refreshOrders();
     refreshCalls();
   }, 30000);

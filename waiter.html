@@ -23,7 +23,10 @@
     <!-- Dashboard -->
     <div id="dashboard" class="dashboard" aria-hidden="true">
       <header class="dash-header">
-        <h1>🍽️ Staff Dashboard</h1>
+        <div class="dash-header-identity">
+          <h1 id="waiterName">🍽️ Staff Dashboard</h1>
+          <p id="waiterTableBadge" class="waiter-table-badge admin-hidden"></p>
+        </div>
         <div class="dash-header-actions">
           <button id="refreshBtn" class="logout-btn" type="button" title="Refresh">🔄</button>
           <a id="adminLink" href="admin.html" class="logout-btn">Admin</a>
