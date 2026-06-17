@@ -145,6 +145,40 @@
           </div>
         </section>
 
+        <!-- Waiter profile (full-screen sub-view of Staff) -->
+        <section id="waiterProfileSection" class="admin-section admin-hidden">
+          <div class="section-header">
+            <button id="backToStaffBtn" class="btn-secondary">← Back</button>
+            <h2 class="section-title" id="profileSectionTitle">Waiter Profile</h2>
+          </div>
+
+          <div class="profile-identity-card">
+            <div class="profile-avatar" id="profileAvatar">?</div>
+            <div class="profile-identity-info">
+              <p class="profile-name" id="profileName">—</p>
+              <div class="profile-badges">
+                <span class="role-badge role-badge--waiter">waiter</span>
+                <span class="staff-code-badge" id="profileCode">—</span>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="subsection-title">Today</h3>
+          <div class="stat-grid" id="profileTodayStats">
+            <p class="empty-state">Loading…</p>
+          </div>
+
+          <h3 class="subsection-title">Last 7 Days</h3>
+          <div id="profileShiftHistory">
+            <p class="empty-state">Loading…</p>
+          </div>
+
+          <h3 class="subsection-title">All Time</h3>
+          <div class="stat-grid" id="profileAllTimeStats">
+            <p class="empty-state">Loading…</p>
+          </div>
+        </section>
+
         <!-- Tables section -->
         <section id="tablesSection" class="admin-section admin-hidden">
           <div class="section-header">

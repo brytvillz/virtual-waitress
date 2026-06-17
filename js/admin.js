@@ -504,6 +504,7 @@ function renderStaff(staffList, waiterTables, waiterStats) {
     const codeHtml = isWaiter ? `
       <div class="staff-code-row">
         <span class="staff-code-badge">${member.access_code || 'No code'}</span>
+        <button class="icon-btn view-profile-btn" data-id="${member.id}" type="button">View Profile</button>
         <button class="icon-btn regen-code-btn" data-id="${member.id}" type="button">↺ New Code</button>
         <button class="icon-btn danger deactivate-btn" data-id="${member.id}" data-name="${member.name || 'this waiter'}" type="button">Remove</button>
       </div>
@@ -524,6 +525,10 @@ function renderStaff(staffList, waiterTables, waiterStats) {
     `;
   }).join('');
 
+  list.querySelectorAll('.view-profile-btn').forEach(btn => {
+    const member = staffList.find(m => m.id === btn.dataset.id);
+    btn.addEventListener('click', () => openWaiterProfile(member));
+  });
   list.querySelectorAll('.regen-code-btn').forEach(btn => {
     btn.addEventListener('click', () => regenerateCode(btn.dataset.id));
   });
@@ -738,6 +743,145 @@ function initSettingsForm() {
   });
 }
 
+// ── Waiter profile (full-screen sub-view) ────────────────────────────────────
+
+let profilePreviousSection = 'staff';
+
+function openWaiterProfile(member) {
+  profilePreviousSection = currentSection;
+  document.getElementById(currentSection + 'Section').classList.add('admin-hidden');
+  document.getElementById('waiterProfileSection').classList.remove('admin-hidden');
+
+  const titleEl = document.getElementById('topbarTitle');
+  if (titleEl) titleEl.textContent = member.name || 'Waiter Profile';
+  document.getElementById('profileSectionTitle').textContent = member.name || 'Waiter Profile';
+  document.getElementById('profileName').textContent = member.name || 'Unnamed';
+  document.getElementById('profileCode').textContent = member.access_code || 'No code';
+  document.getElementById('profileAvatar').textContent = (member.name || '?')[0].toUpperCase();
+
+  document.getElementById('profileTodayStats').innerHTML = '<p class="empty-state">Loading…</p>';
+  document.getElementById('profileShiftHistory').innerHTML = '<p class="empty-state">Loading…</p>';
+  document.getElementById('profileAllTimeStats').innerHTML = '<p class="empty-state">Loading…</p>';
+
+  loadWaiterProfileData(member.id);
+}
+
+function closeWaiterProfile() {
+  document.getElementById('waiterProfileSection').classList.add('admin-hidden');
+  document.getElementById(profilePreviousSection + 'Section').classList.remove('admin-hidden');
+  const titleEl = document.getElementById('topbarTitle');
+  if (titleEl) titleEl.textContent = 'Staff';
+  currentSection = profilePreviousSection;
+}
+
+async function loadWaiterProfileData(waiterId) {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [
+    { data: assignments },
+    { data: todayOrders },
+    { data: weekOrders },
+    { data: allOrders }
+  ] = await Promise.all([
+    db.from('shift_assignments')
+      .select('tables(table_number)')
+      .eq('waiter_id', waiterId)
+      .eq('restaurant_id', RESTAURANT_ID)
+      .eq('assigned_date', todayDate()),
+    db.from('orders')
+      .select('total, order_items(item_name, quantity)')
+      .eq('handled_by', waiterId)
+      .eq('restaurant_id', RESTAURANT_ID)
+      .gte('created_at', startOfToday()),
+    db.from('orders')
+      .select('total, created_at, table_number, order_items(item_name, quantity)')
+      .eq('handled_by', waiterId)
+      .eq('restaurant_id', RESTAURANT_ID)
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false }),
+    db.from('orders')
+      .select('total')
+      .eq('handled_by', waiterId)
+      .eq('restaurant_id', RESTAURANT_ID)
+  ]);
+
+  const tables = (assignments || []).map(a => a.tables?.table_number).filter(Boolean).sort((a, b) => a - b);
+  const todayCount = (todayOrders || []).length;
+  const todayRevenue = (todayOrders || []).reduce((s, o) => s + o.total, 0);
+  const allCount = (allOrders || []).length;
+  const allRevenue = (allOrders || []).reduce((s, o) => s + o.total, 0);
+
+  document.getElementById('profileTodayStats').innerHTML = `
+    <div class="stat-card">
+      <span class="stat-label">Tables Assigned</span>
+      <span class="stat-value profile-tables-value">${tables.length ? tables.join(', ') : '—'}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Orders Today</span>
+      <span class="stat-value">${todayCount}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Revenue Today</span>
+      <span class="stat-value">${formatPrice(todayRevenue)}</span>
+    </div>
+  `;
+
+  document.getElementById('profileAllTimeStats').innerHTML = `
+    <div class="stat-card">
+      <span class="stat-label">Total Orders</span>
+      <span class="stat-value">${allCount}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Total Revenue</span>
+      <span class="stat-value">${formatPrice(allRevenue)}</span>
+    </div>
+  `;
+
+  renderProfileShiftHistory(weekOrders || []);
+}
+
+function renderProfileShiftHistory(orders) {
+  const container = document.getElementById('profileShiftHistory');
+  if (!orders.length) {
+    container.innerHTML = '<p class="empty-state">No orders handled in the last 7 days.</p>';
+    return;
+  }
+
+  const groups = {};
+  orders.forEach(order => {
+    const d = new Date(order.created_at);
+    const key = d.toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' });
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(order);
+  });
+
+  container.innerHTML = Object.entries(groups).map(([date, dayOrders]) => {
+    const dayRevenue = dayOrders.reduce((s, o) => s + o.total, 0);
+    const rows = dayOrders.map(o => {
+      const items = (o.order_items || []).map(i => `${i.quantity}× ${i.item_name}`).join(', ');
+      return `<div class="profile-order-row">
+        <span class="profile-order-table">Table ${o.table_number}</span>
+        <span class="profile-order-items">${items || '—'}</span>
+        <span class="profile-order-total">${formatPrice(o.total)}</span>
+      </div>`;
+    }).join('');
+
+    return `
+      <div class="shift-day-group">
+        <div class="shift-day-header">
+          <span class="shift-day-date">${date}</span>
+          <span class="shift-day-summary">${dayOrders.length} order${dayOrders.length !== 1 ? 's' : ''} · ${formatPrice(dayRevenue)}</span>
+        </div>
+        ${rows}
+      </div>
+    `;
+  }).join('');
+}
+
+function initWaiterProfile() {
+  document.getElementById('backToStaffBtn').addEventListener('click', closeWaiterProfile);
+}
+
 // ── Create Waiter modal ────────────────────────────────────────────────────────
 
 function openWaiterModal() {
@@ -837,4 +981,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initSettingsForm();
   initWaiterModal();
   initForgotPassword();
+  initWaiterProfile();
 });
