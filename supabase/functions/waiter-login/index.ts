@@ -41,11 +41,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.admin.createSession({ user_id: staff.id });
+    // Get the auth user's email (stored on the auth.users record)
+    const { data: userData, error: userError } =
+      await supabase.auth.admin.getUserById(staff.id);
 
-    if (sessionError || !sessionData?.session) {
-      console.error("Session creation failed:", sessionError);
+    if (userError || !userData?.user?.email) {
+      console.error("getUserById failed:", userError);
+      return new Response(JSON.stringify({ error: "Login failed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Generate a magic-link token — email delivery to the internal address
+    // will fail silently, but the hashed_token is what we actually use.
+    const { data: linkData, error: linkError } =
+      await supabase.auth.admin.generateLink({
+        type: "magiclink",
+        email: userData.user.email,
+      });
+
+    if (linkError || !linkData?.properties?.hashed_token) {
+      console.error("generateLink failed:", linkError);
       return new Response(JSON.stringify({ error: "Login failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -53,7 +70,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ session: sessionData.session, staff }),
+      JSON.stringify({ hashed_token: linkData.properties.hashed_token, staff }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

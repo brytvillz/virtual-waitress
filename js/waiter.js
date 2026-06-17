@@ -81,7 +81,10 @@ async function initAuth() {
         return;
       }
 
-      const { error: sessionError } = await db.auth.setSession(result.session);
+      const { error: sessionError } = await db.auth.verifyOtp({
+        token_hash: result.hashed_token,
+        type: 'magiclink'
+      });
       if (sessionError) {
         errorEl.textContent = 'Login failed — please try again.';
         return;

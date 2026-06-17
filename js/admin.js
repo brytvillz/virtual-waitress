@@ -769,6 +769,12 @@ function initWaiterModal() {
 
     try {
       const { data: { session } } = await db.auth.getSession();
+      if (!session) {
+        errorEl.textContent = 'Session expired — refresh the page and try again.';
+        btn.disabled = false;
+        btn.textContent = 'Create Waiter';
+        return;
+      }
       const res = await fetch(`${SUPABASE_URL}/functions/v1/create-waiter`, {
         method: 'POST',
         headers: {
