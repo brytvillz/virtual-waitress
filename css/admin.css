@@ -825,3 +825,44 @@
 .denied-link {
   text-align: center;
 }
+
+/* ── Staff code row ───────────────────────────────────────────────────────── */
+
+.staff-code-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.staff-code-badge {
+  font-family: 'Courier New', monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: rgba(232, 137, 58, 0.12);
+  color: var(--accent);
+  padding: 3px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.06em;
+}
+
+/* ── Manager login extras ─────────────────────────────────────────────────── */
+
+.forgot-password-link {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+  text-decoration: none;
+  margin-top: 2px;
+}
+
+.forgot-password-link:hover { color: var(--text); }
+
+/* ── Create Waiter modal hint ─────────────────────────────────────────────── */
+
+.modal-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: -4px;
+}

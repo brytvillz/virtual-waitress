@@ -491,6 +491,99 @@ function initLanding() {
   document.getElementById('btnSpecials').addEventListener('click', () => dismiss(true));
 }
 
+// ── My Order tracker ─────────────────────────────────────────────────────────
+
+function formatOrderStatus(status) {
+  if (status === 'preparing') return { label: 'Preparing', cls: 'status-preparing' };
+  if (status === 'served')    return { label: 'Served',    cls: 'status-served' };
+  return { label: 'Pending', cls: 'status-pending' };
+}
+
+async function loadMyOrders() {
+  const table = getTableNumber();
+  const content = document.getElementById('myOrderContent');
+  content.innerHTML = '<p class="my-order-empty">Loading…</p>';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/table-orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body: JSON.stringify({ restaurant_id: RESTAURANT_ID, table_number: Number(table) })
+    });
+
+    const { orders, error } = await res.json();
+    if (error || !res.ok) throw new Error(error || 'Request failed');
+    renderMyOrders(orders || []);
+  } catch (err) {
+    console.error('My Order load error', err);
+    content.innerHTML = '<p class="my-order-empty">Could not load orders — check your connection.</p>';
+  }
+}
+
+function renderMyOrders(orders) {
+  const content = document.getElementById('myOrderContent');
+
+  if (!orders.length) {
+    content.innerHTML = '<p class="my-order-empty">No orders placed yet at this table.</p>';
+    return;
+  }
+
+  const grandTotal = orders.reduce((sum, o) => sum + o.total, 0);
+
+  const orderBlocks = orders.map(order => {
+    const { label, cls } = formatOrderStatus(order.status);
+    const itemRows = (order.order_items || []).map(item =>
+      `<div class="my-order-item-row">
+        <span>${item.quantity}× ${item.item_name}</span>
+        <span>₦${(item.quantity * item.price).toLocaleString()}</span>
+      </div>`
+    ).join('');
+
+    return `
+      <div class="my-order-block">
+        <div class="my-order-block-header">
+          <span class="my-order-status ${cls}">${label}</span>
+          <span class="my-order-subtotal">₦${order.total.toLocaleString()}</span>
+        </div>
+        <div class="my-order-items">${itemRows}</div>
+      </div>
+    `;
+  }).join('');
+
+  content.innerHTML = `
+    ${orderBlocks}
+    <div class="my-order-total-row">
+      <span>Total Bill</span>
+      <span>₦${grandTotal.toLocaleString()}</span>
+    </div>
+  `;
+}
+
+function initMyOrder() {
+  const table = getTableNumber();
+  document.getElementById('myOrderTableNum').textContent = table;
+
+  document.getElementById('myOrderBtn').addEventListener('click', () => {
+    document.getElementById('myOrderModal').classList.remove('admin-hidden');
+    loadMyOrders();
+  });
+
+  document.getElementById('myOrderCloseBtn').addEventListener('click', () => {
+    document.getElementById('myOrderModal').classList.add('admin-hidden');
+  });
+
+  document.getElementById('myOrderRefreshBtn').addEventListener('click', loadMyOrders);
+
+  document.getElementById('myOrderModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('myOrderModal')) {
+      document.getElementById('myOrderModal').classList.add('admin-hidden');
+    }
+  });
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -522,6 +615,7 @@ async function init() {
   initAdaClick();
   initLanding();
   initAutoSlideTabs();
+  initMyOrder();
 }
 
 document.addEventListener('DOMContentLoaded', init);

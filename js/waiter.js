@@ -58,13 +58,43 @@ async function initAuth() {
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
+    const code = document.getElementById('loginCode').value.trim().toUpperCase();
     const errorEl = document.getElementById('loginError');
+    const btn = e.target.querySelector('button[type="submit"]');
     errorEl.textContent = '';
-    const { error } = await db.auth.signInWithPassword({ email, password });
-    if (error) { errorEl.textContent = 'Login failed — check your email and password.'; return; }
-    showDashboard();
+    btn.disabled = true;
+    btn.textContent = 'Logging in…';
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/waiter-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ access_code: code, restaurant_id: RESTAURANT_ID })
+      });
+
+      const result = await res.json();
+      if (!res.ok || result.error) {
+        errorEl.textContent = 'Invalid code — check with your manager.';
+        return;
+      }
+
+      const { error: sessionError } = await db.auth.setSession(result.session);
+      if (sessionError) {
+        errorEl.textContent = 'Login failed — please try again.';
+        return;
+      }
+
+      showDashboard();
+    } catch (err) {
+      console.error('Login error', err);
+      errorEl.textContent = 'Connection error — please try again.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Log In';
+    }
   });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {

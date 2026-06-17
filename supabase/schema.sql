@@ -364,3 +364,6 @@ create policy "manager_delete_assignments" on shift_assignments for delete to au
 
 -- Track which waiter handled each order (stamped when waiter clicks "Start Preparing")
 alter table orders add column if not exists handled_by uuid references staff(id);
+
+-- Waiter access codes (WTR-XXXX format) for code-based login
+alter table staff add column if not exists access_code text unique;

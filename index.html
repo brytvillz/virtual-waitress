@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+    />
 
     <!-- PWA: theme and background -->
     <meta name="theme-color" content="#0D0D0D" />
@@ -11,7 +14,10 @@
     <!-- PWA: makes it installable as a standalone app on iOS and Android -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="apple-mobile-web-app-title" content="VW Menu" />
     <link rel="apple-touch-icon" href="icons/icon.svg" />
 
@@ -29,28 +35,41 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
-
     <!-- ── Landing / Advert Screen ───────────────────────────────────────── -->
     <section id="landing" aria-label="Welcome screen">
       <div class="landing-bg"></div>
       <div class="landing-inner">
         <div class="landing-food-wrap">
-          <img src="images/hero-food.jpg" alt="" class="landing-food" role="presentation" />
+          <img
+            src="images/hero-food.jpg"
+            alt=""
+            class="landing-food"
+            role="presentation"
+          />
         </div>
         <p class="landing-eyebrow">Welcome to</p>
         <h1 class="landing-title" id="landingTitle">Nnewi Buka</h1>
-        <p class="landing-tagline" id="landingTagline">Authentic Igbo Home Cooking</p>
+        <p class="landing-tagline" id="landingTagline">
+          Authentic Igbo Home Cooking
+        </p>
         <div class="landing-actions">
-          <button class="btn-view-menu" id="btnViewMenu">✦ &nbsp;View Full Menu</button>
-          <button class="btn-specials" id="btnSpecials">⚡ &nbsp;Today's Specials</button>
+          <button class="btn-view-menu" id="btnViewMenu">
+            ✦ &nbsp;View Full Menu
+          </button>
+          <button class="btn-specials" id="btnSpecials">
+            ⚡ &nbsp;Today's Specials
+          </button>
         </div>
       </div>
-      <img src="images/ada.png" alt="Ada, your virtual waitress" class="landing-ada" />
+      <img
+        src="images/ada.png"
+        alt="Ada, your virtual waitress"
+        class="landing-ada"
+      />
     </section>
 
     <!-- ── Main App (revealed after landing) ─────────────────────────────── -->
     <div id="app" aria-hidden="true">
-
       <!-- Hero Section (also serves as the header) -->
       <header class="hero-section">
         <div class="hero-bg"></div>
@@ -71,7 +90,9 @@
       <!-- New category box grid -->
       <section class="category-grid-section" aria-label="Browse categories">
         <div class="category-grid" id="categoryGrid"></div>
-        <button class="all-categories-btn" id="allCategoriesBtn">🍽️ &nbsp;Show All Items</button>
+        <button class="all-categories-btn" id="allCategoriesBtn">
+          🍽️ &nbsp;Show All Items
+        </button>
       </section>
 
       <!-- Menu items -->
@@ -83,10 +104,19 @@
 
       <!-- Ada character -->
       <div class="ada-container" id="adaContainer">
-        <div class="speech-bubble" id="speechBubble" role="status" aria-live="polite">
+        <div
+          class="speech-bubble"
+          id="speechBubble"
+          role="status"
+          aria-live="polite"
+        >
           <p id="speechText"></p>
         </div>
-        <button class="ada-character" id="adaCharacter" aria-label="Chat with Ada, your virtual waitress">
+        <button
+          class="ada-character"
+          id="adaCharacter"
+          aria-label="Chat with Ada, your virtual waitress"
+        >
           <img src="images/ada.png" alt="Ada" class="ada-img" id="adaImg" />
         </button>
       </div>
@@ -110,7 +140,26 @@
         </button>
       </div>
 
-    </div><!-- /#app -->
+      <!-- My Order floating button -->
+      <button class="my-order-btn" id="myOrderBtn">📋 My Order</button>
+    </div>
+    <!-- /#app -->
+
+    <!-- My Order modal -->
+    <div id="myOrderModal" class="my-order-overlay admin-hidden">
+      <div class="my-order-card">
+        <div class="my-order-header">
+          <h2>Your Orders — Table <span id="myOrderTableNum"></span></h2>
+          <button id="myOrderCloseBtn" class="my-order-close" type="button">✕</button>
+        </div>
+        <div id="myOrderContent">
+          <p class="my-order-empty">Loading…</p>
+        </div>
+        <div class="my-order-footer">
+          <button id="myOrderRefreshBtn" class="my-order-refresh-btn" type="button">↻ Refresh</button>
+        </div>
+      </div>
+    </div>
 
     <script src="js/vendor/supabase.js"></script>
     <script src="js/supabase-config.js"></script>

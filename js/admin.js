@@ -480,6 +480,10 @@ async function loadStaff() {
   renderStaff(staffList || [], waiterTables, waiterStats);
 }
 
+function generateWaiterCode() {
+  return 'WTR-' + Math.floor(1000 + Math.random() * 9000);
+}
+
 function renderStaff(staffList, waiterTables, waiterStats) {
   const list = document.getElementById('staffList');
   if (!staffList.length) { list.innerHTML = '<p class="empty-state">No staff found</p>'; return; }
@@ -497,11 +501,20 @@ function renderStaff(staffList, waiterTables, waiterStats) {
       ? `<span class="waiter-perf-stat">${stats.count} orders</span><span class="waiter-perf-revenue">${formatPrice(stats.revenue)}</span>`
       : '';
 
+    const codeHtml = isWaiter ? `
+      <div class="staff-code-row">
+        <span class="staff-code-badge">${member.access_code || 'No code'}</span>
+        <button class="icon-btn regen-code-btn" data-id="${member.id}" type="button">↺ New Code</button>
+        <button class="icon-btn danger deactivate-btn" data-id="${member.id}" data-name="${member.name || 'this waiter'}" type="button">Remove</button>
+      </div>
+    ` : '';
+
     return `
       <div class="dash-card staff-card">
         <div class="staff-card-info">
           <span class="staff-name">${member.name || 'Unnamed'}</span>
           ${tablesHtml}
+          ${codeHtml}
         </div>
         <div class="staff-card-meta">
           <span class="role-badge role-badge--${member.role}">${member.role}</span>
@@ -510,6 +523,34 @@ function renderStaff(staffList, waiterTables, waiterStats) {
       </div>
     `;
   }).join('');
+
+  list.querySelectorAll('.regen-code-btn').forEach(btn => {
+    btn.addEventListener('click', () => regenerateCode(btn.dataset.id));
+  });
+  list.querySelectorAll('.deactivate-btn').forEach(btn => {
+    btn.addEventListener('click', () => deactivateWaiter(btn.dataset.id, btn.dataset.name));
+  });
+}
+
+async function regenerateCode(staffId) {
+  let newCode = '';
+  for (let i = 0; i < 5; i++) {
+    const candidate = generateWaiterCode();
+    const { data } = await db.from('staff').select('id').eq('access_code', candidate).maybeSingle();
+    if (!data) { newCode = candidate; break; }
+  }
+  if (!newCode) { alert('Could not generate a unique code — try again.'); return; }
+
+  const { error } = await db.from('staff').update({ access_code: newCode }).eq('id', staffId);
+  if (error) { console.error('Regen code failed', error); alert('Failed to update code.'); return; }
+  await loadStaff();
+}
+
+async function deactivateWaiter(staffId, name) {
+  if (!confirm(`Remove ${name}? Their code will stop working and they won't be able to log in. Their order history is kept.`)) return;
+  const { error } = await db.from('staff').update({ access_code: null }).eq('id', staffId);
+  if (error) { console.error('Deactivate failed', error); alert('Failed to deactivate waiter.'); return; }
+  await loadStaff();
 }
 
 // ── Tables ────────────────────────────────────────────────────────────────────
@@ -697,6 +738,88 @@ function initSettingsForm() {
   });
 }
 
+// ── Create Waiter modal ────────────────────────────────────────────────────────
+
+function openWaiterModal() {
+  document.getElementById('waiterName').value = '';
+  document.getElementById('waiterFormError').textContent = '';
+  document.getElementById('waiterSubmitBtn').disabled = false;
+  document.getElementById('waiterSubmitBtn').textContent = 'Create Waiter';
+  document.getElementById('waiterModal').classList.remove('admin-hidden');
+}
+
+function closeWaiterModal() {
+  document.getElementById('waiterModal').classList.add('admin-hidden');
+}
+
+function initWaiterModal() {
+  document.getElementById('newWaiterBtn').addEventListener('click', openWaiterModal);
+  document.getElementById('waiterCancelBtn').addEventListener('click', closeWaiterModal);
+
+  document.getElementById('waiterForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('waiterName').value.trim();
+    const errorEl = document.getElementById('waiterFormError');
+    const btn = document.getElementById('waiterSubmitBtn');
+    if (!name) { errorEl.textContent = 'Enter the waiter\'s name.'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+    errorEl.textContent = '';
+
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/create-waiter`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ name, restaurant_id: RESTAURANT_ID })
+      });
+
+      const result = await res.json();
+      if (!res.ok || result.error) throw new Error(result.error || 'Failed to create waiter');
+
+      closeWaiterModal();
+      await loadStaff();
+      alert(`Waiter created!\n\nName: ${result.staff.name}\nCode: ${result.staff.access_code}\n\nShare this code with the waiter — they'll use it to log in.`);
+    } catch (err) {
+      console.error('Create waiter error', err);
+      errorEl.textContent = err.message || 'Something went wrong. Try again.';
+      btn.disabled = false;
+      btn.textContent = 'Create Waiter';
+    }
+  });
+}
+
+// ── Forgot password ────────────────────────────────────────────────────────────
+
+function initForgotPassword() {
+  document.getElementById('forgotPasswordLink').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const msgEl = document.getElementById('forgotPasswordMsg');
+    msgEl.classList.remove('admin-hidden');
+
+    if (!email) {
+      msgEl.textContent = 'Enter your email above first, then click Forgot password.';
+      return;
+    }
+
+    msgEl.textContent = 'Sending reset email…';
+    const { error } = await db.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://virtual-waitress.vercel.app/reset-password'
+    });
+
+    if (error) {
+      msgEl.textContent = 'Failed to send reset email. Check the address and try again.';
+    } else {
+      msgEl.textContent = 'Reset email sent — check your inbox.';
+    }
+  });
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -706,4 +829,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initCategoryModal();
   initTableModal();
   initSettingsForm();
+  initWaiterModal();
+  initForgotPassword();
 });

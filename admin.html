@@ -19,6 +19,8 @@
         <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" required />
         <button type="submit">Log In</button>
         <p id="loginError" class="login-error"></p>
+        <a href="#" id="forgotPasswordLink" class="forgot-password-link">Forgot password?</a>
+        <p id="forgotPasswordMsg" class="login-error admin-hidden"></p>
       </form>
     </section>
 
@@ -136,6 +138,7 @@
         <section id="staffSection" class="admin-section admin-hidden">
           <div class="section-header">
             <h2 class="section-title">Staff</h2>
+            <button id="newWaiterBtn" class="btn-primary">+ New Waiter</button>
           </div>
           <div id="staffList" class="card-list">
             <p class="empty-state">Loading…</p>
@@ -250,6 +253,20 @@
         <div class="modal-actions">
           <button type="button" id="tableCancelBtn" class="btn-secondary">Cancel</button>
           <button type="submit" class="btn-primary">Add Table</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Create waiter modal -->
+    <div id="waiterModal" class="modal-overlay admin-hidden">
+      <form id="waiterForm" class="modal-card">
+        <h2>New Waiter</h2>
+        <label class="modal-field-label">Full Name<input type="text" id="waiterName" placeholder="e.g. Chidi Obi" required /></label>
+        <p class="modal-hint">A login code (WTR-XXXX) will be generated automatically.</p>
+        <p id="waiterFormError" class="login-error"></p>
+        <div class="modal-actions">
+          <button type="button" id="waiterCancelBtn" class="btn-secondary">Cancel</button>
+          <button type="submit" id="waiterSubmitBtn" class="btn-primary">Create Waiter</button>
         </div>
       </form>
     </div>
