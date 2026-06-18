@@ -62,7 +62,7 @@ document.getElementById('suForm').addEventListener('submit', async e => {
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/create-restaurant`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
       body: JSON.stringify({ restaurant_name: restaurantName, email, password }),
     });
 
