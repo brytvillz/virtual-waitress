@@ -16,8 +16,8 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { storageKey: _storageKey }
 });
 
-// TODO: paste the UUID returned by the `insert into restaurants ...` query here
-const RESTAURANT_ID = '78698609-5135-4d35-8eb3-7f33dd828ecc';
+// Resolved at runtime: app.js reads ?r=slug, admin.js/waiter.js read from staff record
+let RESTAURANT_ID = null;
 
 // Public VAPID key — safe to expose client-side, this is what identifies our
 // app to the browser's push service. The matching private key never leaves

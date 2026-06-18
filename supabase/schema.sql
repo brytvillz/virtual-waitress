@@ -367,3 +367,11 @@ alter table orders add column if not exists handled_by uuid references staff(id)
 
 -- Waiter access codes (WTR-XXXX format) for code-based login
 alter table staff add column if not exists access_code text unique;
+
+-- 14. Multi-tenancy: restaurant slug for URL routing (?r=slug)
+-- Ensure the demo restaurant has the correct slug for customer menu URL resolution.
+-- The restaurants table has no RLS — public reads are intentional (restaurant name/slug are public).
+update restaurants
+  set slug = 'nnewi-buka'
+  where id = '78698609-5135-4d35-8eb3-7f33dd828ecc'
+    and (slug is null or slug = '' or slug != 'nnewi-buka');

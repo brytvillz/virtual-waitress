@@ -50,8 +50,9 @@ function showLogin() {
 async function checkAccessAndEnter() {
   const { data: { user } } = await db.auth.getUser();
   if (!user) { showLogin(); return; }
-  const { data, error } = await db.from('staff').select('role').eq('id', user.id).single();
+  const { data, error } = await db.from('staff').select('role, restaurant_id').eq('id', user.id).single();
   if (error || !data || data.role !== 'manager') { showDenied(); return; }
+  RESTAURANT_ID = data.restaurant_id;
   showDashboard();
 }
 

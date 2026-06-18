@@ -54,7 +54,12 @@ function showLogin() {
 
 async function initAuth() {
   const { data: { session } } = await db.auth.getSession();
-  if (session) showDashboard();
+  if (session) {
+    // Restore restaurant context from the staff record before showing the dashboard
+    const { data: staffRow } = await db.from('staff').select('restaurant_id').eq('id', session.user.id).single();
+    if (staffRow) RESTAURANT_ID = staffRow.restaurant_id;
+    showDashboard();
+  }
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -72,7 +77,7 @@ async function initAuth() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
         },
-        body: JSON.stringify({ access_code: code, restaurant_id: RESTAURANT_ID })
+        body: JSON.stringify({ access_code: code })
       });
 
       const result = await res.json();
@@ -90,6 +95,7 @@ async function initAuth() {
         return;
       }
 
+      RESTAURANT_ID = result.staff.restaurant_id;
       showDashboard();
     } catch (err) {
       console.error('Login error', err);

@@ -17,20 +17,20 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { access_code, restaurant_id } = await req.json();
+    const { access_code } = await req.json();
 
-    if (!access_code || !restaurant_id) {
+    if (!access_code) {
       return new Response(JSON.stringify({ error: "Missing fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Access codes are globally unique — no restaurant_id needed
     const { data: staff, error: staffError } = await supabase
       .from("staff")
-      .select("id, name, role")
+      .select("id, name, role, restaurant_id")
       .eq("access_code", String(access_code).trim().toUpperCase())
-      .eq("restaurant_id", restaurant_id)
       .eq("role", "waiter")
       .maybeSingle();
 

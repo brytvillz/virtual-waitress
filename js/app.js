@@ -23,7 +23,8 @@ const CATEGORY_CHARACTER = {
 // Menu content (restaurant info, categories, items, Ada's messages) now lives
 // in Supabase — see loadMenuData() below. A copy is cached in localStorage so
 // the menu still loads if a customer opens the app with a bad connection.
-const MENU_CACHE_KEY = 'vw_menu_cache_' + RESTAURANT_ID;
+// Key uses the slug (known before the ID is resolved) for cache separation per restaurant.
+let MENU_CACHE_KEY;
 
 async function loadMenuData() {
   try {
@@ -80,6 +81,12 @@ let activeCategory = null;
 let idleTimer      = null;
 let orderState      = {}; // { itemName: { qty, price } }
 let tabAutoSlideTimer = null;
+
+function getRestaurantSlug() {
+  const raw = new URLSearchParams(window.location.search).get('r');
+  // Fall back to demo restaurant if ?r= is missing (backwards-compat with printed QR cards)
+  return (raw && /^[a-z0-9-]+$/.test(raw)) ? raw : 'nnewi-buka';
+}
 
 function getTableNumber() {
   const raw = new URLSearchParams(window.location.search).get('table');
@@ -587,6 +594,24 @@ function initMyOrder() {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function init() {
+  // Resolve restaurant from ?r=slug before anything else
+  const slug = getRestaurantSlug();
+  MENU_CACHE_KEY = 'vw_menu_cache_' + slug;
+
+  const { data: restaurantRow, error: slugError } = await db
+    .from('restaurants')
+    .select('id')
+    .eq('slug', slug)
+    .single();
+
+  if (slugError || !restaurantRow) {
+    document.getElementById('landingTitle').textContent = 'Restaurant not found';
+    document.getElementById('landingTagline').textContent = 'Please scan the QR code at your table again.';
+    return;
+  }
+
+  RESTAURANT_ID = restaurantRow.id;
+
   try {
     menuData = await loadMenuData();
   } catch (err) {
