@@ -606,7 +606,7 @@ body {
   position: fixed;
   left: 16px;
   right: 16px;
-  bottom: calc(94px + env(safe-area-inset-bottom));
+  bottom: calc(116px + env(safe-area-inset-bottom));
   background: #1A1A1A;
   border: 1.5px solid var(--accent);
   border-radius: 14px;
