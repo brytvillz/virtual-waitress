@@ -478,6 +478,27 @@
   border-top: 1px solid var(--border);
 }
 
+.item-edit-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.item-edit-thumb-placeholder {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
 .item-edit-row:first-of-type {
   border-top: none;
 }
@@ -1090,3 +1111,55 @@
   font-family: monospace;
   letter-spacing: 0.05em;
 }
+
+/* ── Item image upload widget ──────────────────────────────────────────────── */
+
+.item-img-upload-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.item-img-preview {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+  border: 1px solid var(--border);
+}
+
+.item-img-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.item-img-upload-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#itemImageFile {
+  display: none;
+}
+
+.item-remove-img-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: fit-content;
+}
+.item-remove-img-btn:hover { color: #E85A5A; }

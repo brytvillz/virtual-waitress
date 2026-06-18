@@ -466,6 +466,15 @@ body {
   flex-shrink: 0;
 }
 
+.item-photo {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+  flex-shrink: 0;
+}
+
 .item-price {
   font-weight: 800;
   font-size: 0.97rem;

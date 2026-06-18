@@ -149,10 +149,14 @@ create table menu_items (
   price         int not null,
   description   text,
   ada_message   text,
+  image_url     text,
   available     boolean not null default true,
   sort_order    int not null default 0,
   created_at    timestamptz not null default now()
 );
+
+-- Run this if the table already exists (migration):
+-- alter table menu_items add column if not exists image_url text;
 
 create index idx_menu_items_category on menu_items(category_id);
 

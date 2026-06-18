@@ -284,6 +284,9 @@ function renderMenuEditor() {
     const items = itemsCache.filter(i => i.category_id === cat.id);
     const itemsHtml = items.map(item => `
       <div class="item-edit-row" data-item-id="${item.id}">
+        ${item.image_url
+          ? `<img class="item-edit-thumb" src="${item.image_url}" alt="${item.name}" loading="lazy" />`
+          : '<div class="item-edit-thumb-placeholder">🍽️</div>'}
         <div class="item-edit-info">
           <span class="item-edit-name">${item.name} ${item.available ? '' : '· <span class="sold-out-label">Sold Out</span>'}</span>
           <span class="item-edit-price">${formatPrice(item.price)}</span>
@@ -366,6 +369,24 @@ function openItemModal(item, categoryId) {
   document.getElementById('itemPrice').value = item ? item.price : '';
   document.getElementById('itemDescription').value = item ? (item.description || '') : '';
   document.getElementById('itemAdaMessage').value = item ? (item.ada_message || '') : '';
+  document.getElementById('itemImageFile').value = '';
+  document.getElementById('itemForm').dataset.removeImg = '';
+
+  const preview   = document.getElementById('itemImgPreview');
+  const btnLabel  = document.getElementById('itemImgBtnLabel');
+  const removeBtn = document.getElementById('itemRemoveImgBtn');
+  if (item && item.image_url) {
+    preview.src = item.image_url;
+    preview.classList.remove('admin-hidden');
+    btnLabel.textContent = 'Change photo';
+    removeBtn.classList.remove('admin-hidden');
+  } else {
+    preview.src = '';
+    preview.classList.add('admin-hidden');
+    btnLabel.textContent = 'Add photo';
+    removeBtn.classList.add('admin-hidden');
+  }
+
   document.getElementById('itemForm').dataset.categoryId = categoryId;
   document.getElementById('itemModal').classList.remove('admin-hidden');
 }
@@ -378,15 +399,57 @@ function closeItemModal() {
 function initItemModal() {
   document.getElementById('itemCancelBtn').addEventListener('click', closeItemModal);
 
+  document.getElementById('itemImageFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const preview = document.getElementById('itemImgPreview');
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      preview.src = ev.target.result;
+      preview.classList.remove('admin-hidden');
+      document.getElementById('itemImgBtnLabel').textContent = 'Change photo';
+      document.getElementById('itemRemoveImgBtn').classList.remove('admin-hidden');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById('itemRemoveImgBtn').addEventListener('click', () => {
+    document.getElementById('itemImageFile').value = '';
+    const preview = document.getElementById('itemImgPreview');
+    preview.src = '';
+    preview.classList.add('admin-hidden');
+    document.getElementById('itemImgBtnLabel').textContent = 'Add photo';
+    document.getElementById('itemRemoveImgBtn').classList.add('admin-hidden');
+    document.getElementById('itemForm').dataset.removeImg = 'true';
+  });
+
   document.getElementById('itemForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const categoryId = e.target.dataset.categoryId;
+    const categoryId  = e.target.dataset.categoryId;
+    const file        = document.getElementById('itemImageFile').files[0];
+    const removeImg   = e.target.dataset.removeImg === 'true';
+
     const payload = {
       name: document.getElementById('itemName').value.trim(),
       price: Number(document.getElementById('itemPrice').value),
       description: document.getElementById('itemDescription').value.trim(),
       ada_message: document.getElementById('itemAdaMessage').value.trim()
     };
+
+    if (file) {
+      const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${RESTAURANT_ID}/${editingItemId || Date.now()}.${ext}`;
+      const { error: uploadError } = await db.storage
+        .from('menu-images')
+        .upload(path, file, { upsert: true });
+      if (uploadError) {
+        console.error('Image upload failed', uploadError);
+      } else {
+        payload.image_url = db.storage.from('menu-images').getPublicUrl(path).data.publicUrl;
+      }
+    } else if (removeImg) {
+      payload.image_url = null;
+    }
 
     let error;
     if (editingItemId) {

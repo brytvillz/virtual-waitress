@@ -228,6 +228,7 @@ function renderItems(category) {
           ${soldOut ? '<span class="item-sold-out-tag">Sold Out</span>' : isSpecial ? '<span class="item-special-tag">⭐ Special Offer</span>' : ''}
         </div>
         <div class="item-side">
+          ${item.image_url ? `<img class="item-photo" src="${item.image_url}" alt="${item.name}" loading="lazy" />` : ''}
           <div class="item-price">${formatPrice(item.price)}</div>
           <div class="qty-stepper" data-item="${item.name}" data-price="${item.price}">
             <button class="qty-btn qty-minus" aria-label="Decrease quantity" ${soldOut ? 'disabled' : ''}>−</button>

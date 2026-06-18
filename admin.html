@@ -293,6 +293,12 @@
         <label class="modal-field-label">Price (₦)<input type="number" id="itemPrice" min="0" required /></label>
         <label class="modal-field-label">Description<textarea id="itemDescription" rows="2"></textarea></label>
         <label class="modal-field-label">Ada's message<textarea id="itemAdaMessage" rows="2"></textarea></label>
+        <div class="item-img-upload-wrap">
+          <img id="itemImgPreview" class="item-img-preview admin-hidden" alt="" />
+          <label class="item-img-upload-btn" for="itemImageFile">📷 <span id="itemImgBtnLabel">Add photo</span></label>
+          <input type="file" id="itemImageFile" accept="image/*" />
+          <button type="button" id="itemRemoveImgBtn" class="item-remove-img-btn admin-hidden">✕ Remove photo</button>
+        </div>
         <div class="modal-actions">
           <button type="button" id="itemCancelBtn" class="btn-secondary">Cancel</button>
           <button type="submit" class="btn-primary">Save</button>
