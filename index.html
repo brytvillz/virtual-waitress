@@ -141,10 +141,11 @@
         </button>
       </div>
 
-      <!-- My Order floating button -->
-      <button class="my-order-btn" id="myOrderBtn">📋 My Order</button>
     </div>
     <!-- /#app -->
+
+    <!-- My Order floating button — outside #app so opacity transition doesn't trap it -->
+    <button class="my-order-btn admin-hidden" id="myOrderBtn">📋 My Order</button>
 
     <!-- My Order modal -->
     <div id="myOrderModal" class="my-order-overlay admin-hidden">

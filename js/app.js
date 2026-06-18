@@ -586,6 +586,9 @@ function initMyOrder() {
   const table = getTableNumber();
   document.getElementById('myOrderTableNum').textContent = table;
 
+  // Reveal the button now that restaurant is resolved and ready
+  document.getElementById('myOrderBtn').classList.remove('admin-hidden');
+
   document.getElementById('myOrderBtn').addEventListener('click', () => {
     document.getElementById('myOrderModal').classList.remove('admin-hidden');
     loadMyOrders();
