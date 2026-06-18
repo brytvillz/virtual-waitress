@@ -150,14 +150,17 @@
     <div id="myOrderModal" class="my-order-overlay admin-hidden">
       <div class="my-order-card">
         <div class="my-order-header">
-          <h2>Your Orders — Table <span id="myOrderTableNum"></span></h2>
-          <button id="myOrderCloseBtn" class="my-order-close" type="button">✕</button>
+          <div class="my-order-header-left">
+            <span class="my-order-title">My Orders</span>
+            <span class="my-order-table-pill">Table <span id="myOrderTableNum"></span></span>
+          </div>
+          <div class="my-order-header-right">
+            <button id="myOrderRefreshBtn" class="my-order-refresh-icon" type="button" title="Refresh">↻</button>
+            <button id="myOrderCloseBtn" class="my-order-close" type="button">✕</button>
+          </div>
         </div>
         <div id="myOrderContent">
           <p class="my-order-empty">Loading…</p>
-        </div>
-        <div class="my-order-footer">
-          <button id="myOrderRefreshBtn" class="my-order-refresh-btn" type="button">↻ Refresh</button>
         </div>
       </div>
     </div>

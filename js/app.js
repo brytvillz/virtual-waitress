@@ -501,9 +501,14 @@ function initLanding() {
 // ── My Order tracker ─────────────────────────────────────────────────────────
 
 function formatOrderStatus(status) {
-  if (status === 'preparing') return { label: 'Preparing', cls: 'status-preparing' };
-  if (status === 'served')    return { label: 'Served',    cls: 'status-served' };
-  return { label: 'Pending', cls: 'status-pending' };
+  if (status === 'preparing') return { label: 'Preparing', icon: '👨‍🍳', cls: 'status-preparing' };
+  if (status === 'served')    return { label: 'Served',    icon: '✅', cls: 'status-served' };
+  return { label: 'Pending', icon: '⏳', cls: 'status-pending' };
+}
+
+function formatOrderTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 async function loadMyOrders() {
@@ -534,30 +539,38 @@ function renderMyOrders(orders) {
   const content = document.getElementById('myOrderContent');
 
   if (!orders.length) {
-    content.innerHTML = '<p class="my-order-empty">No orders placed yet at this table.</p>';
+    content.innerHTML = `
+      <div class="my-order-empty-state">
+        <p class="my-order-empty-icon">🍽️</p>
+        <p class="my-order-empty-text">No orders yet at this table.</p>
+        <p class="my-order-empty-sub">Tap the + on any dish to start your order.</p>
+      </div>`;
     return;
   }
 
   const grandTotal = orders.reduce((sum, o) => sum + o.total, 0);
 
   const orderBlocks = orders.map(order => {
-    const { label, cls } = formatOrderStatus(order.status);
+    const { label, icon, cls } = formatOrderStatus(order.status);
+    const time = formatOrderTime(order.created_at);
     const itemRows = (order.order_items || []).map(item =>
       `<div class="my-order-item-row">
-        <span>${item.quantity}× ${item.item_name}</span>
-        <span>₦${(item.quantity * item.price).toLocaleString()}</span>
+        <span class="my-order-item-name"><span class="my-order-item-qty">${item.quantity}×</span> ${item.item_name}</span>
+        <span class="my-order-item-price">₦${(item.quantity * item.price).toLocaleString()}</span>
       </div>`
     ).join('');
 
     return `
       <div class="my-order-block">
         <div class="my-order-block-header">
-          <span class="my-order-status ${cls}">${label}</span>
+          <div class="my-order-status-group">
+            <span class="my-order-status ${cls}">${icon} ${label}</span>
+            <span class="my-order-time">${time}</span>
+          </div>
           <span class="my-order-subtotal">₦${order.total.toLocaleString()}</span>
         </div>
         <div class="my-order-items">${itemRows}</div>
-      </div>
-    `;
+      </div>`;
   }).join('');
 
   content.innerHTML = `
@@ -566,7 +579,7 @@ function renderMyOrders(orders) {
       <span>Total Bill</span>
       <span>₦${grandTotal.toLocaleString()}</span>
     </div>
-  `;
+    <p class="my-order-hint">Tap ↻ to check for updates</p>`;
 }
 
 function initMyOrder() {
