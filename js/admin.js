@@ -265,6 +265,19 @@ async function loadMenuEditor() {
 function renderMenuEditor() {
   const container = document.getElementById('categoriesEditor');
 
+  if (!categoriesCache.length) {
+    container.innerHTML = `
+      <div class="menu-empty-state">
+        <div class="menu-empty-icon">🍽️</div>
+        <h3 class="menu-empty-title">Your menu is empty</h3>
+        <p class="menu-empty-desc">Start by creating a category (e.g. "Soups", "Rice Dishes", "Drinks"), then add items inside each one.</p>
+        <button class="btn-primary" id="addCategoryBtnEmpty">+ Create First Category</button>
+      </div>
+    `;
+    document.getElementById('addCategoryBtnEmpty').addEventListener('click', () => openCategoryModal(null));
+    return;
+  }
+
   container.innerHTML = categoriesCache.map(cat => {
     const items = itemsCache.filter(i => i.category_id === cat.id);
     const itemsHtml = items.map(item => `

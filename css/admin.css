@@ -859,6 +859,52 @@
 
 .forgot-password-link:hover { color: var(--text); }
 
+.login-signup-link {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 14px;
+}
+
+.login-signup-link a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.login-signup-link a:hover { text-decoration: underline; }
+
+/* ── Menu editor empty state ─────────────────────────────────────────────── */
+
+.menu-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 32px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  margin-top: 8px;
+}
+
+.menu-empty-icon { font-size: 2.5rem; margin-bottom: 16px; }
+
+.menu-empty-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.menu-empty-desc {
+  font-size: 0.87rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  max-width: 340px;
+  margin-bottom: 24px;
+}
+
 /* ── Create Waiter modal hint ─────────────────────────────────────────────── */
 
 .modal-hint {
