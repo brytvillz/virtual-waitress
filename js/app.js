@@ -678,6 +678,14 @@ async function init() {
   document.getElementById('tableBadge').textContent        = 'Table ' + getTableNumber();
   document.documentElement.style.setProperty('--accent', menuData.restaurant.accentColor);
 
+  if (menuData.categories.length === 0) {
+    document.getElementById('menuGrid').innerHTML =
+      '<div class="loading" style="padding:60px 20px;text-align:center;opacity:0.5">Menu coming soon — check back shortly.</div>';
+    initLanding();
+    initHamburgerMenu();
+    return;
+  }
+
   const first = menuData.categories[0];
   activeCategory = first.id;
   renderTabs(menuData.categories, activeCategory);

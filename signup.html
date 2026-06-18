@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0D0D0D" />
+    <title>Get Started — Virtual Waitress</title>
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/signup.css" />
+  </head>
+  <body>
+
+    <div class="su-page">
+
+      <!-- Left panel: branding -->
+      <div class="su-brand">
+        <div class="su-brand-inner">
+          <a href="https://virtual-waitress-landing.vercel.app" class="su-logo">
+            <span class="su-logo-mark">VW</span>
+            <span class="su-logo-word">Virtual Waitress</span>
+          </a>
+          <blockquote class="su-quote">
+            <p>&#8220;From paper menus to live digital ordering &#8212; in one afternoon.&#8221;</p>
+          </blockquote>
+          <div class="su-brand-features">
+            <div class="su-brand-feat">
+              <span class="su-feat-icon">&#128241;</span>
+              <span>Works on any phone — no app download</span>
+            </div>
+            <div class="su-brand-feat">
+              <span class="su-feat-icon">&#9889;</span>
+              <span>Orders go live to your waiter dashboard instantly</span>
+            </div>
+            <div class="su-brand-feat">
+              <span class="su-feat-icon">&#9989;</span>
+              <span>Setup takes less than an hour</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right panel: form -->
+      <div class="su-form-panel">
+        <div class="su-form-wrap">
+
+          <!-- Step 1: Account details -->
+          <div id="suStep1" class="su-step">
+            <h1 class="su-title">Set up your restaurant</h1>
+            <p class="su-subtitle">Create your free account and go live today.</p>
+
+            <form id="suForm" novalidate>
+              <div class="su-field">
+                <label for="suRestaurantName">Restaurant name</label>
+                <input type="text" id="suRestaurantName" name="restaurant_name"
+                  placeholder="e.g. Mama Ngozi's Kitchen"
+                  autocomplete="organization" required maxlength="80" />
+                <p class="su-url-preview" id="suUrlPreview">Your menu URL will appear here</p>
+              </div>
+
+              <div class="su-field">
+                <label for="suEmail">Your email</label>
+                <input type="email" id="suEmail" name="email"
+                  placeholder="you@restaurant.com"
+                  autocomplete="email" required />
+              </div>
+
+              <div class="su-field">
+                <label for="suPassword">Password</label>
+                <input type="password" id="suPassword" name="password"
+                  placeholder="At least 8 characters"
+                  autocomplete="new-password" required minlength="8" />
+              </div>
+
+              <div class="su-field">
+                <label for="suPasswordConfirm">Confirm password</label>
+                <input type="password" id="suPasswordConfirm" name="password_confirm"
+                  placeholder="Repeat your password"
+                  autocomplete="new-password" required minlength="8" />
+              </div>
+
+              <p class="su-error" id="suError"></p>
+
+              <button type="submit" class="su-submit" id="suSubmit">
+                <span id="suSubmitLabel">Create My Restaurant &#8594;</span>
+                <span id="suSubmitSpinner" class="su-spinner su-hidden">&#9679;&#9679;&#9679;</span>
+              </button>
+
+              <p class="su-legal">
+                By signing up you agree to our
+                <a href="https://virtual-waitress-landing.vercel.app/terms" target="_blank" rel="noopener">Terms of Service</a>
+                and
+                <a href="https://virtual-waitress-landing.vercel.app/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
+              </p>
+            </form>
+
+            <p class="su-login-link">Already have an account? <a href="admin.html">Log in</a></p>
+          </div>
+
+          <!-- Step 2: Success -->
+          <div id="suStep2" class="su-step su-hidden">
+            <div class="su-success-icon">&#127881;</div>
+            <h1 class="su-title">You&#8217;re live!</h1>
+            <p class="su-subtitle" id="suSuccessMsg">Your restaurant is ready.</p>
+            <div class="su-success-url" id="suSuccessUrl"></div>
+            <div class="su-success-actions">
+              <a href="admin.html" class="su-submit">Go to your dashboard &#8594;</a>
+              <p class="su-success-hint">Start by adding your menu categories and items from the dashboard.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <script src="js/vendor/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/signup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,329 @@
+/* ── Virtual Waitress — Sign-up page ─────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0D0D0D;
+  --surface:  #161616;
+  --border:   rgba(255,255,255,0.09);
+  --accent:   #E8893A;
+  --text:     #F0EDE8;
+  --muted:    #6B6570;
+  --error:    #E85A4F;
+  --green:    #3ECC8A;
+  --font:     'DM Sans', system-ui, sans-serif;
+  --serif:    'Playfair Display', Georgia, serif;
+}
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.su-hidden { display: none !important; }
+
+/* ── Two-column layout ─────────────────── */
+.su-page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+}
+
+/* ── Left: Branding ───────────────────── */
+.su-brand {
+  background: linear-gradient(160deg, #130C05 0%, #0D0D0D 60%);
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.su-brand::before {
+  content: '';
+  position: absolute;
+  top: -120px;
+  left: -120px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(232,137,58,0.10) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.su-brand-inner {
+  max-width: 360px;
+  position: relative;
+}
+
+.su-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  margin-bottom: 48px;
+}
+
+.su-logo-mark {
+  width: 36px;
+  height: 36px;
+  background: var(--accent);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+
+.su-logo-word {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.su-quote {
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin-bottom: 40px;
+}
+
+.su-quote p::before { content: ''; }
+.su-quote p::after  { content: ''; }
+
+.su-brand-features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.su-brand-feat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.88rem;
+  color: rgba(240,237,232,0.65);
+  line-height: 1.45;
+}
+
+.su-feat-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+/* ── Right: Form ──────────────────────── */
+.su-form-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+  overflow-y: auto;
+}
+
+.su-form-wrap {
+  width: 100%;
+  max-width: 400px;
+}
+
+.su-step { width: 100%; }
+
+.su-title {
+  font-family: var(--serif);
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-bottom: 8px;
+}
+
+.su-subtitle {
+  font-size: 0.93rem;
+  color: var(--muted);
+  margin-bottom: 36px;
+  line-height: 1.5;
+}
+
+/* ── Form fields ──────────────────────── */
+.su-field {
+  margin-bottom: 20px;
+}
+
+.su-field label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgba(240,237,232,0.55);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+
+.su-field input {
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.su-field input::placeholder { color: var(--muted); }
+
+.su-field input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232,137,58,0.14);
+}
+
+.su-field input.su-input-error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(232,90,79,0.12);
+}
+
+/* URL preview */
+.su-url-preview {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 7px;
+  min-height: 1.2em;
+  transition: color 0.2s;
+}
+
+.su-url-preview.su-url-ready {
+  color: var(--green);
+}
+
+/* Error */
+.su-error {
+  font-size: 0.83rem;
+  color: var(--error);
+  min-height: 1.2em;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+/* Submit button */
+.su-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font);
+  font-size: 0.97rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 6px 20px rgba(232,137,58,0.30);
+}
+
+.su-submit:hover:not(:disabled) {
+  background: #D4781E;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(232,137,58,0.38);
+}
+
+.su-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Spinner */
+.su-spinner {
+  letter-spacing: 0.25em;
+  animation: su-pulse 1s ease-in-out infinite;
+}
+
+@keyframes su-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* Legal & login link */
+.su-legal {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.55;
+  margin-bottom: 28px;
+}
+
+.su-legal a,
+.su-login-link a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.su-legal a:hover,
+.su-login-link a:hover {
+  text-decoration: underline;
+}
+
+.su-login-link {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* ── Success state ────────────────────── */
+.su-success-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.su-success-url {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 0.82rem;
+  color: var(--green);
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.su-success-hint {
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.55;
+  margin-top: 12px;
+}
+
+/* ── Responsive ───────────────────────── */
+@media (max-width: 800px) {
+  .su-page { grid-template-columns: 1fr; }
+
+  .su-brand {
+    display: none;
+  }
+
+  .su-form-panel {
+    padding: 40px 24px;
+    align-items: flex-start;
+    padding-top: 60px;
+  }
+}
