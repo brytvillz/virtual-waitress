@@ -8,7 +8,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Use separate storage keys per page so admin and waiter sessions
 // don't overwrite each other when testing on the same browser/device.
 const _path = window.location.pathname;
-const _storageKey = _path.includes('admin') ? 'vw_admin_auth'
+const _storageKey = (_path.includes('admin') || _path.includes('signup')) ? 'vw_admin_auth'
                   : _path.includes('waiter') ? 'vw_waiter_auth'
                   : 'vw_customer_auth';
 

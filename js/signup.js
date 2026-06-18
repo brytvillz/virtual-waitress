@@ -1,16 +1,16 @@
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// db and SUPABASE_* constants come from supabase-config.js (loaded before this file)
 
-const nameInput    = document.getElementById('suRestaurantName');
-const emailInput   = document.getElementById('suEmail');
-const passInput    = document.getElementById('suPassword');
-const confirmInput = document.getElementById('suPasswordConfirm');
-const urlPreview   = document.getElementById('suUrlPreview');
-const errorEl      = document.getElementById('suError');
-const submitBtn    = document.getElementById('suSubmit');
-const submitLabel  = document.getElementById('suSubmitLabel');
-const submitSpinner= document.getElementById('suSubmitSpinner');
-const step1        = document.getElementById('suStep1');
-const step2        = document.getElementById('suStep2');
+const nameInput     = document.getElementById('suRestaurantName');
+const emailInput    = document.getElementById('suEmail');
+const passInput     = document.getElementById('suPassword');
+const confirmInput  = document.getElementById('suPasswordConfirm');
+const urlPreview    = document.getElementById('suUrlPreview');
+const errorEl       = document.getElementById('suError');
+const submitBtn     = document.getElementById('suSubmit');
+const submitLabel   = document.getElementById('suSubmitLabel');
+const submitSpinner = document.getElementById('suSubmitSpinner');
+const step1         = document.getElementById('suStep1');
+const step2         = document.getElementById('suStep2');
 
 function toSlug(name) {
   return name
@@ -25,7 +25,7 @@ function toSlug(name) {
 nameInput.addEventListener('input', () => {
   const slug = toSlug(nameInput.value);
   if (slug) {
-    urlPreview.textContent = 'app.virtualwaitress.com/?r=' + slug + '&table=1';
+    urlPreview.textContent = window.location.origin + '/?r=' + slug + '&table=1';
     urlPreview.classList.add('su-url-ready');
   } else {
     urlPreview.textContent = 'Your menu URL will appear here';
@@ -74,26 +74,20 @@ document.getElementById('suForm').addEventListener('submit', async e => {
       return;
     }
 
-    // Sign the user in immediately so they land on admin already authenticated
+    // Sign into the admin session (storage key is vw_admin_auth — matches admin.html)
     const { error: signInError } = await db.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      // Account created but sign-in failed — send them to login
-      step1.classList.add('su-hidden');
-      document.getElementById('suSuccessMsg').textContent =
-        'Account created for ' + restaurantName + '. Please log in.';
-      document.getElementById('suSuccessUrl').textContent =
-        'app.virtualwaitress.com/?r=' + result.slug + '&table=1';
-      step2.classList.remove('su-hidden');
-      return;
-    }
 
-    // Success — show confirmation then redirect
     step1.classList.add('su-hidden');
     document.getElementById('suSuccessMsg').textContent =
-      restaurantName + ' is live! Here is your demo menu link:';
+      restaurantName + ' is live! Taking you to your dashboard…';
     document.getElementById('suSuccessUrl').textContent =
       window.location.origin + '/?r=' + result.slug + '&table=1';
     step2.classList.remove('su-hidden');
+
+    if (!signInError) {
+      // Session stored — redirect to admin after a moment
+      setTimeout(() => { window.location.href = 'admin.html'; }, 2000);
+    }
 
   } catch (err) {
     showError('Network error — please check your connection and try again.');
