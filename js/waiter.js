@@ -2,6 +2,11 @@
 // Logs in staff via Supabase Auth, shows live orders + waiter calls filtered
 // by today's table assignments, plus a 7-day personal shift history.
 
+// Read restaurant slug from URL path — /omakitchen/waiter → 'omakitchen'
+// Falls back to null for the generic /waiter route (Nnewi Buka demo)
+const _wSegments = window.location.pathname.split('/').filter(Boolean);
+const WAITER_SLUG = _wSegments.length >= 2 ? _wSegments[0] : null;
+
 let realtimeChannel = null;
 let currentStaffRole = null;
 let myTableNumbers = new Set();    // tables assigned to this waiter today
@@ -77,7 +82,7 @@ async function initAuth() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
         },
-        body: JSON.stringify({ access_code: code })
+        body: JSON.stringify({ access_code: code, slug: WAITER_SLUG })
       });
 
       const result = await res.json();

@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { access_code } = await req.json();
+    const { access_code, slug } = await req.json();
 
     if (!access_code) {
       return new Response(JSON.stringify({ error: "Missing fields" }), {
@@ -26,13 +26,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Access codes are globally unique — no restaurant_id needed
-    const { data: staff, error: staffError } = await supabase
+    // Build the staff lookup — scope to a specific restaurant when slug is provided
+    // so two restaurants with the same access code never collide
+    let staffQuery = supabase
       .from("staff")
       .select("id, name, role, restaurant_id")
       .eq("access_code", String(access_code).trim().toUpperCase())
-      .eq("role", "waiter")
-      .maybeSingle();
+      .eq("role", "waiter");
+
+    if (slug) {
+      const { data: restaurant } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("slug", String(slug).trim().toLowerCase())
+        .single();
+      if (restaurant) {
+        staffQuery = staffQuery.eq("restaurant_id", restaurant.id);
+      }
+    }
+
+    const { data: staff, error: staffError } = await staffQuery.maybeSingle();
 
     if (staffError || !staff) {
       return new Response(JSON.stringify({ error: "Invalid code" }), {
