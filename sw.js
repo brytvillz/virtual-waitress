@@ -1,14 +1,13 @@
 // Virtual Waitress — Service Worker
 // Caches all assets so the menu works even with poor network (common in restaurants)
 
-const CACHE = 'vw-v10';
+const CACHE = 'vw-v11';
 const ASSETS = [
   '/',
   '/index.html',
   '/css/style.css',
   '/js/app.js',
   '/js/vendor/supabase.js',
-  '/js/supabase-config.js',
   '/manifest.json',
   '/icons/icon.svg',
   '/images/ada.png',
