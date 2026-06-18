@@ -93,6 +93,7 @@ const SECTION_TITLES = {
   menu: 'Menu Editor',
   staff: 'Staff',
   tables: 'Tables',
+  qr: 'QR Codes',
   settings: 'Settings'
 };
 
@@ -101,6 +102,7 @@ const SECTION_LOADERS = {
   menu: () => loadMenuEditor(),
   staff: () => loadStaff(),
   tables: () => loadTablesSection(),
+  qr: () => loadQrSection(),
   settings: () => loadSettings()
 };
 
@@ -713,11 +715,65 @@ function initTableModal() {
   });
 }
 
+// ── QR Codes ──────────────────────────────────────────────────────────────────
+
+let restaurantSlug = '';
+let restaurantName = '';
+let restaurantTagline = '';
+
+async function loadQrSection() {
+  const [{ data: restaurant }, { data: tables }] = await Promise.all([
+    db.from('restaurants').select('slug, name, tagline').eq('id', RESTAURANT_ID).single(),
+    db.from('tables').select('table_number').eq('restaurant_id', RESTAURANT_ID).order('table_number')
+  ]);
+
+  if (restaurant) {
+    restaurantSlug    = restaurant.slug    || '';
+    restaurantName    = restaurant.name    || 'Restaurant';
+    restaurantTagline = restaurant.tagline || '';
+  }
+
+  const menuUrl = `${window.location.origin}/?r=${restaurantSlug}&table=1`;
+  document.getElementById('qrMenuUrl').innerHTML =
+    `<span class="qr-url-label">Your menu link:</span>
+     <a class="qr-url-value" href="${menuUrl}" target="_blank" rel="noopener">${menuUrl}</a>`;
+
+  const grid = document.getElementById('qrGrid');
+  if (!tables || !tables.length) {
+    grid.innerHTML = '<p class="empty-state">No tables yet — add them in the Tables section first.</p>';
+    return;
+  }
+
+  grid.innerHTML = tables.map(t => {
+    const url = `${window.location.origin}/?r=${restaurantSlug}&table=${t.table_number}`;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=6&color=1A1A1A&bgcolor=FFF8F0&data=${encodeURIComponent(url)}`;
+    return `
+      <div class="qr-admin-card">
+        <img class="qr-admin-img" src="${qrSrc}" alt="QR code for Table ${t.table_number}" loading="lazy" />
+        <p class="qr-admin-label">Table ${t.table_number}</p>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('printQrBtn').onclick = () => {
+    const tableNums = tables.map(t => t.table_number).join(',');
+    const params = new URLSearchParams({
+      r: restaurantSlug,
+      name: restaurantName,
+      tagline: restaurantTagline,
+      tables: tableNums
+    });
+    window.open(`qr-cards.html?${params.toString()}`, '_blank');
+  };
+
+  document.getElementById('qrGoToTablesBtn').onclick = () => navigateTo('tables');
+}
+
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 async function loadSettings() {
   const { data, error } = await db.from('restaurants')
-    .select('name, tagline, max_tables_per_waiter')
+    .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter')
     .eq('id', RESTAURANT_ID)
     .single();
 
@@ -728,28 +784,48 @@ async function loadSettings() {
   const nameEl = document.getElementById('sidebarRestaurantName');
   if (nameEl) nameEl.textContent = data.name || 'Restaurant';
 
-  document.getElementById('settingName').value = data.name || '';
-  document.getElementById('settingTagline').value = data.tagline || '';
-  document.getElementById('settingMaxTables').value = data.max_tables_per_waiter || 3;
+  document.getElementById('settingName').value       = data.name    || '';
+  document.getElementById('settingTagline').value    = data.tagline || '';
+  document.getElementById('settingWhatsapp').value   = data.whatsapp || '';
+  document.getElementById('settingMaxTables').value  = data.max_tables_per_waiter || 3;
+
+  const color = data.accent_color || '#E8893A';
+  document.getElementById('settingAccentColor').value = color;
+  document.getElementById('colorHint').textContent     = color;
+  document.documentElement.style.setProperty('--accent', color);
 }
 
 function initSettingsForm() {
+  const colorInput = document.getElementById('settingAccentColor');
+  colorInput.addEventListener('input', () => {
+    document.getElementById('colorHint').textContent = colorInput.value;
+    document.documentElement.style.setProperty('--accent', colorInput.value);
+  });
+
   document.getElementById('settingsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = document.getElementById('settingName').value.trim();
-    const tagline = document.getElementById('settingTagline').value.trim();
+    const name      = document.getElementById('settingName').value.trim();
+    const tagline   = document.getElementById('settingTagline').value.trim();
+    const whatsapp  = document.getElementById('settingWhatsapp').value.trim();
+    const color     = document.getElementById('settingAccentColor').value;
     const maxTables = parseInt(document.getElementById('settingMaxTables').value);
-    const msg = document.getElementById('settingsSavedMsg');
+    const msg       = document.getElementById('settingsSavedMsg');
 
-    const { error } = await db.from('restaurants').update({ name, tagline, max_tables_per_waiter: maxTables }).eq('id', RESTAURANT_ID);
+    const { error } = await db.from('restaurants').update({
+      name,
+      tagline,
+      whatsapp,
+      accent_color: color,
+      max_tables_per_waiter: maxTables
+    }).eq('id', RESTAURANT_ID);
 
     if (error) {
       msg.textContent = 'Failed to save.';
       msg.style.color = '#E85A5A';
     } else {
       maxTablesPerWaiter = maxTables;
-      const nameEl = document.getElementById('sidebarRestaurantName');
-      if (nameEl) nameEl.textContent = name;
+      document.getElementById('sidebarRestaurantName').textContent = name;
+      document.documentElement.style.setProperty('--accent', color);
       msg.textContent = 'Saved!';
       msg.style.color = 'var(--accent)';
       setTimeout(() => { msg.textContent = ''; }, 3000);

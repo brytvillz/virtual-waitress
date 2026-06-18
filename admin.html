@@ -65,6 +65,9 @@
           <button class="sidebar-nav-item" data-section="tables">
             <span class="sidebar-nav-icon">🪑</span>Tables
           </button>
+          <button class="sidebar-nav-item" data-section="qr">
+            <span class="sidebar-nav-icon">📲</span>QR Codes
+          </button>
           <button class="sidebar-nav-item" data-section="settings">
             <span class="sidebar-nav-icon">⚙️</span>Settings
           </button>
@@ -193,6 +196,20 @@
           </div>
         </section>
 
+        <!-- QR Codes section -->
+        <section id="qrSection" class="admin-section admin-hidden">
+          <div class="section-header">
+            <h2 class="section-title">QR Codes</h2>
+            <button id="printQrBtn" class="btn-primary">🖨️ Print All Cards</button>
+          </div>
+          <p class="section-description">One QR code per table. Customers scan to open your menu instantly — no app needed.</p>
+          <div id="qrMenuUrl" class="qr-menu-url-bar"></div>
+          <div id="qrGrid" class="qr-admin-grid">
+            <p class="empty-state">Loading tables…</p>
+          </div>
+          <p class="qr-tables-hint">Add or remove tables in the <button class="link-btn" id="qrGoToTablesBtn">Tables</button> section.</p>
+        </section>
+
         <!-- Settings section -->
         <section id="settingsSection" class="admin-section admin-hidden">
           <div class="section-header">
@@ -207,7 +224,20 @@
               </label>
               <label class="settings-label">
                 Tagline
-                <input type="text" id="settingTagline" />
+                <input type="text" id="settingTagline" placeholder="e.g. Authentic Igbo Home Cooking" />
+              </label>
+              <label class="settings-label">
+                WhatsApp Number
+                <input type="text" id="settingWhatsapp" placeholder="e.g. 2347012345678" />
+                <span class="settings-hint">Include country code, no spaces or +</span>
+              </label>
+              <label class="settings-label settings-label--color">
+                Brand Colour
+                <div class="color-picker-wrap">
+                  <input type="color" id="settingAccentColor" value="#E8893A" />
+                  <span class="color-picker-hint" id="colorHint">#E8893A</span>
+                </div>
+                <span class="settings-hint">Accent colour shown on your customer menu</span>
               </label>
             </div>
             <div class="settings-group">
@@ -242,6 +272,10 @@
         <button class="bottom-nav-item" data-section="tables">
           <span class="bottom-nav-icon">🪑</span>
           <span class="bottom-nav-label">Tables</span>
+        </button>
+        <button class="bottom-nav-item" data-section="qr">
+          <span class="bottom-nav-icon">📲</span>
+          <span class="bottom-nav-label">QR Codes</span>
         </button>
         <button class="bottom-nav-item" data-section="settings">
           <span class="bottom-nav-icon">⚙️</span>

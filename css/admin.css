@@ -985,3 +985,108 @@
   font-weight: 700;
   flex-shrink: 0;
 }
+
+/* ── QR Codes section ──────────────────────────────────────────────────────── */
+
+.qr-menu-url-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.88rem;
+  word-break: break-all;
+}
+
+.qr-url-label {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.qr-url-value {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.qr-url-value:hover { text-decoration: underline; }
+
+.qr-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.qr-admin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.qr-admin-img {
+  width: 100%;
+  max-width: 160px;
+  border-radius: 6px;
+  display: block;
+}
+
+.qr-admin-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.qr-tables-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* ── Color picker ──────────────────────────────────────────────────────────── */
+
+.settings-label--color .color-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.settings-label--color input[type="color"] {
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.color-picker-hint {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  font-family: monospace;
+  letter-spacing: 0.05em;
+}

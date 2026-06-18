@@ -1,13 +1,19 @@
-// QR Cards generator — NgwaNgwa Digital
-// To add more tables: change the TABLES constant below
+// QR Cards generator — reads URL params from admin dashboard
+// Falls back to Nnewi Buka demo values when opened directly
 
-const RESTAURANT = "Nnewi Buka";
-const TAGLINE    = "Authentic Igbo Home Cooking";
-const MENU_URL   = "https://virtual-waitress.vercel.app";
-const TABLES     = 8;
+const params     = new URLSearchParams(window.location.search);
+const SLUG       = params.get('r')       || 'nnewi-buka';
+const RESTAURANT = params.get('name')    || 'Nnewi Buka';
+const TAGLINE    = params.get('tagline') || 'Authentic Igbo Home Cooking';
+const MENU_BASE  = window.location.origin;
+
+// If tables= param is provided, use those numbers; otherwise default to 8
+const tableList  = params.get('tables')
+  ? params.get('tables').split(',').map(n => parseInt(n, 10)).filter(n => !isNaN(n))
+  : Array.from({ length: 8 }, (_, i) => i + 1);
 
 function buildCard(tableNumber) {
-  const url = `${MENU_URL}/?table=${tableNumber}`;
+  const url = `${MENU_BASE}/?r=${SLUG}&table=${tableNumber}`;
   const qr  = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=6&color=1A1A1A&bgcolor=FFF8F0&data=${encodeURIComponent(url)}`;
 
   const card = document.createElement('div');
@@ -80,12 +86,10 @@ function buildCard(tableNumber) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Print button — no inline onclick
   document.getElementById('printBtn').addEventListener('click', () => window.print());
 
-  // Generate cards
   const grid = document.getElementById('cardsGrid');
-  for (let t = 1; t <= TABLES; t++) {
+  for (const t of tableList) {
     grid.appendChild(buildCard(t));
   }
 });
