@@ -75,11 +75,14 @@
       <header class="hero-section">
         <div class="hero-bg"></div>
         <div class="hero-content">
-          <div>
+          <div class="hero-info">
             <h1 class="restaurant-name" id="restaurantName">Loading…</h1>
             <p class="restaurant-tagline" id="restaurantTagline"></p>
           </div>
-          <div class="table-badge" id="tableBadge">Table —</div>
+          <div class="hero-right">
+            <div class="table-badge" id="tableBadge">Table —</div>
+            <button class="hero-menu-btn" id="heroMenuBtn" aria-label="Open menu">☰</button>
+          </div>
         </div>
       </header>
 
@@ -144,8 +147,30 @@
     </div>
     <!-- /#app -->
 
-    <!-- My Order floating button — outside #app so opacity transition doesn't trap it -->
-    <button class="my-order-btn admin-hidden" id="myOrderBtn">📋 My Order</button>
+    <!-- Customer side menu -->
+    <div id="customerMenuOverlay" class="cmenu-overlay admin-hidden"></div>
+    <nav id="customerMenuPanel" class="cmenu-panel admin-hidden" aria-label="Customer menu">
+      <div class="cmenu-header">
+        <div class="cmenu-restaurant">
+          <p class="cmenu-restaurant-name" id="cmenuRestaurantName">—</p>
+          <p class="cmenu-table-label" id="cmenuTableLabel">Table —</p>
+        </div>
+        <button id="customerMenuCloseBtn" class="cmenu-close" aria-label="Close menu">✕</button>
+      </div>
+      <div class="cmenu-body">
+        <button class="cmenu-item" id="cmenuMyOrdersBtn">
+          <span class="cmenu-item-icon">📋</span>
+          <span class="cmenu-item-label">My Orders</span>
+          <span class="cmenu-item-arrow">›</span>
+        </button>
+        <button class="cmenu-item" id="cmenuCallWaiterBtn">
+          <span class="cmenu-item-icon">📲</span>
+          <span class="cmenu-item-label">Call Waiter</span>
+          <span class="cmenu-item-arrow">›</span>
+        </button>
+      </div>
+      <p class="cmenu-footer">Powered by Virtual Waitress</p>
+    </nav>
 
     <!-- My Order modal -->
     <div id="myOrderModal" class="my-order-overlay admin-hidden">

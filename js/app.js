@@ -582,17 +582,14 @@ function renderMyOrders(orders) {
     <p class="my-order-hint">Tap ↻ to check for updates</p>`;
 }
 
+function openMyOrderModal() {
+  document.getElementById('myOrderModal').classList.remove('admin-hidden');
+  loadMyOrders();
+}
+
 function initMyOrder() {
   const table = getTableNumber();
   document.getElementById('myOrderTableNum').textContent = table;
-
-  // Reveal the button now that restaurant is resolved and ready
-  document.getElementById('myOrderBtn').classList.remove('admin-hidden');
-
-  document.getElementById('myOrderBtn').addEventListener('click', () => {
-    document.getElementById('myOrderModal').classList.remove('admin-hidden');
-    loadMyOrders();
-  });
 
   document.getElementById('myOrderCloseBtn').addEventListener('click', () => {
     document.getElementById('myOrderModal').classList.add('admin-hidden');
@@ -604,6 +601,43 @@ function initMyOrder() {
     if (e.target === document.getElementById('myOrderModal')) {
       document.getElementById('myOrderModal').classList.add('admin-hidden');
     }
+  });
+}
+
+function initHamburgerMenu() {
+  const panel   = document.getElementById('customerMenuPanel');
+  const overlay = document.getElementById('customerMenuOverlay');
+  const table   = getTableNumber();
+
+  document.getElementById('cmenuRestaurantName').textContent = menuData.restaurant.name;
+  document.getElementById('cmenuTableLabel').textContent     = 'Table ' + table;
+
+  function openPanel() {
+    overlay.classList.remove('admin-hidden');
+    panel.classList.remove('admin-hidden');
+    requestAnimationFrame(() => panel.classList.add('open'));
+  }
+
+  function closePanel() {
+    panel.classList.remove('open');
+    setTimeout(() => {
+      panel.classList.add('admin-hidden');
+      overlay.classList.add('admin-hidden');
+    }, 280);
+  }
+
+  document.getElementById('heroMenuBtn').addEventListener('click', openPanel);
+  document.getElementById('customerMenuCloseBtn').addEventListener('click', closePanel);
+  overlay.addEventListener('click', closePanel);
+
+  document.getElementById('cmenuMyOrdersBtn').addEventListener('click', () => {
+    closePanel();
+    openMyOrderModal();
+  });
+
+  document.getElementById('cmenuCallWaiterBtn').addEventListener('click', () => {
+    closePanel();
+    document.getElementById('callWaiterBtn').click();
   });
 }
 
@@ -657,6 +691,7 @@ async function init() {
   initLanding();
   initAutoSlideTabs();
   initMyOrder();
+  initHamburgerMenu();
 }
 
 document.addEventListener('DOMContentLoaded', init);
