@@ -874,16 +874,17 @@ function initSettingsForm() {
     const maxTables = parseInt(document.getElementById('settingMaxTables').value);
     const msg       = document.getElementById('settingsSavedMsg');
 
-    const { error } = await db.from('restaurants').update({
+    const { data: updated, error } = await db.from('restaurants').update({
       name,
       tagline,
       whatsapp,
       accent_color: color,
       max_tables_per_waiter: maxTables
-    }).eq('id', RESTAURANT_ID);
+    }).eq('id', RESTAURANT_ID).select('id');
 
-    if (error) {
-      msg.textContent = 'Failed to save.';
+    if (error || !updated || updated.length === 0) {
+      console.error('Settings save failed', error, 'RESTAURANT_ID:', RESTAURANT_ID);
+      msg.textContent = 'Failed to save — please reload and try again.';
       msg.style.color = '#E85A5A';
     } else {
       maxTablesPerWaiter = maxTables;

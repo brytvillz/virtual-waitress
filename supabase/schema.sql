@@ -374,8 +374,21 @@ alter table staff add column if not exists access_code text unique;
 
 -- 14. Multi-tenancy: restaurant slug for URL routing (?r=slug)
 -- Ensure the demo restaurant has the correct slug for customer menu URL resolution.
--- The restaurants table has no RLS — public reads are intentional (restaurant name/slug are public).
 update restaurants
   set slug = 'nnewi-buka'
   where id = '78698609-5135-4d35-8eb3-7f33dd828ecc'
     and (slug is null or slug = '' or slug != 'nnewi-buka');
+
+-- 15. RLS for restaurants table
+-- Public reads are intentional (name/slug are needed by the customer menu and anon users).
+-- Only managers can update their own restaurant.
+alter table restaurants enable row level security;
+
+create policy "Public can read restaurants"
+  on restaurants for select
+  using (true);
+
+create policy "Managers can update their own restaurant"
+  on restaurants for update
+  using   (id = current_staff_restaurant())
+  with check (id = current_staff_restaurant());
