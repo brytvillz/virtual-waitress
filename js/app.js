@@ -642,9 +642,40 @@ function initHamburgerMenu() {
   });
 }
 
+// ── Splash screen ────────────────────────────────────────────────────────────
+
+const SPLASH_MIN_MS = 2400;
+let _splashStart = 0;
+
+function splashStart() {
+  _splashStart = Date.now();
+}
+
+function splashUpdate(restaurant, ada) {
+  const nameEl  = document.getElementById('splashRestaurant');
+  const tagEl   = document.getElementById('splashTagline');
+  const emojiEl = document.getElementById('splashAdaEmoji');
+  if (nameEl)  nameEl.textContent  = restaurant.name    || '';
+  if (tagEl)   tagEl.textContent   = restaurant.tagline || '';
+  if (emojiEl) emojiEl.textContent = (ada && ada.emoji) || '👩🏾‍🍳';
+  document.documentElement.style.setProperty('--accent', restaurant.accentColor || '#E8893A');
+}
+
+async function splashHide() {
+  const elapsed   = Date.now() - _splashStart;
+  const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+  await new Promise(r => setTimeout(r, remaining));
+  const el = document.getElementById('splashScreen');
+  if (!el) return;
+  el.classList.add('splash-hiding');
+  setTimeout(() => el.remove(), 600);
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function init() {
+  splashStart();
+
   // Resolve restaurant from ?r=slug before anything else
   const slug = getRestaurantSlug();
   MENU_CACHE_KEY = 'vw_menu_cache_' + slug;
@@ -658,6 +689,7 @@ async function init() {
   if (slugError || !restaurantRow) {
     document.getElementById('landingTitle').textContent = 'Restaurant not found';
     document.getElementById('landingTagline').textContent = 'Please scan the QR code at your table again.';
+    splashHide();
     return;
   }
 
@@ -669,8 +701,12 @@ async function init() {
     console.error('Could not load the menu', err);
     document.getElementById('landingTitle').textContent = 'Unable to load menu';
     document.getElementById('landingTagline').textContent = 'Please check your connection and reload the page.';
+    splashHide();
     return;
   }
+
+  // Update splash with real restaurant branding before it fades out
+  splashUpdate(menuData.restaurant, menuData.ada);
 
   document.getElementById('landingTitle').textContent      = menuData.restaurant.name;
   document.getElementById('landingTagline').textContent    = menuData.restaurant.tagline;
@@ -684,6 +720,7 @@ async function init() {
       '<div class="loading" style="padding:60px 20px;text-align:center;opacity:0.5">Menu coming soon — check back shortly.</div>';
     initLanding();
     initHamburgerMenu();
+    splashHide();
     return;
   }
 
@@ -701,6 +738,8 @@ async function init() {
   initAutoSlideTabs();
   initMyOrder();
   initHamburgerMenu();
+
+  splashHide();
 }
 
 document.addEventListener('DOMContentLoaded', init);

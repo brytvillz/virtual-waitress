@@ -36,6 +36,25 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
+    <!-- ── Splash Screen ─────────────────────────────────────────────────── -->
+    <div id="splashScreen" class="splash-screen" aria-live="polite" aria-label="Loading menu">
+      <div class="splash-content">
+        <p class="splash-restaurant" id="splashRestaurant"></p>
+        <p class="splash-tagline-text" id="splashTagline"></p>
+        <div class="splash-ada-wrap">
+          <span class="splash-ada-emoji" id="splashAdaEmoji">👩🏾‍🍳</span>
+        </div>
+        <div class="splash-bubble">
+          <p class="splash-message">Hi! I'll be taking your orders today — here's our menu!</p>
+        </div>
+        <div class="splash-dots" aria-hidden="true">
+          <span class="splash-dot"></span>
+          <span class="splash-dot"></span>
+          <span class="splash-dot"></span>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Landing / Advert Screen ───────────────────────────────────────── -->
     <section id="landing" aria-label="Welcome screen">
       <div class="landing-bg"></div>
@@ -49,10 +68,8 @@
           />
         </div>
         <p class="landing-eyebrow">Welcome to</p>
-        <h1 class="landing-title" id="landingTitle">Nnewi Buka</h1>
-        <p class="landing-tagline" id="landingTagline">
-          Authentic Igbo Home Cooking
-        </p>
+        <h1 class="landing-title" id="landingTitle"></h1>
+        <p class="landing-tagline" id="landingTagline"></p>
         <div class="landing-actions">
           <button class="btn-view-menu" id="btnViewMenu">
             ✦ &nbsp;View Full Menu

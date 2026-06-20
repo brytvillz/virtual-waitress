@@ -1206,3 +1206,110 @@ body {
   font-size: 0.75rem;
   margin-top: 14px;
 }
+
+/* ── Splash Screen ─────────────────────────────────────────────────────────── */
+
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.55s ease;
+}
+
+.splash-screen.splash-hiding {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 28px;
+  max-width: 340px;
+  width: 100%;
+}
+
+.splash-restaurant {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+  min-height: 1.8rem;
+  animation: splashUp 0.45s ease 0.15s both;
+}
+
+.splash-tagline-text {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.42);
+  margin: 0 0 28px;
+  min-height: 1rem;
+  animation: splashUp 0.45s ease 0.25s both;
+}
+
+.splash-ada-wrap {
+  margin-bottom: 18px;
+  animation: splashBounce 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) 0.35s both;
+}
+
+.splash-ada-emoji {
+  font-size: 5rem;
+  line-height: 1;
+  display: block;
+}
+
+.splash-bubble {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  border-top-left-radius: 4px;
+  padding: 14px 18px;
+  margin-bottom: 30px;
+  animation: splashUp 0.45s ease 0.7s both;
+}
+
+.splash-message {
+  font-size: 0.93rem;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.splash-dots {
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+  animation: splashUp 0.45s ease 0.9s both;
+}
+
+.splash-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: splashDotPulse 1.2s ease infinite;
+}
+
+.splash-dot:nth-child(2) { animation-delay: 0.2s; }
+.splash-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes splashUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes splashBounce {
+  from { opacity: 0; transform: scale(0.3); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes splashDotPulse {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.75); }
+  40%           { opacity: 1;    transform: scale(1); }
+}
