@@ -644,20 +644,27 @@ function initHamburgerMenu() {
 
 // ── Splash screen ────────────────────────────────────────────────────────────
 
-const SPLASH_MIN_MS = 2400;
+const SPLASH_MIN_MS = 1500;
+const SPLASH_CHARS  = [
+  'images/ada.png',
+  'images/chisom.png',
+  'images/emeka.png',
+  'images/mamachef.png',
+  'images/cheftunde.png'
+];
 let _splashStart = 0;
 
 function splashStart() {
   _splashStart = Date.now();
+  const img = document.getElementById('splashAdaImg');
+  if (img) img.src = SPLASH_CHARS[Math.floor(Math.random() * SPLASH_CHARS.length)];
 }
 
-function splashUpdate(restaurant, ada) {
-  const nameEl  = document.getElementById('splashRestaurant');
-  const tagEl   = document.getElementById('splashTagline');
-  const emojiEl = document.getElementById('splashAdaEmoji');
-  if (nameEl)  nameEl.textContent  = restaurant.name    || '';
-  if (tagEl)   tagEl.textContent   = restaurant.tagline || '';
-  if (emojiEl) emojiEl.textContent = (ada && ada.emoji) || '👩🏾‍🍳';
+function splashUpdate(restaurant) {
+  const nameEl = document.getElementById('splashRestaurant');
+  const tagEl  = document.getElementById('splashTagline');
+  if (nameEl) nameEl.textContent = restaurant.name    || '';
+  if (tagEl)  tagEl.textContent  = restaurant.tagline || '';
   document.documentElement.style.setProperty('--accent', restaurant.accentColor || '#E8893A');
 }
 
@@ -706,7 +713,7 @@ async function init() {
   }
 
   // Update splash with real restaurant branding before it fades out
-  splashUpdate(menuData.restaurant, menuData.ada);
+  splashUpdate(menuData.restaurant);
 
   document.getElementById('landingTitle').textContent      = menuData.restaurant.name;
   document.getElementById('landingTagline').textContent    = menuData.restaurant.tagline;
