@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Platform Admin — Virtual Waitress</title>
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="css/admin.css" />
+    <link rel="stylesheet" href="css/super-admin.css" />
+  </head>
+  <body>
+
+    <!-- Login -->
+    <section id="loginScreen" class="login-screen">
+      <form id="loginForm" class="login-card">
+        <h1>Platform Admin</h1>
+        <p class="login-sub">Virtual Waitress — Internal Dashboard</p>
+        <input type="email" id="loginEmail" placeholder="Email" autocomplete="username" required />
+        <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" required />
+        <button type="submit">Log In</button>
+        <p id="loginError" class="login-error"></p>
+      </form>
+    </section>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="sa-dashboard admin-hidden">
+
+      <header class="sa-header">
+        <div>
+          <p class="sa-eyebrow">Virtual Waitress</p>
+          <h1 class="sa-title">Platform Overview</h1>
+        </div>
+        <button id="logoutBtn" class="btn-secondary">Log Out</button>
+      </header>
+
+      <div class="stat-grid sa-stat-grid">
+        <div class="stat-card">
+          <span class="stat-label">Total Restaurants</span>
+          <span class="stat-value" id="statRestaurants">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">New This Week</span>
+          <span class="stat-value" id="statNewWeek">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">New This Month</span>
+          <span class="stat-value" id="statNewMonth">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Orders</span>
+          <span class="stat-value" id="statOrders">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Revenue</span>
+          <span class="stat-value" id="statRevenue">—</span>
+        </div>
+      </div>
+
+      <h2 class="subsection-title sa-table-title">All Restaurants</h2>
+      <div class="sa-table-wrap">
+        <table class="sa-table">
+          <thead>
+            <tr>
+              <th>Restaurant</th>
+              <th>Slug</th>
+              <th>Joined</th>
+              <th>Orders</th>
+              <th>Revenue</th>
+              <th>Last Order</th>
+            </tr>
+          </thead>
+          <tbody id="restaurantTableBody">
+            <tr><td colspan="6" class="empty-state">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <script src="js/vendor/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/super-admin.js"></script>
+  </body>
+</html>

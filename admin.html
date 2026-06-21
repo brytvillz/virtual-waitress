@@ -95,6 +95,22 @@
             <h2 class="section-title">Analytics</h2>
           </div>
 
+          <!-- Onboarding checklist (hidden once complete or dismissed) -->
+          <div id="onboardingChecklist" class="checklist-card admin-hidden">
+            <div class="checklist-header">
+              <div>
+                <h3 class="checklist-title">🚀 Get your restaurant ready</h3>
+                <p class="checklist-sub">Complete these steps to start taking orders.</p>
+              </div>
+              <button class="checklist-dismiss-btn" id="checklistDismissBtn" type="button">✕</button>
+            </div>
+            <div class="checklist-progress-wrap">
+              <div class="checklist-progress-bar" id="checklistProgressBar"></div>
+            </div>
+            <p class="checklist-progress-text" id="checklistProgressText"></p>
+            <div class="checklist-steps" id="checklistSteps"></div>
+          </div>
+
           <div class="stat-grid">
             <div class="stat-card">
               <span class="stat-label">Today's Orders</span>
@@ -164,6 +180,10 @@
               <div class="profile-badges">
                 <span class="role-badge role-badge--waiter">waiter</span>
                 <span class="staff-code-badge" id="profileCode">—</span>
+              </div>
+              <div class="profile-code-actions">
+                <button class="btn-secondary profile-reset-btn" id="profileResetCodeBtn" type="button">Reset Login Code</button>
+                <p class="profile-code-msg" id="profileCodeMsg"></p>
               </div>
             </div>
           </div>

@@ -145,6 +145,60 @@ function initNav() {
   document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
 }
 
+// ── Onboarding checklist ──────────────────────────────────────────────────────
+
+async function loadOnboardingChecklist() {
+  const dismissKey = `vw_setup_dismissed_${RESTAURANT_ID}`;
+  if (localStorage.getItem(dismissKey)) return;
+
+  const [
+    { count: catCount },
+    { count: itemCount },
+    { count: tableCount },
+    { count: waiterCount }
+  ] = await Promise.all([
+    db.from('menu_categories').select('*', { count: 'exact', head: true }).eq('restaurant_id', RESTAURANT_ID),
+    db.from('menu_items').select('*', { count: 'exact', head: true }).eq('restaurant_id', RESTAURANT_ID),
+    db.from('tables').select('*', { count: 'exact', head: true }).eq('restaurant_id', RESTAURANT_ID),
+    db.from('staff').select('*', { count: 'exact', head: true }).eq('restaurant_id', RESTAURANT_ID).eq('role', 'waiter')
+  ]);
+
+  const steps = [
+    { label: 'Add your first menu category', done: catCount > 0, section: 'menu' },
+    { label: 'Add at least one menu item',   done: itemCount > 0, section: 'menu' },
+    { label: 'Add at least one table',       done: tableCount > 0, section: 'tables' },
+    { label: 'Add at least one waiter',      done: waiterCount > 0, section: 'staff' }
+  ];
+
+  const doneCount = steps.filter(s => s.done).length;
+  if (doneCount === steps.length) return; // all done, stay hidden
+
+  const el = document.getElementById('onboardingChecklist');
+  if (!el) return;
+
+  el.classList.remove('admin-hidden');
+
+  document.getElementById('checklistProgressText').textContent = `${doneCount} of ${steps.length} steps complete`;
+  document.getElementById('checklistProgressBar').style.width  = `${(doneCount / steps.length) * 100}%`;
+
+  document.getElementById('checklistSteps').innerHTML = steps.map(step => `
+    <div class="checklist-step ${step.done ? 'step-done' : ''}">
+      <span class="step-check">${step.done ? '✅' : '⬜'}</span>
+      <span class="step-label">${step.label}</span>
+      ${!step.done ? `<button class="step-go-btn" data-section="${step.section}" type="button">Go →</button>` : ''}
+    </div>
+  `).join('');
+
+  el.querySelectorAll('.step-go-btn').forEach(btn => {
+    btn.addEventListener('click', () => navigateTo(btn.dataset.section));
+  });
+
+  document.getElementById('checklistDismissBtn').addEventListener('click', () => {
+    localStorage.setItem(dismissKey, '1');
+    el.classList.add('admin-hidden');
+  });
+}
+
 // ── Analytics ─────────────────────────────────────────────────────────────────
 
 async function loadAnalytics() {
@@ -175,6 +229,8 @@ async function loadAnalytics() {
   renderWaiterPerformance(staffList || [], todayOrders || []);
   renderBestSellers(orderItems || []);
   renderRecentOrders(recentOrders || []);
+
+  loadOnboardingChecklist();
 }
 
 function renderWaiterPerformance(staffList, todayOrders) {
@@ -900,8 +956,10 @@ function initSettingsForm() {
 // ── Waiter profile (full-screen sub-view) ────────────────────────────────────
 
 let profilePreviousSection = 'staff';
+let profileMemberId = null;
 
 function openWaiterProfile(member) {
+  profileMemberId = member.id;
   profilePreviousSection = currentSection;
   document.getElementById(currentSection + 'Section').classList.add('admin-hidden');
   document.getElementById('waiterProfileSection').classList.remove('admin-hidden');
@@ -912,6 +970,7 @@ function openWaiterProfile(member) {
   document.getElementById('profileName').textContent = member.name || 'Unnamed';
   document.getElementById('profileCode').textContent = member.access_code || 'No code';
   document.getElementById('profileAvatar').textContent = (member.name || '?')[0].toUpperCase();
+  document.getElementById('profileCodeMsg').textContent = '';
 
   document.getElementById('profileTodayStats').innerHTML = '<p class="empty-state">Loading…</p>';
   document.getElementById('profileShiftHistory').innerHTML = '<p class="empty-state">Loading…</p>';
@@ -1034,6 +1093,42 @@ function renderProfileShiftHistory(orders) {
 
 function initWaiterProfile() {
   document.getElementById('backToStaffBtn').addEventListener('click', closeWaiterProfile);
+
+  document.getElementById('profileResetCodeBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('profileResetCodeBtn');
+    const msg = document.getElementById('profileCodeMsg');
+    btn.disabled = true;
+    btn.textContent = 'Resetting…';
+    msg.textContent = '';
+
+    let newCode = '';
+    for (let i = 0; i < 5; i++) {
+      const candidate = generateWaiterCode();
+      const { data } = await db.from('staff').select('id').eq('access_code', candidate).maybeSingle();
+      if (!data) { newCode = candidate; break; }
+    }
+
+    if (!newCode) {
+      msg.textContent = 'Could not generate a unique code — try again.';
+      msg.style.color = '#E85A5A';
+      btn.disabled = false;
+      btn.textContent = 'Reset Login Code';
+      return;
+    }
+
+    const { error } = await db.from('staff').update({ access_code: newCode }).eq('id', profileMemberId);
+    btn.disabled = false;
+    btn.textContent = 'Reset Login Code';
+
+    if (error) {
+      msg.textContent = 'Failed to reset — try again.';
+      msg.style.color = '#E85A5A';
+    } else {
+      document.getElementById('profileCode').textContent = newCode;
+      msg.textContent = `New code: ${newCode} — share this with the waiter.`;
+      msg.style.color = 'var(--accent)';
+    }
+  });
 }
 
 // ── Create Waiter modal ────────────────────────────────────────────────────────
