@@ -66,6 +66,18 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Monthly signups — last 6 months
+    const months: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    const monthlySignups = months.map(m => ({
+      month: m,
+      count: restaurantList.filter(r => r.created_at?.startsWith(m)).length,
+    }));
+
     const breakdown = restaurantList.map(r => ({
       id:         r.id,
       name:       r.name,
@@ -80,6 +92,7 @@ Deno.serve(async (req) => {
       restaurants: { total: restaurantList.length, newThisWeek, newThisMonth },
       orders:      { total: totalOrders, revenue: totalRevenue },
       breakdown,
+      monthlySignups,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
