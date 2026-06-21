@@ -87,3 +87,10 @@
   font-size: 0.82rem;
   color: var(--text-muted);
 }
+
+.sa-dash-error {
+  padding: 40px 24px;
+  color: #E85A5A;
+  text-align: center;
+  font-size: 0.95rem;
+}

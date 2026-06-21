@@ -10,23 +10,32 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function showDashError(msg) {
+  const el = document.getElementById('dashError');
+  if (el) { el.textContent = msg; el.classList.remove('admin-hidden'); }
+}
+
 async function loadStats() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session?.access_token) {
+    showDashError('Not authenticated — please log in.');
+    return;
+  }
+
   const res = await fetch(`${SUPABASE_URL}/functions/v1/platform-stats`, {
     headers: {
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Authorization': `Bearer ${session.access_token}`,
       'Content-Type': 'application/json'
     }
   });
 
   if (res.status === 403) {
-    document.getElementById('dashboard').innerHTML =
-      '<p style="padding:60px 24px;color:#E85A5A;text-align:center">Access denied — this dashboard is restricted to platform administrators.</p>';
+    showDashError('Access denied — this account is not a platform administrator.');
     return;
   }
 
   if (!res.ok) {
-    document.getElementById('dashboard').innerHTML =
-      '<p style="padding:60px 24px;color:#E85A5A;text-align:center">Failed to load stats — please try again.</p>';
+    showDashError('Failed to load stats — please try again.');
     return;
   }
 
@@ -56,11 +65,19 @@ async function loadStats() {
   `).join('');
 }
 
+function showDashboard() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboard').classList.remove('admin-hidden');
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await db.auth.signOut();
+    window.location.reload();
+  });
+}
+
 async function initAuth() {
   const { data: { session } } = await db.auth.getSession();
   if (session) {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('dashboard').classList.remove('admin-hidden');
+    showDashboard();
     await loadStats();
   }
 
@@ -80,14 +97,8 @@ async function initAuth() {
 
     if (error) { errorEl.textContent = 'Login failed — check your credentials.'; return; }
 
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('dashboard').classList.remove('admin-hidden');
+    showDashboard();
     await loadStats();
-  });
-
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await db.auth.signOut();
-    window.location.reload();
   });
 }
 
