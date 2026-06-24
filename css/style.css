@@ -1,6 +1,6 @@
 :root {
-  --accent: #E8893A;
-  --accent-dark: #C4722A;
+  --accent: #C41E3A;
+  --accent-dark: #9B1426;
   --bg: #0D0D0D;
   --card-bg: #1A1A1A;
   --text: #F0EBE3;
@@ -42,14 +42,14 @@ body {
   z-index: 100;
   overflow: hidden;
   padding: 18px 20px 16px;
-  background: linear-gradient(135deg, #1A1108 0%, #0D0D0D 65%);
+  background: linear-gradient(135deg, #120A0C 0%, #0D0D0D 65%);
   border-bottom: 1px solid var(--border);
 }
 
 .hero-bg {
   position: absolute;
   inset: 0;
-  background-image: url(../images/hero-food.jpg);
+  background-image: url(../images/bg-hero.jpg);
   background-size: cover;
   background-position: center 35%;
   opacity: 0.18;
@@ -61,7 +61,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 105% -10%, rgba(232,137,58,0.35), transparent 55%);
+  background: radial-gradient(circle at 105% -10%, rgba(196,30,58,0.3), transparent 55%);
   z-index: 1;
   pointer-events: none;
 }
@@ -134,7 +134,7 @@ body {
   align-items: flex-start;
   padding: 52px 20px 20px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(135deg, #1A1108 0%, #1A1A1A 100%);
+  background: linear-gradient(135deg, #120A0C 0%, #1A1A1A 100%);
 }
 
 .cmenu-restaurant-name {
@@ -149,7 +149,7 @@ body {
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--accent);
-  background: rgba(232,137,58,0.15);
+  background: rgba(196,30,58,0.15);
   display: inline-block;
   padding: 2px 10px;
   border-radius: 999px;
@@ -231,7 +231,7 @@ body {
   font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
-  box-shadow: 0 4px 14px rgba(232,137,58,0.4);
+  box-shadow: 0 4px 14px rgba(196,30,58,0.4);
 }
 
 /* ── Category Nav ────────────────────────── */
@@ -360,7 +360,7 @@ body {
   border-color: var(--accent);
   border-style: solid;
   color: var(--accent);
-  background: rgba(232,137,58,0.08);
+  background: rgba(196,30,58,0.08);
 }
 
 /* ── Menu Content ────────────────────────── */
@@ -404,7 +404,7 @@ body {
 
 .menu-item:active {
   transform: scale(0.97);
-  box-shadow: 0 2px 12px rgba(232,137,58,0.15);
+  box-shadow: 0 2px 12px rgba(196,30,58,0.15);
 }
 
 .menu-item.has-special {
@@ -453,7 +453,7 @@ body {
   font-size: 0.72rem;
   color: var(--accent);
   font-weight: 700;
-  background: rgba(232,137,58,0.12);
+  background: rgba(196,30,58,0.12);
   padding: 2px 8px;
   border-radius: 10px;
 }
@@ -705,7 +705,7 @@ body {
   justify-content: center;
   gap: 1px;
   transition: background 0.2s, transform 0.1s;
-  box-shadow: 0 4px 14px rgba(232,137,58,0.4);
+  box-shadow: 0 4px 14px rgba(196,30,58,0.4);
 }
 
 .place-order-btn:active {
@@ -790,7 +790,7 @@ body {
 .landing-bg {
   position: absolute;
   inset: 0;
-  background-image: url(../images/bg-texture.jpg);
+  background-image: url(../images/bg-texture-new.jpg);
   background-size: cover;
   background-position: center;
   z-index: 0;
@@ -809,7 +809,7 @@ body {
 .landing-food-wrap {
   width: min(250px, 68vw);
   margin-bottom: 28px;
-  filter: drop-shadow(0 24px 60px rgba(232,137,58,0.45));
+  filter: drop-shadow(0 24px 60px rgba(196,30,58,0.45));
   animation: food-float 4s ease-in-out infinite;
 }
 
@@ -821,8 +821,8 @@ body {
   object-position: center;
   display: block;
   box-shadow:
-    0 0 0 4px rgba(232,137,58,0.3),
-    0 0 80px rgba(232,137,58,0.18),
+    0 0 0 4px rgba(196,30,58,0.3),
+    0 0 80px rgba(196,30,58,0.18),
     0 30px 80px rgba(0,0,0,0.9);
 }
 
@@ -889,7 +889,7 @@ body {
   cursor: pointer;
   letter-spacing: 0.02em;
   transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-  box-shadow: 0 4px 28px rgba(232,137,58,0.5);
+  box-shadow: 0 4px 28px rgba(196,30,58,0.5);
 }
 
 .btn-view-menu:active {
@@ -1039,7 +1039,7 @@ body {
 }
 
 .my-order-table-pill {
-  background: rgba(232,137,58,0.15);
+  background: rgba(196,30,58,0.15);
   color: var(--accent);
   font-size: 0.75rem;
   font-weight: 700;
@@ -1144,7 +1144,7 @@ body {
 }
 
 .status-pending   { background: rgba(248,196,113,0.15); color: #F8C471; }
-.status-preparing { background: rgba(232,137,58,0.18);  color: var(--accent); }
+.status-preparing { background: rgba(196,30,58,0.18);  color: var(--accent); }
 .status-served    { background: rgba(80,200,120,0.15);  color: #50C878; }
 
 .my-order-time {

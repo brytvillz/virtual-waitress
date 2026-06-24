@@ -1,7 +1,7 @@
 // Virtual Waitress — Service Worker
 // Caches all assets so the menu works even with poor network (common in restaurants)
 
-const CACHE = 'vw-v30';
+const CACHE = 'vw-v31';
 const ASSETS = [
   '/',
   '/index.html',
@@ -15,8 +15,9 @@ const ASSETS = [
   '/images/emeka.png',
   '/images/mamachef.png',
   '/images/cheftunde.png',
-  '/images/hero-food.jpg',
-  '/images/bg-texture.jpg'
+  '/images/bg-hero.jpg',
+  '/images/bg-food.jpg',
+  '/images/bg-texture-new.jpg'
 ];
 
 // Install: cache everything on first load
