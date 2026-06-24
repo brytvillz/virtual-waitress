@@ -108,6 +108,16 @@ function getCategoryById(id) {
       items: menuData.categories.flatMap(c => c.items)
     };
   }
+  if (id === 'specials') {
+    return {
+      id: 'specials',
+      name: "Today's Specials",
+      emoji: '⭐',
+      items: menuData.categories
+        .flatMap(c => c.items)
+        .filter(item => item.description.includes('⭐') || item.description.toUpperCase().includes('FREE'))
+    };
+  }
   return menuData.categories.find(c => c.id === id);
 }
 
@@ -168,7 +178,11 @@ const Ada = {
 
 function renderTabs(categories, activeId) {
   const container = document.getElementById('categoryTabs');
-  container.innerHTML = categories.map(cat => `
+  const specialsBtn = `<button class="tab-btn tab-specials ${activeId === 'specials' ? 'active' : ''}" data-category="specials">
+    <span>⭐</span>
+    <span>Specials</span>
+  </button>`;
+  container.innerHTML = specialsBtn + categories.map(cat => `
     <button class="tab-btn ${cat.id === activeId ? 'active' : ''}" data-category="${cat.id}">
       <span>${cat.emoji}</span>
       <span>${cat.name}</span>
@@ -215,6 +229,11 @@ function renderItems(category) {
       <span>${category.name}</span>
     </h2>
   `;
+
+  if (!category.items.length) {
+    container.innerHTML = heading + '<p class="loading" style="padding:40px 20px;text-align:center;opacity:0.5">No items here yet — check back soon!</p>';
+    return;
+  }
 
   const cards = category.items.map(item => {
     const isSpecial = item.description.includes('⭐') || item.description.toUpperCase().includes('FREE');
@@ -473,34 +492,24 @@ function initAdaClick() {
   });
 }
 
-// ── Landing ───────────────────────────────────────────────────────────────────
+// ── Show app after splash ─────────────────────────────────────────────────────
 
-function initLanding() {
-  const landing  = document.getElementById('landing');
-  const app      = document.getElementById('app');
-  const isQRScan = new URLSearchParams(window.location.search).has('r');
+function revealApp() {
+  const app = document.getElementById('app');
+  app.classList.add('visible');
+  Ada.speak(menuData.ada.welcome, 7000);
+  Ada.resetIdleTimer();
+}
 
-  function dismiss(openSpecials) {
-    landing.classList.add('exit');
-    app.classList.add('visible');
-    app.removeAttribute('aria-hidden');
-
-    setTimeout(() => {
-      landing.style.display = 'none';
-      Ada.speak(menuData.ada.welcome, 7000);
-      Ada.resetIdleTimer();
-    }, 600);
-
-    if (openSpecials) {
-      setTimeout(() => switchCategory('drinks'), 750);
-    }
-  }
-
-  document.getElementById('btnViewMenu').addEventListener('click', () => dismiss(false));
-  document.getElementById('btnSpecials').addEventListener('click', () => dismiss(true));
-
-  // QR table scans go straight to the menu — no landing tap required
-  if (isQRScan) dismiss(false);
+function splashError(title, sub) {
+  const nameEl = document.getElementById('splashRestaurant');
+  const tagEl  = document.getElementById('splashTagline');
+  const msgEl  = document.querySelector('.splash-message');
+  const dots   = document.querySelector('.splash-dots');
+  if (nameEl) nameEl.textContent = title;
+  if (tagEl)  tagEl.textContent  = sub || 'Please reload the page or scan the QR code again.';
+  if (msgEl)  msgEl.textContent  = ''; // clear Ada's bubble
+  if (dots)   dots.style.display = 'none';
 }
 
 // ── My Order tracker ─────────────────────────────────────────────────────────
@@ -698,9 +707,7 @@ async function init() {
     .single();
 
   if (slugError || !restaurantRow) {
-    document.getElementById('landingTitle').textContent = 'Restaurant not found';
-    document.getElementById('landingTagline').textContent = 'Please scan the QR code at your table again.';
-    splashHide();
+    splashError('Restaurant not found', 'Please scan the QR code at your table again.');
     return;
   }
 
@@ -710,17 +717,13 @@ async function init() {
     menuData = await loadMenuData();
   } catch (err) {
     console.error('Could not load the menu', err);
-    document.getElementById('landingTitle').textContent = 'Unable to load menu';
-    document.getElementById('landingTagline').textContent = 'Please check your connection and reload the page.';
-    splashHide();
+    splashError('Unable to load menu', 'Please check your connection and reload the page.');
     return;
   }
 
   // Update splash with real restaurant branding before it fades out
   splashUpdate(menuData.restaurant);
 
-  document.getElementById('landingTitle').textContent      = menuData.restaurant.name;
-  document.getElementById('landingTagline').textContent    = menuData.restaurant.tagline;
   document.getElementById('restaurantName').textContent    = menuData.restaurant.name;
   document.getElementById('restaurantTagline').textContent = menuData.restaurant.tagline;
   document.getElementById('tableBadge').textContent        = 'Table ' + getTableNumber();
@@ -729,8 +732,8 @@ async function init() {
   if (menuData.categories.length === 0) {
     document.getElementById('menuGrid').innerHTML =
       '<div class="loading" style="padding:60px 20px;text-align:center;opacity:0.5">Menu coming soon — check back shortly.</div>';
-    initLanding();
     initHamburgerMenu();
+    revealApp();
     splashHide();
     return;
   }
@@ -745,11 +748,11 @@ async function init() {
   initPlaceOrder();
   initAllCategoriesButton();
   initAdaClick();
-  initLanding();
   initAutoSlideTabs();
   initMyOrder();
   initHamburgerMenu();
 
+  revealApp();
   splashHide();
 }
 
