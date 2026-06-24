@@ -476,8 +476,9 @@ function initAdaClick() {
 // ── Landing ───────────────────────────────────────────────────────────────────
 
 function initLanding() {
-  const landing = document.getElementById('landing');
-  const app     = document.getElementById('app');
+  const landing  = document.getElementById('landing');
+  const app      = document.getElementById('app');
+  const isQRScan = new URLSearchParams(window.location.search).has('r');
 
   function dismiss(openSpecials) {
     landing.classList.add('exit');
@@ -497,6 +498,9 @@ function initLanding() {
 
   document.getElementById('btnViewMenu').addEventListener('click', () => dismiss(false));
   document.getElementById('btnSpecials').addEventListener('click', () => dismiss(true));
+
+  // QR table scans go straight to the menu — no landing tap required
+  if (isQRScan) dismiss(false);
 }
 
 // ── My Order tracker ─────────────────────────────────────────────────────────

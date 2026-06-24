@@ -532,10 +532,10 @@ body {
 .ada-container {
   position: fixed;
   bottom: 68px;
-  right: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 10px;
   z-index: 200;
   pointer-events: none;
@@ -592,9 +592,9 @@ body {
   background: #252525;
   color: var(--text);
   padding: 10px 14px;
-  border-radius: 16px 16px 4px 16px;
+  border-radius: 16px 16px 16px 4px;
   max-width: 200px;
-  margin-right: 12px;
+  margin-left: 12px;
   font-size: 0.8rem;
   line-height: 1.55;
   box-shadow: 0 4px 18px rgba(0,0,0,0.4);
