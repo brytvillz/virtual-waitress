@@ -908,7 +908,7 @@ async function loadSettings() {
   document.getElementById('settingWhatsapp').value   = data.whatsapp || '';
   document.getElementById('settingMaxTables').value  = data.max_tables_per_waiter || 3;
 
-  const color = data.accent_color || '#E8893A';
+  const color = data.accent_color || '#C41E3A';
   document.getElementById('settingAccentColor').value = color;
   document.getElementById('colorHint').textContent     = color;
   document.documentElement.style.setProperty('--accent', color);

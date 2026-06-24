@@ -669,7 +669,7 @@ function splashUpdate(restaurant) {
   const tagEl  = document.getElementById('splashTagline');
   if (nameEl) nameEl.textContent = restaurant.name    || '';
   if (tagEl)  tagEl.textContent  = restaurant.tagline || '';
-  document.documentElement.style.setProperty('--accent', restaurant.accentColor || '#E8893A');
+  document.documentElement.style.setProperty('--accent', restaurant.accentColor || '#C41E3A');
 }
 
 async function splashHide() {

@@ -63,8 +63,8 @@ function renderColumnChart(containerId, labels, values) {
     const y    = PT + cH - barH;
 
     if (barH > 0) {
-      svg.appendChild(makeSvg('rect', { x, y, width: barW, height: barH, fill: '#E8893A', rx: 3 }));
-      svg.appendChild(svgText({ x: x + barW / 2, y: y - 6, 'text-anchor': 'middle', 'font-size': 11, fill: '#E8893A', 'font-weight': 700 }, values[i]));
+      svg.appendChild(makeSvg('rect', { x, y, width: barW, height: barH, fill: '#C41E3A', rx: 3 }));
+      svg.appendChild(svgText({ x: x + barW / 2, y: y - 6, 'text-anchor': 'middle', 'font-size': 11, fill: '#C41E3A', 'font-weight': 700 }, values[i]));
     }
 
     svg.appendChild(svgText({ x: x + barW / 2, y: PT + cH + 16, 'text-anchor': 'middle', 'font-size': 10, fill: '#555' }, label));
@@ -106,12 +106,12 @@ function renderHBarChart(containerId, labels, values, formatFn) {
     svg.appendChild(makeSvg('rect', { x: PL, y, width: cW, height: BAR_H, fill: '#18181b', rx: 4 }));
     // bar
     if (barLen > 0) {
-      svg.appendChild(makeSvg('rect', { x: PL, y, width: barLen, height: BAR_H, fill: '#E8893A', rx: 4, opacity: 0.88 }));
+      svg.appendChild(makeSvg('rect', { x: PL, y, width: barLen, height: BAR_H, fill: '#C41E3A', rx: 4, opacity: 0.88 }));
     }
     // name
     svg.appendChild(svgText({ x: PL - 8, y: y + BAR_H / 2 + 4, 'text-anchor': 'end', 'font-size': 12, fill: '#ccc' }, name));
     // value
-    svg.appendChild(svgText({ x: PL + cW + 10, y: y + BAR_H / 2 + 4, 'font-size': 11, fill: '#E8893A', 'font-weight': 700 }, formatFn(values[i])));
+    svg.appendChild(svgText({ x: PL + cW + 10, y: y + BAR_H / 2 + 4, 'font-size': 11, fill: '#C41E3A', 'font-weight': 700 }, formatFn(values[i])));
   });
 
   container.appendChild(svg);
