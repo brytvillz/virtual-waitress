@@ -986,7 +986,7 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 200;
+  z-index: 400;
 }
 
 .my-order-card {
@@ -995,7 +995,7 @@ body {
   border-radius: 24px 24px 0 0;
   width: 100%;
   max-width: 520px;
-  max-height: 82vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   animation: slide-up 0.28s cubic-bezier(.22,.68,0,1.2);
@@ -1188,6 +1188,14 @@ body {
   white-space: nowrap;
 }
 
+/* Scrollable content area */
+#myOrderContent {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  padding: 14px 16px 28px;
+}
+
 /* Grand total */
 .my-order-total-row {
   display: flex;
@@ -1197,7 +1205,7 @@ body {
   font-size: 1.05rem;
   padding: 14px 0 6px;
   border-top: 1px solid var(--border);
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .my-order-hint {
