@@ -1,6 +1,16 @@
 // Virtual Waitress MVP — NgwaNgwa Digital
 // Demo restaurant: Nnewi Buka
 
+// Category images keyed by slug — falls back to emoji if no image for that slug
+const CAT_IMAGES = {
+  soups:         'images/cat-soups.jpg',
+  swallows:      'images/cat-swallows.jpg',
+  rice:          'images/cat-rice.jpg',
+  grills:        'images/cat-grills.jpg',
+  'small-chops': 'images/cat-small-chops.jpg',
+  drinks:        'images/cat-drinks.jpg',
+};
+
 // Character roster — images added as they're generated
 const CHARACTERS = {
   ada:       { src: 'images/ada.png',       name: 'Ada'         },
@@ -214,12 +224,17 @@ function renderTabs(categories, activeId) {
 
 function renderCategoryGrid(categories, activeId) {
   const grid = document.getElementById('categoryGrid');
-  grid.innerHTML = categories.map(cat => `
-    <button class="cat-box ${cat.id === activeId ? 'active' : ''}" data-category="${cat.id}">
-      <span class="cat-box-emoji">${cat.emoji}</span>
-      <span class="cat-box-name">${cat.name}</span>
-    </button>
-  `).join('');
+  grid.innerHTML = categories.map(cat => {
+    const imgSrc = CAT_IMAGES[cat.id];
+    const visual = imgSrc
+      ? `<img class="cat-box-img" src="${imgSrc}" alt="${cat.name}" loading="lazy" />`
+      : `<span class="cat-box-emoji">${cat.emoji}</span>`;
+    return `
+      <button class="cat-box ${cat.id === activeId ? 'active' : ''}" data-category="${cat.id}">
+        ${visual}
+        <span class="cat-box-name">${cat.name}</span>
+      </button>`;
+  }).join('');
 
   grid.querySelectorAll('.cat-box').forEach(box => {
     box.addEventListener('click', () => {
