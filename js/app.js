@@ -153,19 +153,32 @@ const Ada = {
   speakTimer: null,
 
   speak(message, duration = 5000) {
-    const bubble = document.getElementById('speechBubble');
-    const text   = document.getElementById('speechText');
-    const avatar = document.getElementById('adaCharacter');
+    const container = document.getElementById('adaContainer');
+    const bubble    = document.getElementById('speechBubble');
+    const text      = document.getElementById('speechText');
+    const avatar    = document.getElementById('adaCharacter');
 
     clearTimeout(this.speakTimer);
     text.textContent = message;
+    container.classList.add('visible');
     bubble.classList.add('visible');
     avatar.classList.add('speaking');
 
     this.speakTimer = setTimeout(() => {
       bubble.classList.remove('visible');
       avatar.classList.remove('speaking');
+      container.classList.remove('visible');
     }, duration);
+  },
+
+  hide() {
+    clearTimeout(this.speakTimer);
+    const container = document.getElementById('adaContainer');
+    const bubble    = document.getElementById('speechBubble');
+    const avatar    = document.getElementById('adaCharacter');
+    bubble.classList.remove('visible');
+    avatar.classList.remove('speaking');
+    container.classList.remove('visible');
   },
 
   resetIdleTimer() {
@@ -490,6 +503,10 @@ function initAdaClick() {
     Ada.speak(msg, 5500);
     Ada.resetIdleTimer();
   });
+
+  // Hide Ada immediately when user starts scrolling
+  window.addEventListener('scroll', () => Ada.hide(), { passive: true });
+  document.querySelector('.menu-content')?.addEventListener('scroll', () => Ada.hide(), { passive: true });
 }
 
 // ── Show app after splash ─────────────────────────────────────────────────────
