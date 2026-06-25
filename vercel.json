@@ -1,8 +1,8 @@
 {
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/:slug/waiter", "destination": "/waiter.html" },
-    { "source": "/:slug/admin",  "destination": "/admin.html"  }
+    { "source": "/:slug/:table", "destination": "/index.html" },
+    { "source": "/:slug",        "destination": "/index.html" }
   ],
   "headers": [
     {

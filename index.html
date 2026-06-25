@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> u
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -26,6 +26,7 @@
 
     <title>Nnewi Buka — Menu</title>
 
+    <link rel="canonical" href="https://app.virtualwaitress.com" />
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -41,15 +42,18 @@
       <div class="plt-bg"></div>
       <nav class="plt-nav">
         <span class="plt-brand">🍽️ Virtual Waitress</span>
-        <a href="/admin.html" class="plt-nav-signin">Sign In</a>
+        <a href="/admin" class="plt-nav-signin">Sign In</a>
       </nav>
       <div class="plt-hero">
         <div class="plt-icon">🍽️</div>
         <h1 class="plt-title">Virtual Waitress</h1>
-        <p class="plt-sub">The smarter way your guests order — digital menus, instant kitchen alerts, zero wait time.</p>
+        <p class="plt-sub">
+          The smarter way your guests order — digital menus, instant kitchen
+          alerts, zero wait time.
+        </p>
         <div class="plt-actions">
-          <a href="/admin.html" class="plt-btn-signup">Sign Up Free</a>
-          <a href="/admin.html" class="plt-btn-login">Login</a>
+          <a href="/admin" class="plt-btn-signup">Sign Up Free</a>
+          <a href="/admin" class="plt-btn-login">Login</a>
         </div>
         <div class="plt-features">
           <span class="plt-feat">✦ 5-minute setup</span>
@@ -62,15 +66,29 @@
     </div>
 
     <!-- ── Splash Screen ─────────────────────────────────────────────────── -->
-    <div id="splashScreen" class="splash-screen" aria-live="polite" aria-label="Loading menu">
+    <div
+      id="splashScreen"
+      class="splash-screen"
+      aria-live="polite"
+      aria-label="Loading menu"
+    >
       <div class="splash-content">
         <p class="splash-restaurant" id="splashRestaurant"></p>
         <p class="splash-tagline-text" id="splashTagline"></p>
         <div class="splash-ada-wrap">
-          <img class="splash-ada-img" id="splashAdaImg" src="" alt="" aria-hidden="true" />
+          <img
+            class="splash-ada-img"
+            id="splashAdaImg"
+            src=""
+            alt=""
+            aria-hidden="true"
+          />
         </div>
         <div class="splash-bubble">
-          <p class="splash-message">Welcome! I'm Ada, your virtual waitress. Browse our menu and order at your own pace — I'll make sure you're well taken care of. 🍽️</p>
+          <p class="splash-message">
+            Welcome! I'm Ada, your virtual waitress. Browse our menu and order
+            at your own pace — I'll make sure you're well taken care of. 🍽️
+          </p>
         </div>
         <div class="splash-dots" aria-hidden="true">
           <span class="splash-dot"></span>
@@ -92,8 +110,14 @@
           </div>
           <div class="hero-right">
             <div class="table-badge" id="tableBadge">Table —</div>
-            <a href="/admin.html" class="hero-signin-btn">Sign In</a>
-            <button class="hero-menu-btn" id="heroMenuBtn" aria-label="Open menu">☰</button>
+            <a href="/admin" class="hero-signin-btn">Sign In</a>
+            <button
+              class="hero-menu-btn"
+              id="heroMenuBtn"
+              aria-label="Open menu"
+            >
+              ☰
+            </button>
           </div>
         </div>
       </header>
@@ -155,19 +179,28 @@
           <span class="place-order-sub">and get served</span>
         </button>
       </div>
-
     </div>
     <!-- /#app -->
 
     <!-- Customer side menu -->
     <div id="customerMenuOverlay" class="cmenu-overlay admin-hidden"></div>
-    <nav id="customerMenuPanel" class="cmenu-panel admin-hidden" aria-label="Customer menu">
+    <nav
+      id="customerMenuPanel"
+      class="cmenu-panel admin-hidden"
+      aria-label="Customer menu"
+    >
       <div class="cmenu-header">
         <div class="cmenu-restaurant">
           <p class="cmenu-restaurant-name" id="cmenuRestaurantName">—</p>
           <p class="cmenu-table-label" id="cmenuTableLabel">Table —</p>
         </div>
-        <button id="customerMenuCloseBtn" class="cmenu-close" aria-label="Close menu">✕</button>
+        <button
+          id="customerMenuCloseBtn"
+          class="cmenu-close"
+          aria-label="Close menu"
+        >
+          ✕
+        </button>
       </div>
       <div class="cmenu-body">
         <button class="cmenu-item" id="cmenuMyOrdersBtn">
@@ -190,11 +223,22 @@
         <div class="my-order-header">
           <div class="my-order-header-left">
             <span class="my-order-title">My Orders</span>
-            <span class="my-order-table-pill">Table <span id="myOrderTableNum"></span></span>
+            <span class="my-order-table-pill"
+              >Table <span id="myOrderTableNum"></span
+            ></span>
           </div>
           <div class="my-order-header-right">
-            <button id="myOrderRefreshBtn" class="my-order-refresh-icon" type="button" title="Refresh">↻</button>
-            <button id="myOrderCloseBtn" class="my-order-close" type="button">✕</button>
+            <button
+              id="myOrderRefreshBtn"
+              class="my-order-refresh-icon"
+              type="button"
+              title="Refresh"
+            >
+              ↻
+            </button>
+            <button id="myOrderCloseBtn" class="my-order-close" type="button">
+              ✕
+            </button>
           </div>
         </div>
         <div id="myOrderContent">

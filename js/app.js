@@ -93,15 +93,26 @@ let orderState      = {}; // { itemName: { qty, price } }
 let tabAutoSlideTimer = null;
 
 function getRestaurantSlug() {
+  // Path-based: app.virtualwaitress.com/nnewi-buka/1
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  if (parts.length >= 1 && /^[a-z0-9][a-z0-9-]*$/.test(parts[0])) {
+    return parts[0];
+  }
+  // Backward compat: ?r=slug (old QR codes still work)
   const raw = new URLSearchParams(window.location.search).get('r');
-  // Fall back to demo restaurant if ?r= is missing (backwards-compat with printed QR cards)
-  return (raw && /^[a-z0-9-]+$/.test(raw)) ? raw : 'nnewi-buka';
+  return (raw && /^[a-z0-9-]+$/.test(raw)) ? raw : null;
 }
 
 function getTableNumber() {
+  // Path-based: /nnewi-buka/3
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  if (parts.length >= 2 && /^\d+$/.test(parts[1])) {
+    const n = parseInt(parts[1], 10);
+    if (n >= 1 && n <= 999) return String(n);
+  }
+  // Backward compat: ?table=N
   const raw = new URLSearchParams(window.location.search).get('table');
   const n   = parseInt(raw, 10);
-  // Only accept whole numbers between 1 and 999 — reject anything else
   return (Number.isInteger(n) && n >= 1 && n <= 999) ? String(n) : '1';
 }
 
@@ -726,8 +737,9 @@ async function splashHide() {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function init() {
-  // No restaurant slug — show the platform landing page, skip the menu entirely
-  if (!new URLSearchParams(window.location.search).has('r')) {
+  // No restaurant slug in path or query → show platform landing page
+  const slug = getRestaurantSlug();
+  if (!slug) {
     document.getElementById('splashScreen').remove();
     document.getElementById('platformLanding').classList.remove('admin-hidden');
     return;
@@ -735,8 +747,7 @@ async function init() {
 
   splashStart();
 
-  // Resolve restaurant from ?r=slug before anything else
-  const slug = getRestaurantSlug();
+  // slug already resolved above — reuse it
   MENU_CACHE_KEY = 'vw_menu_cache_' + slug;
 
   const { data: restaurantRow, error: slugError } = await db

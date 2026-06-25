@@ -882,7 +882,7 @@ async function loadQrSection() {
       tagline: restaurantTagline,
       tables: tableNums
     });
-    window.open(`qr-cards.html?${params.toString()}`, '_blank');
+    window.open(`/qr-cards?${params.toString()}`, '_blank');
   };
 
   document.getElementById('qrGoToTablesBtn').onclick = () => navigateTo('tables');
@@ -1208,7 +1208,7 @@ function initForgotPassword() {
 
     msgEl.textContent = 'Sending reset email…';
     const { error } = await db.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://virtual-waitress.vercel.app/reset-password'
+      redirectTo: 'https://app.virtualwaitress.com/reset-password'
     });
 
     if (error) {

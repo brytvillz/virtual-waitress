@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /admin
+Disallow: /waiter
+Disallow: /qr-cards
+Disallow: /reset-password
+Allow: /
+
+Sitemap: https://app.virtualwaitress.com/sitemap.xml
