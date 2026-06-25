@@ -689,7 +689,7 @@ function initHamburgerMenu() {
 
 // ── Splash screen ────────────────────────────────────────────────────────────
 
-const SPLASH_MIN_MS = 1500;
+const SPLASH_MIN_MS = 5000;
 const SPLASH_CHARS  = [
   'images/ada.png',
   'images/chisom.png',
