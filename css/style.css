@@ -1093,6 +1093,231 @@ body {
   margin-top: 14px;
 }
 
+/* ══════════════════════════════════════════
+   PLATFORM LANDING PAGE (no ?r= param)
+   ══════════════════════════════════════════ */
+
+.plt-landing {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+
+.plt-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('../images/bg-texture-new.jpg');
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+
+.plt-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    rgba(196,30,58,0.18) 0%,
+    rgba(8,2,4,0.72) 50%,
+    rgba(8,2,4,0.88) 100%
+  );
+}
+
+/* ── Nav bar ── */
+.plt-nav {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  background: rgba(8,2,4,0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.plt-brand {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #F5EDD8;
+  letter-spacing: -0.01em;
+}
+
+.plt-nav-signin {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #F5EDD8;
+  text-decoration: none;
+  padding: 7px 16px;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  border-radius: 99px;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.plt-nav-signin:active {
+  background: rgba(255,255,255,0.15);
+}
+
+/* ── Hero ── */
+.plt-hero {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 28px 20px;
+  max-width: 440px;
+  width: 100%;
+}
+
+.plt-icon {
+  font-size: 3.2rem;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 0 24px rgba(196,30,58,0.6));
+  animation: plt-float 4s ease-in-out infinite;
+}
+
+@keyframes plt-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+
+.plt-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.2rem, 9vw, 3rem);
+  color: #F5EDD8;
+  line-height: 1.1;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+
+.plt-sub {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  color: rgba(240,235,227,0.65);
+  line-height: 1.6;
+  margin-bottom: 36px;
+  max-width: 320px;
+}
+
+/* ── CTA Buttons ── */
+.plt-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: 32px;
+}
+
+.plt-btn-signup,
+.plt-btn-login {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px 20px;
+  border-radius: 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-decoration: none;
+  letter-spacing: 0.01em;
+  transition: transform 0.15s ease, background 0.2s;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.plt-btn-signup {
+  background: rgba(196,30,58,0.35);
+  color: #F5EDD8;
+  border: 1.5px solid rgba(196,30,58,0.85);
+  box-shadow: 0 4px 24px rgba(196,30,58,0.3);
+}
+
+.plt-btn-signup:active {
+  background: rgba(196,30,58,0.55);
+  transform: scale(0.97);
+}
+
+.plt-btn-login {
+  background: rgba(255,255,255,0.08);
+  color: #F5EDD8;
+  border: 1.5px solid rgba(255,255,255,0.25);
+}
+
+.plt-btn-login:active {
+  background: rgba(255,255,255,0.16);
+  transform: scale(0.97);
+}
+
+/* ── Feature pills ── */
+.plt-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.plt-feat {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(240,235,227,0.5);
+  padding: 5px 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 99px;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ── Footer ── */
+.plt-footer {
+  position: relative;
+  z-index: 2;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  color: rgba(240,235,227,0.28);
+  padding: 20px;
+  letter-spacing: 0.03em;
+}
+
+/* ── Hero nav Sign In button (on restaurant menu pages) ── */
+.hero-signin-btn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(240,235,227,0.85);
+  text-decoration: none;
+  padding: 5px 12px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 99px;
+  background: rgba(255,255,255,0.07);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.hero-signin-btn:active {
+  background: rgba(255,255,255,0.14);
+}
+
 /* ── Splash Screen ─────────────────────────────────────────────────────────── */
 
 .splash-screen {

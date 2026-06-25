@@ -726,6 +726,13 @@ async function splashHide() {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function init() {
+  // No restaurant slug — show the platform landing page, skip the menu entirely
+  if (!new URLSearchParams(window.location.search).has('r')) {
+    document.getElementById('splashScreen').remove();
+    document.getElementById('platformLanding').classList.remove('admin-hidden');
+    return;
+  }
+
   splashStart();
 
   // Resolve restaurant from ?r=slug before anything else

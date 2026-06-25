@@ -36,6 +36,31 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
+    <!-- ── Platform Landing (shown when no ?r= param) ───────────────────── -->
+    <div id="platformLanding" class="plt-landing admin-hidden">
+      <div class="plt-bg"></div>
+      <nav class="plt-nav">
+        <span class="plt-brand">🍽️ Virtual Waitress</span>
+        <a href="/admin.html" class="plt-nav-signin">Sign In</a>
+      </nav>
+      <div class="plt-hero">
+        <div class="plt-icon">🍽️</div>
+        <h1 class="plt-title">Virtual Waitress</h1>
+        <p class="plt-sub">The smarter way your guests order — digital menus, instant kitchen alerts, zero wait time.</p>
+        <div class="plt-actions">
+          <a href="/admin.html" class="plt-btn-signup">Sign Up Free</a>
+          <a href="/admin.html" class="plt-btn-login">Login</a>
+        </div>
+        <div class="plt-features">
+          <span class="plt-feat">✦ 5-minute setup</span>
+          <span class="plt-feat">✦ Real-time orders</span>
+          <span class="plt-feat">✦ Any device</span>
+          <span class="plt-feat">✦ No app download</span>
+        </div>
+      </div>
+      <p class="plt-footer">Powered by NgwaNgwa Digital</p>
+    </div>
+
     <!-- ── Splash Screen ─────────────────────────────────────────────────── -->
     <div id="splashScreen" class="splash-screen" aria-live="polite" aria-label="Loading menu">
       <div class="splash-content">
@@ -67,6 +92,7 @@
           </div>
           <div class="hero-right">
             <div class="table-badge" id="tableBadge">Table —</div>
+            <a href="/admin.html" class="hero-signin-btn">Sign In</a>
             <button class="hero-menu-btn" id="heroMenuBtn" aria-label="Open menu">☰</button>
           </div>
         </div>
