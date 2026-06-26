@@ -180,6 +180,8 @@ body {
 
 .su-pw-toggle:hover { color: var(--text); }
 
+.eye-hidden { display: none; }
+
 /* ── Password strength checklist ──────── */
 .su-strength {
   list-style: none;

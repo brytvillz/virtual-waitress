@@ -87,8 +87,8 @@ async function initAuth() {
     loginPwToggle.addEventListener('click', () => {
       const showing = loginPwInput.type === 'text';
       loginPwInput.type = showing ? 'password' : 'text';
-      loginPwToggle.querySelector('.eye-icon').style.display     = showing ? '' : 'none';
-      loginPwToggle.querySelector('.eye-off-icon').style.display = showing ? 'none' : '';
+      loginPwToggle.querySelector('.eye-icon').classList.toggle('eye-hidden', !showing);
+      loginPwToggle.querySelector('.eye-off-icon').classList.toggle('eye-hidden', showing);
       loginPwToggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
     });
   }

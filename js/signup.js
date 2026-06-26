@@ -63,8 +63,8 @@ function setupToggle(toggleId, inputEl) {
   btn.addEventListener('click', () => {
     const showing = inputEl.type === 'text';
     inputEl.type = showing ? 'password' : 'text';
-    btn.querySelector('.eye-icon').style.display     = showing ? '' : 'none';
-    btn.querySelector('.eye-off-icon').style.display = showing ? 'none' : '';
+    btn.querySelector('.eye-icon').classList.toggle('eye-hidden', !showing);
+    btn.querySelector('.eye-off-icon').classList.toggle('eye-hidden', showing);
     btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
   });
 }

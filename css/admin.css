@@ -1087,6 +1087,8 @@
 
 .login-signup-link a:hover { text-decoration: underline; }
 
+.eye-hidden { display: none; }
+
 /* ── Menu editor empty state ─────────────────────────────────────────────── */
 
 .menu-empty-state {
