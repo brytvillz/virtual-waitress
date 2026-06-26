@@ -18,7 +18,7 @@
       <!-- Left panel: branding -->
       <div class="su-brand">
         <div class="su-brand-inner">
-          <a href="https://virtual-waitress-landing.vercel.app" class="su-logo">
+          <a href="https://virtualwaitress.com" class="su-logo">
             <span class="su-logo-mark">VW</span>
             <span class="su-logo-word">Virtual Waitress</span>
           </a>
@@ -69,16 +69,34 @@
 
               <div class="su-field">
                 <label for="suPassword">Password</label>
-                <input type="password" id="suPassword" name="password"
-                  placeholder="At least 8 characters"
-                  autocomplete="new-password" required minlength="8" />
+                <div class="su-pw-wrap">
+                  <input type="password" id="suPassword" name="password"
+                    placeholder="Min 8 chars, uppercase &amp; number"
+                    autocomplete="new-password" required />
+                  <button type="button" class="su-pw-toggle" id="suPwToggle" aria-label="Show password">
+                    <svg class="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="eye-off-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </div>
+                <ul class="su-strength" id="suStrength" aria-live="polite">
+                  <li id="sr-len">8+ characters</li>
+                  <li id="sr-upper">Uppercase letter (A–Z)</li>
+                  <li id="sr-lower">Lowercase letter (a–z)</li>
+                  <li id="sr-num">Number (0–9)</li>
+                </ul>
               </div>
 
               <div class="su-field">
                 <label for="suPasswordConfirm">Confirm password</label>
-                <input type="password" id="suPasswordConfirm" name="password_confirm"
-                  placeholder="Repeat your password"
-                  autocomplete="new-password" required minlength="8" />
+                <div class="su-pw-wrap">
+                  <input type="password" id="suPasswordConfirm" name="password_confirm"
+                    placeholder="Repeat your password"
+                    autocomplete="new-password" required />
+                  <button type="button" class="su-pw-toggle" id="suPwToggle2" aria-label="Show password">
+                    <svg class="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="eye-off-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </div>
               </div>
 
               <p class="su-error" id="suError"></p>
@@ -90,24 +108,24 @@
 
               <p class="su-legal">
                 By signing up you agree to our
-                <a href="https://virtual-waitress-landing.vercel.app/terms" target="_blank" rel="noopener">Terms of Service</a>
+                <a href="https://virtualwaitress.com/terms" target="_blank" rel="noopener">Terms of Service</a>
                 and
-                <a href="https://virtual-waitress-landing.vercel.app/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
+                <a href="https://virtualwaitress.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
               </p>
             </form>
 
-            <p class="su-login-link">Already have an account? <a href="admin.html">Log in</a></p>
+            <p class="su-login-link">Already have an account? <a href="/admin">Log in</a></p>
           </div>
 
-          <!-- Step 2: Success -->
+          <!-- Step 2: Email verification sent -->
           <div id="suStep2" class="su-step su-hidden">
-            <div class="su-success-icon">&#127881;</div>
-            <h1 class="su-title">You&#8217;re live!</h1>
-            <p class="su-subtitle" id="suSuccessMsg">Your restaurant is ready.</p>
+            <div class="su-success-icon">&#128140;</div>
+            <h1 class="su-title">Check your inbox</h1>
+            <p class="su-subtitle" id="suSuccessMsg">We sent a confirmation link to your email. Click it to activate your account.</p>
             <div class="su-success-url" id="suSuccessUrl"></div>
             <div class="su-success-actions">
-              <a href="admin.html" class="su-submit">Go to your dashboard &#8594;</a>
-              <p class="su-success-hint">Start by adding your menu categories and items from the dashboard.</p>
+              <a href="/admin" class="su-submit">Go to Login &#8594;</a>
+              <p class="su-success-hint">Confirm your email first, then log in with your credentials to access your dashboard.</p>
             </div>
           </div>
 

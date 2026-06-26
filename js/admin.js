@@ -60,6 +60,18 @@ async function initAuth() {
   const { data: { session } } = await db.auth.getSession();
   if (session) await checkAccessAndEnter();
 
+  const loginPwToggle = document.getElementById('loginPwToggle');
+  const loginPwInput  = document.getElementById('loginPassword');
+  if (loginPwToggle) {
+    loginPwToggle.addEventListener('click', () => {
+      const showing = loginPwInput.type === 'text';
+      loginPwInput.type = showing ? 'password' : 'text';
+      loginPwToggle.querySelector('.eye-icon').style.display     = showing ? '' : 'none';
+      loginPwToggle.querySelector('.eye-off-icon').style.display = showing ? 'none' : '';
+      loginPwToggle.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+    });
+  }
+
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('loginEmail').value.trim();

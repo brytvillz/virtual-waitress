@@ -153,6 +153,63 @@ body {
   line-height: 1.5;
 }
 
+/* ── Password wrap + toggle ───────────── */
+.su-pw-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.su-pw-wrap input {
+  padding-right: 44px !important;
+  width: 100%;
+}
+
+.su-pw-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.su-pw-toggle:hover { color: var(--text); }
+
+/* ── Password strength checklist ──────── */
+.su-strength {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+  padding: 0;
+}
+
+.su-strength li {
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding-left: 16px;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.su-strength li::before {
+  content: '○';
+  position: absolute;
+  left: 0;
+  transition: color 0.2s;
+}
+
+.su-strength li.sr-pass { color: var(--green); }
+.su-strength li.sr-pass::before { content: '✓'; }
+.su-strength li.sr-fail { color: #E85A4F; }
+.su-strength li.sr-fail::before { content: '✕'; }
+
 /* ── Form fields ──────────────────────── */
 .su-field {
   margin-bottom: 20px;
