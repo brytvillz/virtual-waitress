@@ -737,13 +737,8 @@ async function splashHide() {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function init() {
-  // No restaurant slug in path or query → show platform landing page
-  const slug = getRestaurantSlug();
-  if (!slug) {
-    document.getElementById('splashScreen').remove();
-    document.getElementById('platformLanding').classList.remove('admin-hidden');
-    return;
-  }
+  // No slug in URL → default to demo restaurant
+  const slug = getRestaurantSlug() || 'nnewi-buka';
 
   splashStart();
 
