@@ -8,6 +8,19 @@ let editingCategoryId = null;
 let currentSection = 'analytics';
 let maxTablesPerWaiter = 3;
 let currentPlan = 'free';
+let currentWaiterCount = 0;
+let currentTableCount = 0;
+let ownedLocations = [];
+
+const PLAN_LIMITS = {
+  free:   { staff: 1,        tables: 5,        items: 20,       locations: 1 },
+  growth: { staff: 5,        tables: Infinity,  items: Infinity, locations: 1 },
+  pro:    { staff: Infinity, tables: Infinity,  items: Infinity, locations: 3 },
+};
+
+function planLimit(resource) {
+  return (PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free)[resource];
+}
 
 function formatPrice(amount) {
   return '₦' + Number(amount).toLocaleString();
@@ -48,16 +61,39 @@ function showLogin() {
   document.getElementById('dashboard').setAttribute('aria-hidden', 'true');
 }
 
+function setActiveRestaurant(restaurant) {
+  RESTAURANT_ID = restaurant.id;
+  currentPlan = (restaurant.plan_status === 'active') ? (restaurant.plan || 'free') : 'free';
+  applyPlanGating();
+  showDashboard();
+}
+
 async function checkAccessAndEnter() {
   const { data: { user } } = await db.auth.getUser();
   if (!user) { showLogin(); return; }
+
+  // Owner path: user owns restaurants directly (post-migration)
+  const { data: owned } = await db
+    .from('restaurants')
+    .select('id, name, slug, plan, plan_status')
+    .eq('owner_id', user.id);
+
+  if (owned && owned.length > 0) {
+    ownedLocations = owned;
+    if (owned.length === 1) {
+      setActiveRestaurant(owned[0]);
+    } else {
+      showLocationPicker(owned);
+    }
+    return;
+  }
+
+  // Fallback: legacy manager staff record (single-location, pre-migration)
   const { data, error } = await db.from('staff').select('role, restaurant_id').eq('id', user.id).single();
   if (error || !data || data.role !== 'manager') { showDenied(); return; }
-  RESTAURANT_ID = data.restaurant_id;
-  const { data: rest } = await db.from('restaurants').select('plan, plan_status').eq('id', RESTAURANT_ID).single();
-  currentPlan = (rest && rest.plan_status === 'active') ? (rest.plan || 'free') : 'free';
-  applyPlanGating();
-  showDashboard();
+  const { data: rest } = await db.from('restaurants').select('id, name, slug, plan, plan_status').eq('id', data.restaurant_id).single();
+  ownedLocations = rest ? [rest] : [];
+  setActiveRestaurant(rest || { id: data.restaurant_id, plan: 'free', plan_status: 'inactive' });
 }
 
 function applyPlanGating() {
@@ -68,14 +104,155 @@ function applyPlanGating() {
     badge.className = 'sidebar-plan-badge plan-' + currentPlan;
   }
 
-  if (currentPlan === 'free') {
-    const analyticsBtn = document.querySelector('[data-section="analytics"]');
-    if (analyticsBtn) {
-      analyticsBtn.classList.add('nav-locked');
-      analyticsBtn.title = 'Upgrade to Growth to unlock Analytics';
-    }
+  // Analytics — Growth+ only
+  const analyticsBtn = document.querySelector('[data-section="analytics"]');
+  if (analyticsBtn) {
+    const locked = currentPlan === 'free';
+    analyticsBtn.classList.toggle('nav-locked', locked);
+    analyticsBtn.title = locked ? 'Upgrade to Growth to unlock Analytics' : '';
+  }
+
+  // Locations switcher — show in sidebar for multi-location owners
+  updateLocationSwitcher();
+}
+
+function updateLocationSwitcher() {
+  const existing = document.getElementById('locationSwitcherBtn');
+  if (existing) existing.remove();
+
+  if (ownedLocations.length > 1 || currentPlan === 'pro') {
+    const sidebar = document.querySelector('.sidebar-nav') || document.querySelector('.sidebar');
+    if (!sidebar) return;
+    const btn = document.createElement('button');
+    btn.id = 'locationSwitcherBtn';
+    btn.className = 'location-switcher-btn';
+    const activeLocation = ownedLocations.find(r => r.id === RESTAURANT_ID);
+    btn.innerHTML = '<span class="ls-icon">&#127968;</span>' +
+      '<span class="ls-text">' + (ownedLocations.length > 1 ? 'Switch Location' : 'Add Location') + '</span>';
+    btn.addEventListener('click', () => {
+      if (ownedLocations.length > 1) {
+        showLocationPicker(ownedLocations);
+      } else {
+        showAddLocationModal();
+      }
+    });
+    sidebar.appendChild(btn);
   }
 }
+
+// ── Location picker & add-location ───────────────────────────────────────────
+
+function showLocationPicker(restaurants) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboard').classList.remove('visible');
+
+  let overlay = document.getElementById('locationPickerOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'locationPickerOverlay';
+    overlay.className = 'lp-overlay';
+    document.body.appendChild(overlay);
+  }
+
+  const canAdd = currentPlan === 'pro' && restaurants.length < PLAN_LIMITS.pro.locations;
+
+  overlay.innerHTML =
+    '<div class="lp-card">' +
+      '<div class="lp-header">' +
+        '<div class="lp-logo">VW</div>' +
+        '<h2 class="lp-title">Select Location</h2>' +
+        '<p class="lp-sub">Choose which restaurant to manage</p>' +
+      '</div>' +
+      '<div class="lp-list">' +
+        restaurants.map(r =>
+          '<button class="lp-loc-btn" data-id="' + r.id + '" data-plan="' + (r.plan || 'free') + '" data-status="' + (r.plan_status || 'inactive') + '">' +
+            '<span class="lp-loc-icon">&#127968;</span>' +
+            '<span class="lp-loc-name">' + (r.name || 'Restaurant') + '</span>' +
+            '<span class="lp-loc-arrow">&#8250;</span>' +
+          '</button>'
+        ).join('') +
+      '</div>' +
+      (canAdd
+        ? '<button class="lp-add-btn" id="lpAddLocationBtn">+ Add New Location</button>'
+        : '') +
+    '</div>';
+
+  overlay.classList.add('lp-visible');
+
+  overlay.querySelectorAll('.lp-loc-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const picked = restaurants.find(r => r.id === btn.dataset.id);
+      if (picked) {
+        overlay.classList.remove('lp-visible');
+        setTimeout(() => overlay.remove(), 300);
+        setActiveRestaurant(picked);
+      }
+    });
+  });
+
+  const addBtn = overlay.querySelector('#lpAddLocationBtn');
+  if (addBtn) addBtn.addEventListener('click', showAddLocationModal);
+}
+
+function showAddLocationModal() {
+  let modal = document.getElementById('addLocationModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'addLocationModal';
+    modal.className = 'al-modal-overlay';
+    modal.innerHTML =
+      '<div class="al-modal">' +
+        '<h3>Add New Location</h3>' +
+        '<p class="al-sub">Enter the name of the new restaurant location</p>' +
+        '<input type="text" id="newLocationName" class="al-input" placeholder="e.g. Nnewi Buka — Victoria Island" maxlength="80" />' +
+        '<p class="al-error" id="addLocationError"></p>' +
+        '<div class="al-actions">' +
+          '<button class="al-cancel" id="alCancelBtn">Cancel</button>' +
+          '<button class="al-submit" id="alSubmitBtn">Create Location</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('newLocationName').value = '';
+  document.getElementById('addLocationError').textContent = '';
+  modal.classList.add('al-visible');
+
+  document.getElementById('alCancelBtn').onclick = () => modal.classList.remove('al-visible');
+
+  document.getElementById('alSubmitBtn').onclick = async () => {
+    const name = document.getElementById('newLocationName').value.trim();
+    const errorEl = document.getElementById('addLocationError');
+    const btn = document.getElementById('alSubmitBtn');
+    if (!name) { errorEl.textContent = 'Please enter a restaurant name.'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+    errorEl.textContent = '';
+
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      const res = await fetch(SUPABASE_URL + '/functions/v1/add-location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+        body: JSON.stringify({ restaurant_name: name })
+      });
+      const result = await res.json();
+      if (!res.ok || result.error) throw new Error(result.error || 'Failed to create location');
+
+      modal.classList.remove('al-visible');
+      // Refresh owned locations list and show picker
+      ownedLocations.push(result.restaurant);
+      showLocationPicker(ownedLocations);
+    } catch (err) {
+      errorEl.textContent = err.message || 'Something went wrong. Try again.';
+      btn.disabled = false;
+      btn.textContent = 'Create Location';
+    }
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function initAuth() {
   const { data: { session } } = await db.auth.getSession();
@@ -544,6 +721,11 @@ function initItemModal() {
     if (editingItemId) {
       ({ error } = await db.from('menu_items').update(payload).eq('id', editingItemId));
     } else {
+      const itemLimit = planLimit('items');
+      if (itemLimit !== Infinity && itemsCache.length >= itemLimit) {
+        alert('Menu item limit reached for Free plan (max 20 items).\n\nUpgrade to Growth at virtualwaitress.com for unlimited items.');
+        return;
+      }
       ({ error } = await db.from('menu_items').insert({
         ...payload,
         restaurant_id: RESTAURANT_ID,
@@ -645,6 +827,19 @@ async function loadStaff() {
     waiterStats[o.handled_by].revenue += o.total;
   });
 
+  // Track waiter count and update the Add Waiter button state
+  const waiters = (staffList || []).filter(s => s.role === 'waiter');
+  currentWaiterCount = waiters.length;
+  const addWaiterBtn = document.getElementById('newWaiterBtn');
+  if (addWaiterBtn) {
+    const limit = planLimit('staff');
+    const atLimit = limit !== Infinity && currentWaiterCount >= limit;
+    addWaiterBtn.disabled = atLimit;
+    addWaiterBtn.title = atLimit
+      ? 'Staff limit reached for your ' + currentPlan + ' plan. Upgrade to add more.'
+      : '';
+  }
+
   renderStaff(staffList || [], waiterTables, waiterStats);
 }
 
@@ -744,6 +939,16 @@ async function loadTablesSection() {
   ]);
 
   if (tErr) { console.error('Failed to load tables', tErr); return; }
+  currentTableCount = (tables || []).length;
+  const addTableBtn = document.getElementById('addTableBtn');
+  if (addTableBtn) {
+    const limit = planLimit('tables');
+    const atLimit = limit !== Infinity && currentTableCount >= limit;
+    addTableBtn.disabled = atLimit;
+    addTableBtn.title = atLimit
+      ? 'Table limit reached for Free plan (max 5). Upgrade to Growth for unlimited tables.'
+      : '';
+  }
   renderTableGrid(tables || [], assignments || [], waiters || []);
 }
 
@@ -1167,6 +1372,12 @@ function initWaiterProfile() {
 // ── Create Waiter modal ────────────────────────────────────────────────────────
 
 function openWaiterModal() {
+  const limit = planLimit('staff');
+  if (limit !== Infinity && currentWaiterCount >= limit) {
+    const planNames = { free: 'Free plan (max 1 waiter)', growth: 'Growth plan (max 5 waiters)' };
+    alert('Staff limit reached for your ' + (planNames[currentPlan] || currentPlan) + '.\n\nUpgrade your plan at virtualwaitress.com to add more staff.');
+    return;
+  }
   document.getElementById('waiterName').value = '';
   document.getElementById('waiterFormError').textContent = '';
   document.getElementById('waiterSubmitBtn').disabled = false;

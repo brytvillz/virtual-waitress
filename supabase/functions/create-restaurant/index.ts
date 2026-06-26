@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     // Create restaurant record
     const { data: restaurant, error: restaurantError } = await admin
       .from('restaurants')
-      .insert({ name: restaurant_name.trim(), slug, accent_color: '#C41E3A' })
+      .insert({ name: restaurant_name.trim(), slug, accent_color: '#C41E3A', owner_id: userId })
       .select('id')
       .single();
 

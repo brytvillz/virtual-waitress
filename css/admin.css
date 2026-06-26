@@ -1358,3 +1358,228 @@
   width: fit-content;
 }
 .item-remove-img-btn:hover { color: #E85A5A; }
+
+/* ── Location Picker Overlay ───────────────────────────────────────────────── */
+
+.lp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.lp-overlay.lp-visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.lp-card {
+  background: #161616;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 40px 32px 32px;
+  max-width: 400px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.lp-header { text-align: center; }
+
+.lp-logo {
+  width: 48px;
+  height: 48px;
+  background: var(--accent, #C41E3A);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 auto 16px;
+}
+
+.lp-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: var(--text, #F0EDE8);
+}
+
+.lp-sub {
+  font-size: 0.85rem;
+  color: var(--muted, #6B6570);
+}
+
+.lp-list { display: flex; flex-direction: column; gap: 10px; }
+
+.lp-loc-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  cursor: pointer;
+  color: var(--text, #F0EDE8);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.lp-loc-btn:hover {
+  border-color: var(--accent, #C41E3A);
+  background: rgba(196,30,58,0.08);
+}
+
+.lp-loc-icon { font-size: 1.2rem; }
+.lp-loc-name { flex: 1; }
+.lp-loc-arrow { opacity: 0.4; font-size: 1.3rem; }
+
+.lp-add-btn {
+  width: 100%;
+  padding: 13px;
+  background: transparent;
+  border: 1.5px dashed rgba(255,255,255,0.2);
+  border-radius: 12px;
+  color: var(--muted, #6B6570);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.lp-add-btn:hover {
+  border-color: var(--accent, #C41E3A);
+  color: var(--accent, #C41E3A);
+}
+
+/* ── Add Location Modal ─────────────────────────────────────────────────────── */
+
+.al-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9100;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.al-modal-overlay.al-visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.al-modal {
+  background: #161616;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  padding: 32px;
+  max-width: 380px;
+  width: 100%;
+}
+
+.al-modal h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: var(--text, #F0EDE8);
+}
+
+.al-sub {
+  font-size: 0.85rem;
+  color: var(--muted, #6B6570);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.al-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: #0D0D0D;
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  color: var(--text, #F0EDE8);
+  font-size: 0.95rem;
+  outline: none;
+  margin-bottom: 8px;
+  transition: border-color 0.2s;
+}
+
+.al-input:focus { border-color: var(--accent, #C41E3A); }
+
+.al-error {
+  font-size: 0.82rem;
+  color: #E85A5A;
+  min-height: 1.1em;
+  margin-bottom: 16px;
+}
+
+.al-actions { display: flex; gap: 10px; }
+
+.al-cancel {
+  flex: 1;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  color: var(--muted, #6B6570);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.al-submit {
+  flex: 2;
+  padding: 12px;
+  background: var(--accent, #C41E3A);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.al-submit:hover:not(:disabled) { background: #9b1426; }
+.al-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Location Switcher Sidebar Button ───────────────────────────────────────── */
+
+.location-switcher-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: rgba(196,30,58,0.08);
+  border: 1px solid rgba(196,30,58,0.2);
+  border-radius: 10px;
+  color: var(--accent, #C41E3A);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: background 0.2s;
+}
+
+.location-switcher-btn:hover { background: rgba(196,30,58,0.15); }
+.ls-icon { font-size: 1rem; }
+.ls-text { flex: 1; text-align: left; }
