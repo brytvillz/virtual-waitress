@@ -427,6 +427,35 @@ function initAllCategoriesButton() {
 
 // ── Place order ───────────────────────────────────────────────────────────────
 
+function showOrderConfirmation(table, itemCount, total) {
+  document.getElementById('orderConfirmOverlay')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'orderConfirmOverlay';
+  overlay.className = 'oc-overlay';
+  overlay.innerHTML =
+    '<div class="oc-card">' +
+      '<div class="oc-check">&#10003;</div>' +
+      '<h2 class="oc-title">Order Confirmed!</h2>' +
+      '<p class="oc-meta">Table ' + table + ' &middot; ' + itemCount + ' item' + (itemCount !== 1 ? 's' : '') + ' &middot; ' + formatPrice(total) + '</p>' +
+      '<p class="oc-sub">Your waiter has been notified.<br>Sit back and enjoy!</p>' +
+      '<button class="oc-btn" id="ocDismiss">Back to Menu</button>' +
+      '<div class="oc-progress"><div class="oc-progress-bar"></div></div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('oc-visible'));
+
+  const dismiss = () => {
+    clearTimeout(autoTimer);
+    overlay.classList.remove('oc-visible');
+    setTimeout(() => overlay.remove(), 400);
+  };
+
+  const autoTimer = setTimeout(dismiss, 4000);
+  document.getElementById('ocDismiss').addEventListener('click', dismiss);
+}
+
 function initPlaceOrder() {
   const btn = document.getElementById('placeOrderBtn');
 
@@ -482,6 +511,7 @@ function initPlaceOrder() {
       return;
     }
 
+    showOrderConfirmation(table, items.length, total);
     Ada.speak(`Order sent! 🎉 The kitchen has your order for Table ${table}. Sit tight!`, 6000);
     Ada.resetIdleTimer();
 
