@@ -864,7 +864,7 @@ async function loadQrSection() {
     restaurantTagline = restaurant.tagline || '';
   }
 
-  const menuUrl = `${window.location.origin}/?r=${restaurantSlug}&table=1`;
+  const menuUrl = `${window.location.origin}/${restaurantSlug}/1`;
   document.getElementById('qrMenuUrl').innerHTML =
     `<span class="qr-url-label">Your menu link:</span>
      <a class="qr-url-value" href="${menuUrl}" target="_blank" rel="noopener">${menuUrl}</a>`;
@@ -876,7 +876,7 @@ async function loadQrSection() {
   }
 
   grid.innerHTML = tables.map(t => {
-    const url = `${window.location.origin}/?r=${restaurantSlug}&table=${t.table_number}`;
+    const url = `${window.location.origin}/${restaurantSlug}/${t.table_number}`;
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=6&color=1A1A1A&bgcolor=FFF8F0&data=${encodeURIComponent(url)}`;
     return `
       <div class="qr-admin-card">

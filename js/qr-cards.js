@@ -13,7 +13,7 @@ const tableList  = params.get('tables')
   : Array.from({ length: 8 }, (_, i) => i + 1);
 
 function buildCard(tableNumber) {
-  const url = `${MENU_BASE}/?r=${SLUG}&table=${tableNumber}`;
+  const url = `${MENU_BASE}/${SLUG}/${tableNumber}`;
   const qr  = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=6&color=1A1A1A&bgcolor=FFF8F0&data=${encodeURIComponent(url)}`;
 
   const card = document.createElement('div');
