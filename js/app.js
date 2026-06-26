@@ -539,10 +539,11 @@ function initAdaClick() {
 // ── Show app after splash ─────────────────────────────────────────────────────
 
 function revealApp() {
-  const app = document.getElementById('app');
-  app.classList.add('visible');
-  Ada.speak(menuData.ada.welcome, 7000);
-  Ada.resetIdleTimer();
+  document.getElementById('app').classList.add('visible');
+  if (menuData && menuData.ada) {
+    Ada.speak(menuData.ada.welcome, 7000);
+    Ada.resetIdleTimer();
+  }
 }
 
 function splashError(title, sub) {
@@ -725,25 +726,56 @@ function splashUpdate(restaurant) {
   document.documentElement.style.setProperty('--accent', restaurant.accentColor || '#C41E3A');
 }
 
-async function splashHide() {
-  const elapsed   = Date.now() - _splashStart;
-  const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
-  await new Promise(r => setTimeout(r, remaining));
+async function splashHide(fast = false) {
+  if (!fast) {
+    const elapsed   = Date.now() - _splashStart;
+    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+    await new Promise(r => setTimeout(r, remaining));
+  }
   const el = document.getElementById('splashScreen');
   if (!el) return;
   el.classList.add('splash-hiding');
   setTimeout(() => el.remove(), 600);
 }
 
+// ── Boot helpers ──────────────────────────────────────────────────────────────
+
+function applyBranding(restaurant) {
+  splashUpdate(restaurant);
+  document.getElementById('restaurantName').textContent    = restaurant.name;
+  document.getElementById('restaurantTagline').textContent = restaurant.tagline;
+  document.getElementById('tableBadge').textContent        = 'Table ' + getTableNumber();
+  document.documentElement.style.setProperty('--accent', restaurant.accentColor);
+}
+
+function applyMenuContent(categories, isFirstRender) {
+  if (categories.length === 0) {
+    document.getElementById('menuGrid').innerHTML =
+      '<div class="loading" style="padding:60px 20px;text-align:center;opacity:0.5">Menu coming soon — check back shortly.</div>';
+    if (isFirstRender) initHamburgerMenu();
+    return;
+  }
+  const first = categories[0];
+  activeCategory = first.id;
+  renderTabs(categories, activeCategory);
+  renderCategoryGrid(categories, activeCategory);
+  renderItems(first);
+  if (isFirstRender) {
+    initCallWaiter();
+    initPlaceOrder();
+    initAllCategoriesButton();
+    initAdaClick();
+    initAutoSlideTabs();
+    initMyOrder();
+    initHamburgerMenu();
+  }
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function init() {
-  // No slug in URL → default to demo restaurant
   const slug = getRestaurantSlug() || 'nnewi-buka';
-
   splashStart();
-
-  // slug already resolved above — reuse it
   MENU_CACHE_KEY = 'vw_menu_cache_' + slug;
 
   const { data: restaurantRow, error: slugError } = await db
@@ -759,47 +791,45 @@ async function init() {
 
   RESTAURANT_ID = restaurantRow.id;
 
-  try {
-    menuData = await loadMenuData();
-  } catch (err) {
-    console.error('Could not load the menu', err);
-    splashError('Unable to load menu', 'Please check your connection and reload the page.');
-    return;
-  }
+  const cachedRaw = localStorage.getItem(MENU_CACHE_KEY);
+  const cached    = cachedRaw ? JSON.parse(cachedRaw) : null;
 
-  // Update splash with real restaurant branding before it fades out
-  splashUpdate(menuData.restaurant);
+  if (cached) {
+    // Repeat visit — render instantly from cache, then refresh in background
+    menuData = cached;
+    applyBranding(menuData.restaurant);
+    applyMenuContent(menuData.categories, true);
+    revealApp();
+    splashHide(true);
 
-  document.getElementById('restaurantName').textContent    = menuData.restaurant.name;
-  document.getElementById('restaurantTagline').textContent = menuData.restaurant.tagline;
-  document.getElementById('tableBadge').textContent        = 'Table ' + getTableNumber();
-  document.documentElement.style.setProperty('--accent', menuData.restaurant.accentColor);
-
-  if (menuData.categories.length === 0) {
+    loadMenuData().then(fresh => {
+      if (JSON.stringify(fresh) !== JSON.stringify(cached)) {
+        menuData = fresh;
+        applyBranding(menuData.restaurant);
+        applyMenuContent(menuData.categories, false);
+      }
+    }).catch(() => {});
+  } else {
+    // First visit — show skeleton while data fetches behind the splash
     document.getElementById('menuGrid').innerHTML =
-      '<div class="loading" style="padding:60px 20px;text-align:center;opacity:0.5">Menu coming soon — check back shortly.</div>';
-    initHamburgerMenu();
+      Array.from({ length: 6 }, () => '<div class="skeleton-item"></div>').join('');
     revealApp();
     splashHide();
-    return;
+
+    try {
+      menuData = await loadMenuData();
+    } catch (err) {
+      console.error('Could not load the menu', err);
+      document.getElementById('menuGrid').innerHTML =
+        '<div class="loading">Unable to load menu — please reload the page.</div>';
+      return;
+    }
+
+    applyBranding(menuData.restaurant);
+    applyMenuContent(menuData.categories, true);
+    Ada.speak(menuData.ada.welcome, 7000);
+    Ada.resetIdleTimer();
   }
-
-  const first = menuData.categories[0];
-  activeCategory = first.id;
-  renderTabs(menuData.categories, activeCategory);
-  renderCategoryGrid(menuData.categories, activeCategory);
-  renderItems(first);
-
-  initCallWaiter();
-  initPlaceOrder();
-  initAllCategoriesButton();
-  initAdaClick();
-  initAutoSlideTabs();
-  initMyOrder();
-  initHamburgerMenu();
-
-  revealApp();
-  splashHide();
 }
 
 document.addEventListener('DOMContentLoaded', init);
