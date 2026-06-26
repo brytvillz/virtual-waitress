@@ -112,6 +112,47 @@
   margin-top: 3px;
 }
 
+.sidebar-plan-badge {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sidebar-plan-badge.plan-free {
+  background: rgba(255,255,255,0.07);
+  color: var(--text-muted);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar-plan-badge.plan-growth {
+  background: rgba(62,204,138,0.15);
+  color: #3ECC8A;
+  border: 1px solid rgba(62,204,138,0.3);
+}
+
+.sidebar-plan-badge.plan-pro {
+  background: rgba(196,30,58,0.18);
+  color: var(--accent);
+  border: 1px solid rgba(196,30,58,0.35);
+}
+
+.sidebar-nav-item.nav-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+  position: relative;
+}
+
+.sidebar-nav-item.nav-locked::after {
+  content: '🔒';
+  font-size: 0.6rem;
+  margin-left: auto;
+}
+
 .sidebar-nav {
   flex: 1;
   padding: 10px 0;

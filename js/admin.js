@@ -7,6 +7,7 @@ let editingItemId = null;
 let editingCategoryId = null;
 let currentSection = 'analytics';
 let maxTablesPerWaiter = 3;
+let currentPlan = 'free';
 
 function formatPrice(amount) {
   return '₦' + Number(amount).toLocaleString();
@@ -53,7 +54,27 @@ async function checkAccessAndEnter() {
   const { data, error } = await db.from('staff').select('role, restaurant_id').eq('id', user.id).single();
   if (error || !data || data.role !== 'manager') { showDenied(); return; }
   RESTAURANT_ID = data.restaurant_id;
+  const { data: rest } = await db.from('restaurants').select('plan, plan_status').eq('id', RESTAURANT_ID).single();
+  currentPlan = (rest && rest.plan_status === 'active') ? (rest.plan || 'free') : 'free';
+  applyPlanGating();
   showDashboard();
+}
+
+function applyPlanGating() {
+  const badge = document.getElementById('sidebarPlanBadge');
+  if (badge) {
+    const labels = { free: 'Free', growth: 'Growth', pro: 'Pro' };
+    badge.textContent = labels[currentPlan] || 'Free';
+    badge.className = 'sidebar-plan-badge plan-' + currentPlan;
+  }
+
+  if (currentPlan === 'free') {
+    const analyticsBtn = document.querySelector('[data-section="analytics"]');
+    if (analyticsBtn) {
+      analyticsBtn.classList.add('nav-locked');
+      analyticsBtn.title = 'Upgrade to Growth to unlock Analytics';
+    }
+  }
 }
 
 async function initAuth() {
