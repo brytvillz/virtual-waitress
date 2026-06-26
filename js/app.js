@@ -275,7 +275,8 @@ function renderItems(category) {
   }
 
   const cards = category.items.map(item => {
-    const isSpecial = item.description.includes('⭐') || item.description.toUpperCase().includes('FREE');
+    const desc = item.description || '';
+    const isSpecial = desc.includes('⭐') || desc.toUpperCase().includes('FREE');
     const soldOut = item.available === false;
     const qty = (orderState[item.name] && orderState[item.name].qty) || 0;
     return `
