@@ -8,6 +8,7 @@ let editingCategoryId = null;
 let currentSection = 'analytics';
 let maxTablesPerWaiter = 3;
 let currentPlan = 'free';
+let currentPlanExpiresAt = null;
 let currentWaiterCount = 0;
 let currentTableCount = 0;
 let ownedLocations = [];
@@ -37,6 +38,66 @@ function startOfToday() {
   return d.toISOString();
 }
 
+// ── Upgrade modal ─────────────────────────────────────────────────────────────
+
+function showUpgradeModal() {
+  let overlay = document.getElementById('upgradeModalOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'upgradeModalOverlay';
+    overlay.className = 'upgrade-modal-overlay';
+    document.body.appendChild(overlay);
+  }
+
+  const isGrowth = currentPlan === 'growth';
+
+  overlay.innerHTML =
+    '<div class="upgrade-modal">' +
+      '<button class="upgrade-modal-close" id="upgradeModalClose" aria-label="Close">&#x2715;</button>' +
+      '<div class="upgrade-modal-header">' +
+        '<p class="upgrade-modal-eyebrow">You are on the <strong>' + (isGrowth ? 'Growth' : 'Free') + '</strong> plan</p>' +
+        '<h2 class="upgrade-modal-title">Unlock more for your restaurant</h2>' +
+      '</div>' +
+      '<div class="upgrade-modal-plans">' +
+        (!isGrowth
+          ? '<div class="upgrade-plan-card">' +
+              '<div class="upgrade-plan-name">Growth</div>' +
+              '<div class="upgrade-plan-price">₦4,000<span>/mo</span></div>' +
+              '<ul class="upgrade-plan-features">' +
+                '<li>Up to 5 waiters</li>' +
+                '<li>Unlimited tables</li>' +
+                '<li>Unlimited menu items</li>' +
+                '<li>Full analytics &amp; revenue</li>' +
+                '<li>Waiter performance history</li>' +
+              '</ul>' +
+            '</div>'
+          : '') +
+        '<div class="upgrade-plan-card upgrade-plan-featured">' +
+          '<div class="upgrade-plan-badge">Best Value</div>' +
+          '<div class="upgrade-plan-name">Pro</div>' +
+          '<div class="upgrade-plan-price">₦7,000<span>/mo</span></div>' +
+          '<ul class="upgrade-plan-features">' +
+            '<li>Unlimited waiters</li>' +
+            '<li>Up to 3 locations</li>' +
+            '<li>Everything in Growth</li>' +
+            '<li>Priority support</li>' +
+          '</ul>' +
+        '</div>' +
+      '</div>' +
+      '<a href="https://virtualwaitress.com/#pricing" target="_blank" rel="noopener" class="upgrade-modal-cta">View Plans &amp; Pricing</a>' +
+      '<p class="upgrade-modal-note">To activate a plan, visit our pricing page or contact us at hello@virtualwaitress.com</p>' +
+    '</div>';
+
+  overlay.classList.add('upgrade-modal-visible');
+
+  overlay.querySelector('#upgradeModalClose').addEventListener('click', () => {
+    overlay.classList.remove('upgrade-modal-visible');
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.remove('upgrade-modal-visible');
+  });
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 function showDashboard() {
@@ -46,6 +107,7 @@ function showDashboard() {
   document.getElementById('dashboard').removeAttribute('aria-hidden');
   loadSettings();
   loadAnalytics();
+  maybeShowWizard();
 }
 
 function showDenied() {
@@ -63,7 +125,15 @@ function showLogin() {
 
 function setActiveRestaurant(restaurant) {
   RESTAURANT_ID = restaurant.id;
-  currentPlan = (restaurant.plan_status === 'active') ? (restaurant.plan || 'free') : 'free';
+  currentPlanExpiresAt = restaurant.plan_expires_at || null;
+
+  let plan = 'free';
+  if (restaurant.plan_status === 'active') {
+    const expired = currentPlanExpiresAt && new Date(currentPlanExpiresAt) < new Date();
+    plan = expired ? 'free' : (restaurant.plan || 'free');
+  }
+  currentPlan = plan;
+
   applyPlanGating();
   showDashboard();
 }
@@ -75,7 +145,7 @@ async function checkAccessAndEnter() {
   // Owner path: user owns restaurants directly (post-migration)
   const { data: owned } = await db
     .from('restaurants')
-    .select('id, name, slug, plan, plan_status')
+    .select('id, name, slug, plan, plan_status, plan_expires_at')
     .eq('owner_id', user.id);
 
   if (owned && owned.length > 0) {
@@ -91,7 +161,7 @@ async function checkAccessAndEnter() {
   // Fallback: legacy manager staff record (single-location, pre-migration)
   const { data, error } = await db.from('staff').select('role, restaurant_id').eq('id', user.id).single();
   if (error || !data || data.role !== 'manager') { showDenied(); return; }
-  const { data: rest } = await db.from('restaurants').select('id, name, slug, plan, plan_status').eq('id', data.restaurant_id).single();
+  const { data: rest } = await db.from('restaurants').select('id, name, slug, plan, plan_status, plan_expires_at').eq('id', data.restaurant_id).single();
   ownedLocations = rest ? [rest] : [];
   setActiveRestaurant(rest || { id: data.restaurant_id, plan: 'free', plan_status: 'inactive' });
 }
@@ -111,6 +181,35 @@ function applyPlanGating() {
     analyticsBtn.title = '';
   }
 
+  // Upgrade button — hidden for Pro, visible for free/growth
+  const upgradeBtn = document.getElementById('upgradePlanBtn');
+  if (upgradeBtn) {
+    if (currentPlan === 'pro') {
+      upgradeBtn.classList.add('admin-hidden');
+    } else {
+      upgradeBtn.classList.remove('admin-hidden');
+      upgradeBtn.textContent = currentPlan === 'growth' ? 'Upgrade to Pro' : 'Upgrade Plan';
+    }
+  }
+
+  // Plan expiry warning — show when < 7 days remain on a paid plan
+  const banner = document.getElementById('planExpiryBanner');
+  const bannerMsg = document.getElementById('planExpiryMsg');
+  if (banner && bannerMsg) {
+    if (currentPlanExpiresAt && currentPlan !== 'free') {
+      const daysLeft = Math.ceil((new Date(currentPlanExpiresAt) - new Date()) / 86400000);
+      if (daysLeft > 0 && daysLeft <= 7) {
+        bannerMsg.textContent =
+          `Your ${currentPlan === 'growth' ? 'Growth' : 'Pro'} plan expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}. Renew to keep your features.`;
+        banner.classList.remove('admin-hidden');
+      } else {
+        banner.classList.add('admin-hidden');
+      }
+    } else {
+      banner.classList.add('admin-hidden');
+    }
+  }
+
   // Locations switcher — show in sidebar for multi-location owners
   updateLocationSwitcher();
 }
@@ -119,16 +218,20 @@ function updateLocationSwitcher() {
   const existing = document.getElementById('locationSwitcherBtn');
   if (existing) existing.remove();
 
-  if (ownedLocations.length > 1 || currentPlan === 'pro') {
+  const showSwitcher = ownedLocations.length > 1 || currentPlan === 'pro' || currentPlan === 'growth';
+  if (showSwitcher) {
     const sidebar = document.querySelector('.sidebar-nav') || document.querySelector('.sidebar');
     if (!sidebar) return;
     const btn = document.createElement('button');
     btn.id = 'locationSwitcherBtn';
-    btn.className = 'location-switcher-btn';
-    const activeLocation = ownedLocations.find(r => r.id === RESTAURANT_ID);
+    const isGrowthLocked = currentPlan === 'growth' && ownedLocations.length <= 1;
+    btn.className = 'location-switcher-btn' + (isGrowthLocked ? ' location-switcher-locked' : '');
+    const label = ownedLocations.length > 1 ? 'Switch Location' : 'Add Location';
     btn.innerHTML = '<span class="ls-icon">&#127968;</span>' +
-      '<span class="ls-text">' + (ownedLocations.length > 1 ? 'Switch Location' : 'Add Location') + '</span>';
+      '<span class="ls-text">' + label + '</span>' +
+      (isGrowthLocked ? '<span class="ls-pro-badge">Pro</span>' : '');
     btn.addEventListener('click', () => {
+      if (isGrowthLocked) { showUpgradeModal(); return; }
       if (ownedLocations.length > 1) {
         showLocationPicker(ownedLocations);
       } else {
@@ -154,6 +257,7 @@ function showLocationPicker(restaurants) {
   }
 
   const canAdd = currentPlan === 'pro' && restaurants.length < PLAN_LIMITS.pro.locations;
+  const showLockedAdd = currentPlan === 'growth';
 
   overlay.innerHTML =
     '<div class="lp-card">' +
@@ -173,7 +277,9 @@ function showLocationPicker(restaurants) {
       '</div>' +
       (canAdd
         ? '<button class="lp-add-btn" id="lpAddLocationBtn">+ Add New Location</button>'
-        : '') +
+        : showLockedAdd
+          ? '<button class="lp-add-btn lp-add-btn-locked" id="lpAddLocationBtn"><span class="lp-pro-lock-badge">Pro</span> Add New Location</button>'
+          : '') +
     '</div>';
 
   overlay.classList.add('lp-visible');
@@ -190,7 +296,15 @@ function showLocationPicker(restaurants) {
   });
 
   const addBtn = overlay.querySelector('#lpAddLocationBtn');
-  if (addBtn) addBtn.addEventListener('click', showAddLocationModal);
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      if (addBtn.classList.contains('lp-add-btn-locked')) {
+        showUpgradeModal();
+      } else {
+        showAddLocationModal();
+      }
+    });
+  }
 }
 
 function showAddLocationModal() {
@@ -289,6 +403,14 @@ async function initAuth() {
     await db.auth.signOut();
     showLogin();
   });
+
+  document.getElementById('upgradePlanBtn')?.addEventListener('click', showUpgradeModal);
+
+  document.getElementById('planExpiryDismissBtn')?.addEventListener('click', () => {
+    document.getElementById('planExpiryBanner')?.classList.add('admin-hidden');
+  });
+
+  document.getElementById('planExpiryUpgradeBtn')?.addEventListener('click', showUpgradeModal);
 
   document.getElementById('refreshBtn').addEventListener('click', () => {
     SECTION_LOADERS[currentSection]?.();
@@ -542,6 +664,55 @@ function renderRecentOrders(orders) {
 
 // ── Menu editor ───────────────────────────────────────────────────────────────
 
+async function applyMenuTemplate(templateId) {
+  const btn = document.getElementById('useTemplateBtnEmpty');
+  if (btn) { btn.disabled = true; btn.textContent = 'Applying template…'; }
+
+  try {
+    const res = await fetch('/data/menu-templates.json');
+    const templates = await res.json();
+    const template = templates.find(t => t.id === templateId);
+    if (!template) throw new Error('Template not found');
+
+    for (let ci = 0; ci < template.categories.length; ci++) {
+      const cat = template.categories[ci];
+
+      const { data: catRow, error: catErr } = await db
+        .from('menu_categories')
+        .insert({
+          restaurant_id: RESTAURANT_ID,
+          name: cat.name,
+          emoji: cat.emoji,
+          ada_message: cat.ada_message,
+          sort_order: ci + 1,
+        })
+        .select('id')
+        .single();
+
+      if (catErr || !catRow) { console.error('Failed to insert category', cat.name, catErr); continue; }
+
+      const itemRows = cat.items.map((item, ii) => ({
+        restaurant_id: RESTAURANT_ID,
+        category_id: catRow.id,
+        name: item.name,
+        price: item.price,
+        description: item.description,
+        ada_message: item.ada_message,
+        available: true,
+        sort_order: ii + 1,
+      }));
+
+      await db.from('menu_items').insert(itemRows);
+    }
+
+    await loadMenuEditor();
+  } catch (err) {
+    console.error('Template apply failed', err);
+    if (btn) { btn.disabled = false; btn.textContent = 'Use Nigerian Restaurant Template'; }
+    alert('Could not apply template. Please try again.');
+  }
+}
+
 async function loadMenuEditor() {
   const [{ data: categories, error: cErr }, { data: items, error: iErr }] = await Promise.all([
     db.from('menu_categories').select('*').eq('restaurant_id', RESTAURANT_ID).order('sort_order'),
@@ -562,11 +733,15 @@ function renderMenuEditor() {
       <div class="menu-empty-state">
         <div class="menu-empty-icon">🍽️</div>
         <h3 class="menu-empty-title">Your menu is empty</h3>
-        <p class="menu-empty-desc">Start by creating a category (e.g. "Soups", "Rice Dishes", "Drinks"), then add items inside each one.</p>
-        <button class="btn-primary" id="addCategoryBtnEmpty">+ Create First Category</button>
+        <p class="menu-empty-desc">Start from scratch or use our ready-made Nigerian restaurant template — 6 categories and 34 items, ready to customise.</p>
+        <div class="menu-empty-actions">
+          <button class="btn-primary" id="useTemplateBtnEmpty">Use Nigerian Restaurant Template</button>
+          <button class="btn-secondary" id="addCategoryBtnEmpty">+ Build from Scratch</button>
+        </div>
       </div>
     `;
     document.getElementById('addCategoryBtnEmpty').addEventListener('click', () => openCategoryModal(null));
+    document.getElementById('useTemplateBtnEmpty').addEventListener('click', () => applyMenuTemplate('nigerian-restaurant'));
     return;
   }
 
@@ -1398,8 +1573,7 @@ function initWaiterProfile() {
 function openWaiterModal() {
   const limit = planLimit('staff');
   if (limit !== Infinity && currentWaiterCount >= limit) {
-    const planNames = { free: 'Free plan (max 1 waiter)', growth: 'Growth plan (max 5 waiters)' };
-    alert('Staff limit reached for your ' + (planNames[currentPlan] || currentPlan) + '.\n\nUpgrade your plan at virtualwaitress.com to add more staff.');
+    showUpgradeModal();
     return;
   }
   document.getElementById('waiterName').value = '';
@@ -1485,6 +1659,166 @@ function initForgotPassword() {
       msgEl.textContent = 'Reset email sent — check your inbox.';
     }
   });
+}
+
+// ── Onboarding Wizard ─────────────────────────────────────────────────────────
+
+async function maybeShowWizard() {
+  const key = 'vw_wizard_done_' + RESTAURANT_ID;
+  if (localStorage.getItem(key)) return;
+
+  const { count } = await db
+    .from('menu_categories')
+    .select('*', { count: 'exact', head: true })
+    .eq('restaurant_id', RESTAURANT_ID);
+
+  if (count > 0) {
+    localStorage.setItem(key, '1');
+    return;
+  }
+
+  showWizard();
+}
+
+function showWizard() {
+  let overlay = document.getElementById('wizardOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'wizardOverlay';
+    overlay.className = 'wz-overlay';
+    document.body.appendChild(overlay);
+  }
+  renderWizardStep(overlay, 1);
+  overlay.classList.add('wz-visible');
+}
+
+function closeWizard() {
+  const overlay = document.getElementById('wizardOverlay');
+  if (overlay) overlay.classList.remove('wz-visible');
+  localStorage.setItem('vw_wizard_done_' + RESTAURANT_ID, '1');
+}
+
+function renderWizardStep(overlay, step) {
+  const steps = ['Menu', 'Tables', 'Waiter', 'Done'];
+  const progressHtml = steps.map((s, i) =>
+    `<div class="wz-step-dot ${i + 1 === step ? 'wz-dot-active' : i + 1 < step ? 'wz-dot-done' : ''}">${i + 1 < step ? '✓' : i + 1}</div>`
+  ).join('');
+
+  let bodyHtml = '';
+
+  if (step === 1) {
+    bodyHtml = `
+      <div class="wz-icon">🍽️</div>
+      <h2 class="wz-title">Let's build your menu</h2>
+      <p class="wz-sub">Start with our ready-made Nigerian restaurant template and customise it, or build from scratch.</p>
+      <button class="wz-btn-primary" id="wzUseTemplate">Use Nigerian Restaurant Template</button>
+      <button class="wz-btn-ghost" id="wzScratch">I'll build my own menu</button>
+    `;
+  } else if (step === 2) {
+    bodyHtml = `
+      <div class="wz-icon">🪑</div>
+      <h2 class="wz-title">How many tables do you have?</h2>
+      <p class="wz-sub">We'll create them all at once. You can rename or delete any of them later.</p>
+      <input type="number" id="wzTableCount" class="wz-input" placeholder="e.g. 10" min="1" max="100" value="10" />
+      <button class="wz-btn-primary" id="wzAddTables">Add Tables</button>
+      <button class="wz-btn-ghost" id="wzSkipTables">Skip for now</button>
+    `;
+  } else if (step === 3) {
+    bodyHtml = `
+      <div class="wz-icon">👤</div>
+      <h2 class="wz-title">Add your first waiter</h2>
+      <p class="wz-sub">They'll get a login code to use on the waiter dashboard when orders come in.</p>
+      <input type="text" id="wzWaiterName" class="wz-input" placeholder="Waiter's name" maxlength="60" />
+      <p class="wz-error" id="wzWaiterError"></p>
+      <button class="wz-btn-primary" id="wzAddWaiter">Add Waiter</button>
+      <button class="wz-btn-ghost" id="wzSkipWaiter">Skip for now</button>
+    `;
+  } else if (step === 4) {
+    const slug = ownedLocations.find(r => r.id === RESTAURANT_ID)?.slug || '';
+    const menuUrl = slug ? (window.location.origin + '/' + slug + '/1') : window.location.origin;
+    bodyHtml = `
+      <div class="wz-icon">🎉</div>
+      <h2 class="wz-title">You're live!</h2>
+      <p class="wz-sub">Your restaurant is ready to take orders. Share this link or print your QR cards.</p>
+      <div class="wz-url">${menuUrl}</div>
+      <a href="${menuUrl}" target="_blank" rel="noopener" class="wz-btn-primary wz-btn-link">Preview My Menu →</a>
+      <button class="wz-btn-ghost" id="wzDone">Go to Dashboard</button>
+    `;
+  }
+
+  overlay.innerHTML = `
+    <div class="wz-card">
+      <div class="wz-progress">${progressHtml}</div>
+      <div class="wz-body">${bodyHtml}</div>
+    </div>
+  `;
+
+  // Wire step buttons
+  if (step === 1) {
+    document.getElementById('wzUseTemplate').addEventListener('click', async () => {
+      const btn = document.getElementById('wzUseTemplate');
+      btn.disabled = true;
+      btn.textContent = 'Applying template…';
+      await applyMenuTemplate('nigerian-restaurant');
+      renderWizardStep(overlay, 2);
+    });
+    document.getElementById('wzScratch').addEventListener('click', () => {
+      closeWizard();
+      navigateTo('menu');
+    });
+  }
+
+  if (step === 2) {
+    document.getElementById('wzAddTables').addEventListener('click', async () => {
+      const count = Math.min(100, Math.max(1, parseInt(document.getElementById('wzTableCount').value) || 1));
+      const btn = document.getElementById('wzAddTables');
+      btn.disabled = true;
+      btn.textContent = 'Adding tables…';
+
+      const rows = Array.from({ length: count }, (_, i) => ({
+        restaurant_id: RESTAURANT_ID,
+        table_number: i + 1,
+        label: 'Table ' + (i + 1),
+      }));
+      await db.from('tables').insert(rows);
+      renderWizardStep(overlay, 3);
+    });
+    document.getElementById('wzSkipTables').addEventListener('click', () => renderWizardStep(overlay, 3));
+  }
+
+  if (step === 3) {
+    document.getElementById('wzAddWaiter').addEventListener('click', async () => {
+      const name = document.getElementById('wzWaiterName').value.trim();
+      const errorEl = document.getElementById('wzWaiterError');
+      const btn = document.getElementById('wzAddWaiter');
+      if (!name) { errorEl.textContent = 'Enter the waiter\'s name.'; return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Adding…';
+      errorEl.textContent = '';
+
+      try {
+        const { data: { session } } = await db.auth.getSession();
+        const res = await fetch(SUPABASE_URL + '/functions/v1/create-waiter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+          body: JSON.stringify({ waiter_name: name, restaurant_id: RESTAURANT_ID })
+        });
+        const result = await res.json();
+        if (!res.ok || result.error) throw new Error(result.error || 'Failed');
+        renderWizardStep(overlay, 4);
+      } catch (err) {
+        errorEl.textContent = err.message || 'Something went wrong. Try again.';
+        btn.disabled = false;
+        btn.textContent = 'Add Waiter';
+      }
+    });
+    document.getElementById('wzSkipWaiter').addEventListener('click', () => renderWizardStep(overlay, 4));
+  }
+
+  if (step === 4) {
+    document.getElementById('wzDone').addEventListener('click', closeWizard);
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
