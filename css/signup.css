@@ -227,6 +227,14 @@ body {
   margin-bottom: 7px;
 }
 
+.su-optional {
+  font-weight: 400;
+  font-size: 0.75rem;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.6;
+}
+
 .su-field input {
   width: 100%;
   padding: 13px 16px;
@@ -385,4 +393,25 @@ body {
     align-items: flex-start;
     padding-top: 60px;
   }
+}
+
+/* ── Promo code ─────────────────────────────────────────────────────────────── */
+
+.su-promo-input {
+  background: #111;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: var(--font);
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.su-promo-input:focus {
+  outline: none;
+  border-color: var(--accent);
 }

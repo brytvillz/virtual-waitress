@@ -72,6 +72,16 @@ function setupToggle(toggleId, inputEl) {
 setupToggle('suPwToggle',  passInput);
 setupToggle('suPwToggle2', confirmInput);
 
+// ── Promo code ────────────────────────────────────────────────────────────────
+
+const promoInput = document.getElementById('suPromoCode');
+
+if (promoInput) {
+  promoInput.addEventListener('input', () => {
+    promoInput.value = promoInput.value.toUpperCase();
+  });
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function setLoading(on) {
@@ -110,7 +120,7 @@ document.getElementById('suForm').addEventListener('submit', async e => {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/create-restaurant`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
-      body: JSON.stringify({ restaurant_name: restaurantName, email, password }),
+      body: JSON.stringify({ restaurant_name: restaurantName, email, password, promo_code: promoInput?.value.trim() || null }),
     });
 
     const result = await res.json();
@@ -122,10 +132,15 @@ document.getElementById('suForm').addEventListener('submit', async e => {
     }
 
     const slug = result.slug || toSlug(restaurantName);
+    const planLabels = { growth: 'Growth', pro: 'Pro' };
 
     step1.classList.add('su-hidden');
-    document.getElementById('suSuccessMsg').textContent =
-      'We sent a confirmation link to ' + email + '. Click it to activate your account.';
+
+    const successMsg = result.promo_applied
+      ? '🎉 Promo applied! Your ' + (planLabels[result.promo_plan] || result.promo_plan) + ' plan is active. Log in below to start setting up your restaurant.'
+      : 'You\'re all set! Log in below to start building your menu.';
+
+    document.getElementById('suSuccessMsg').textContent = successMsg;
     document.getElementById('suSuccessUrl').textContent =
       'app.virtualwaitress.com/' + slug + '/1';
     step2.classList.remove('su-hidden');
