@@ -104,12 +104,11 @@ function applyPlanGating() {
     badge.className = 'sidebar-plan-badge plan-' + currentPlan;
   }
 
-  // Analytics — Growth+ only
+  // Analytics nav — always unlocked; content is limited for free
   const analyticsBtn = document.querySelector('[data-section="analytics"]');
   if (analyticsBtn) {
-    const locked = currentPlan === 'free';
-    analyticsBtn.classList.toggle('nav-locked', locked);
-    analyticsBtn.title = locked ? 'Upgrade to Growth to unlock Analytics' : '';
+    analyticsBtn.classList.remove('nav-locked');
+    analyticsBtn.title = '';
   }
 
   // Locations switcher — show in sidebar for multi-location owners
@@ -412,6 +411,32 @@ async function loadOnboardingChecklist() {
 // ── Analytics ─────────────────────────────────────────────────────────────────
 
 async function loadAnalytics() {
+  const isFree = currentPlan === 'free';
+
+  // Section title reflects what's available
+  const titleEl = document.querySelector('#analyticsSection .section-title');
+  if (titleEl) titleEl.textContent = isFree ? 'Waiter Activity' : 'Analytics';
+
+  // Show/hide full-analytics elements based on plan
+  const statGrid = document.querySelector('.stat-grid');
+  if (statGrid) statGrid.classList.toggle('admin-hidden', isFree);
+  ['bestSellersHeading', 'bestSellersList', 'recentOrdersHeading', 'recentOrdersList'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('admin-hidden', isFree);
+  });
+
+  if (isFree) {
+    // Free plan: fetch only what's needed for waiter activity
+    const [{ data: todayOrders }, { data: staffList }] = await Promise.all([
+      db.from('orders').select('handled_by').eq('restaurant_id', RESTAURANT_ID).gte('created_at', startOfToday()),
+      db.from('staff').select('id, name, role').eq('restaurant_id', RESTAURANT_ID).order('name')
+    ]);
+    renderWaiterPerformance(staffList || [], todayOrders || [], true);
+    loadOnboardingChecklist();
+    return;
+  }
+
+  // Growth+ — full analytics
   const [
     { data: todayOrders },
     { data: allOrders },
@@ -436,14 +461,13 @@ async function loadAnalytics() {
   document.getElementById('statAllOrders').textContent = allCount;
   document.getElementById('statAllRevenue').textContent = formatPrice(allRevenue);
 
-  renderWaiterPerformance(staffList || [], todayOrders || []);
+  renderWaiterPerformance(staffList || [], todayOrders || [], false);
   renderBestSellers(orderItems || []);
   renderRecentOrders(recentOrders || []);
-
   loadOnboardingChecklist();
 }
 
-function renderWaiterPerformance(staffList, todayOrders) {
+function renderWaiterPerformance(staffList, todayOrders, hideRevenue = false) {
   const stats = {};
   todayOrders.forEach(o => {
     if (!o.handled_by) return;
@@ -469,7 +493,7 @@ function renderWaiterPerformance(staffList, todayOrders) {
           <div class="waiter-perf-meta">${s.count} order${s.count !== 1 ? 's' : ''} handled today</div>
         </div>
         <div class="waiter-perf-right">
-          <span class="waiter-perf-revenue">${formatPrice(s.revenue)}</span>
+          ${hideRevenue ? '' : `<span class="waiter-perf-revenue">${formatPrice(s.revenue)}</span>`}
         </div>
       </div>
     `;
