@@ -38,6 +38,42 @@ function startOfToday() {
   return d.toISOString();
 }
 
+// ── Plan nudge (soft toast for limit hits) ─────────────────────────────────────
+
+function showPlanNudge(title, message) {
+  const existing = document.getElementById('planNudge');
+  if (existing) existing.remove();
+
+  const nudge = document.createElement('div');
+  nudge.id = 'planNudge';
+  nudge.className = 'plan-nudge';
+  nudge.innerHTML =
+    '<div class="plan-nudge-icon">&#128274;</div>' +
+    '<div class="plan-nudge-body">' +
+      '<p class="plan-nudge-title">' + title + '</p>' +
+      '<p class="plan-nudge-msg">' + message + '</p>' +
+    '</div>' +
+    '<button class="plan-nudge-upgrade" id="planNudgeUpgradeBtn">Upgrade &#8594;</button>' +
+    '<button class="plan-nudge-close" id="planNudgeClose" aria-label="Dismiss">&#x2715;</button>';
+  document.body.appendChild(nudge);
+
+  requestAnimationFrame(() => nudge.classList.add('plan-nudge-visible'));
+
+  let timer;
+  function dismiss() {
+    clearTimeout(timer);
+    nudge.classList.remove('plan-nudge-visible');
+    setTimeout(() => nudge.remove(), 320);
+  }
+
+  nudge.querySelector('#planNudgeClose').addEventListener('click', dismiss);
+  nudge.querySelector('#planNudgeUpgradeBtn').addEventListener('click', () => {
+    dismiss();
+    showUpgradeModal();
+  });
+  timer = setTimeout(dismiss, 6000);
+}
+
 // ── Upgrade modal ─────────────────────────────────────────────────────────────
 
 function showUpgradeModal() {
@@ -262,7 +298,7 @@ function updateLocationSwitcher() {
       '<span class="ls-text">' + label + '</span>' +
       (isGrowthLocked ? '<span class="ls-pro-badge">Pro</span>' : '');
     btn.addEventListener('click', () => {
-      if (isGrowthLocked) { showUpgradeModal(); return; }
+      if (isGrowthLocked) { showPlanNudge('Multiple locations is a Pro feature', 'Your Growth plan supports 1 location. Upgrade to Pro to manage up to 3 locations.'); return; }
       if (ownedLocations.length > 1) {
         showLocationPicker(ownedLocations);
       } else {
@@ -330,7 +366,7 @@ function showLocationPicker(restaurants) {
   if (addBtn) {
     addBtn.addEventListener('click', () => {
       if (addBtn.classList.contains('lp-add-btn-locked')) {
-        showUpgradeModal();
+        showPlanNudge('Multiple locations is a Pro feature', 'Your Growth plan supports 1 location. Upgrade to Pro to manage up to 3 locations.');
       } else {
         showAddLocationModal();
       }
@@ -955,7 +991,7 @@ function initItemModal() {
     } else {
       const itemLimit = planLimit('items');
       if (itemLimit !== Infinity && itemsCache.length >= itemLimit) {
-        alert('Menu item limit reached for Free plan (max 20 items).\n\nUpgrade to Growth at virtualwaitress.com for unlimited items.');
+        showPlanNudge('Menu item limit reached', 'Free plan allows up to 20 menu items. Upgrade to Growth for unlimited items.');
         return;
       }
       ({ error } = await db.from('menu_items').insert({
@@ -1606,7 +1642,13 @@ function initWaiterProfile() {
 function openWaiterModal() {
   const limit = planLimit('staff');
   if (limit !== Infinity && currentWaiterCount >= limit) {
-    showUpgradeModal();
+    const isFree = currentPlan === 'free' || !currentPlan;
+    showPlanNudge(
+      'Waiter limit reached',
+      isFree
+        ? 'Free plan includes 1 waiter. Upgrade to Growth to add up to 5.'
+        : 'Growth plan includes up to 5 waiters. Upgrade to Pro for unlimited staff.'
+    );
     return;
   }
   document.getElementById('waiterName').value = '';
