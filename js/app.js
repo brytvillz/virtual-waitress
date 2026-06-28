@@ -55,7 +55,10 @@ async function loadMenuData() {
         name: restaurant.name,
         tagline: restaurant.tagline,
         whatsapp: restaurant.whatsapp,
-        accentColor: restaurant.accent_color
+        accentColor: restaurant.accent_color,
+        plan: restaurant.plan || 'free',
+        plan_status: restaurant.plan_status || 'inactive',
+        plan_expires_at: restaurant.plan_expires_at || null,
       },
       ada: {
         name: restaurant.ada_name,
@@ -776,6 +779,12 @@ function applyBranding(restaurant) {
   document.getElementById('restaurantTagline').textContent = restaurant.tagline;
   document.getElementById('tableBadge').textContent        = 'Table ' + getTableNumber();
   document.documentElement.style.setProperty('--accent', restaurant.accentColor);
+
+  // Show "Powered by Virtual Waitress" badge for free/inactive plans
+  const notExpired = !restaurant.plan_expires_at || new Date(restaurant.plan_expires_at) > new Date();
+  const isPaid = restaurant.plan_status === 'active' && restaurant.plan !== 'free' && notExpired;
+  const badge = document.getElementById('vwPoweredBadge');
+  if (badge) badge.classList.toggle('vw-badge-hidden', isPaid);
 }
 
 function applyMenuContent(categories, isFirstRender) {

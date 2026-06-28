@@ -109,17 +109,20 @@
 
               <p class="su-error" id="suError"></p>
 
-              <button type="submit" class="su-submit" id="suSubmit">
+              <label class="su-terms-check">
+                <input type="checkbox" id="suAgree" />
+                <span class="su-terms-box"></span>
+                <span class="su-terms-text">I agree to the
+                  <a href="https://virtualwaitress.com/terms" target="_blank" rel="noopener">Terms of Service</a>
+                  and
+                  <a href="https://virtualwaitress.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>
+                </span>
+              </label>
+
+              <button type="submit" class="su-submit" id="suSubmit" disabled>
                 <span id="suSubmitLabel">Create My Restaurant &#8594;</span>
                 <span id="suSubmitSpinner" class="su-spinner su-hidden">&#9679;&#9679;&#9679;</span>
               </button>
-
-              <p class="su-legal">
-                By signing up you agree to our
-                <a href="https://virtualwaitress.com/terms" target="_blank" rel="noopener">Terms of Service</a>
-                and
-                <a href="https://virtualwaitress.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
-              </p>
             </form>
 
             <p class="su-login-link">Already have an account? <a href="/admin">Log in</a></p>
@@ -129,7 +132,7 @@
           <div id="suStep2" class="su-step su-hidden">
             <div class="su-success-icon">&#128274;</div>
             <h1 class="su-title">Enter your code</h1>
-            <p class="su-subtitle">We sent a 6-digit code to:</p>
+            <p class="su-subtitle">We sent an 8-digit code to:</p>
             <p class="su-success-email" id="suSuccessEmail"></p>
 
             <div class="su-otp-wrap" id="suOtpWrap">

@@ -1888,6 +1888,28 @@
   margin: 0;
 }
 
+.upgrade-proration {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.upgrade-proration-credit { color: #3ECC8A; font-weight: 700; }
+
+.upgrade-proration-total {
+  font-weight: 700;
+  color: var(--text);
+  border-top: 1px solid rgba(255,255,255,0.14);
+  margin-top: 4px;
+}
+
+.upgrade-proration-amount { color: var(--accent); font-size: 1rem; }
+
 /* ── Onboarding Wizard ────────────────────────────────────────────────────────── */
 
 .wz-overlay {

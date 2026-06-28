@@ -51,6 +51,35 @@ function showUpgradeModal() {
 
   const isGrowth = currentPlan === 'growth';
 
+  // Proration for Growth → Pro
+  let prorationHtml = '';
+  let proAmount = 15000;
+  if (isGrowth && currentPlanExpiresAt) {
+    const daysLeft = Math.max(0, Math.ceil((new Date(currentPlanExpiresAt) - new Date()) / 86400000));
+    const credit   = Math.round((daysLeft / 30) * 4900);
+    proAmount      = Math.max(0, 15000 - credit);
+    if (credit > 0) {
+      prorationHtml =
+        '<div class="upgrade-proration">' +
+          '<span class="upgrade-proration-label">Growth credit (' + daysLeft + ' days left)</span>' +
+          '<span class="upgrade-proration-credit">−₦' + credit.toLocaleString() + '</span>' +
+        '</div>' +
+        '<div class="upgrade-proration upgrade-proration-total">' +
+          '<span class="upgrade-proration-label">You pay today</span>' +
+          '<span class="upgrade-proration-amount">₦' + proAmount.toLocaleString() + '</span>' +
+        '</div>';
+    }
+  }
+
+  // WhatsApp upgrade message
+  const restaurantName = document.getElementById('sidebarRestaurantName')?.textContent || 'my restaurant';
+  const targetPlan     = isGrowth ? 'Pro' : 'Growth';
+  const waMsg = encodeURIComponent(
+    'Hi, I\'d like to upgrade ' + restaurantName + ' to the ' + targetPlan + ' plan on Virtual Waitress.' +
+    (isGrowth && prorationHtml ? ' I have ' + Math.ceil((new Date(currentPlanExpiresAt) - new Date()) / 86400000) + ' days left on Growth.' : '')
+  );
+  const waLink = 'https://wa.me/2347076077265?text=' + waMsg;
+
   overlay.innerHTML =
     '<div class="upgrade-modal">' +
       '<button class="upgrade-modal-close" id="upgradeModalClose" aria-label="Close">&#x2715;</button>' +
@@ -60,32 +89,34 @@ function showUpgradeModal() {
       '</div>' +
       '<div class="upgrade-modal-plans">' +
         (!isGrowth
-          ? '<div class="upgrade-plan-card">' +
+          ? '<div class="upgrade-plan-card upgrade-plan-featured">' +
+              '<div class="upgrade-plan-badge">Most Popular</div>' +
               '<div class="upgrade-plan-name">Growth</div>' +
-              '<div class="upgrade-plan-price">₦4,000<span>/mo</span></div>' +
+              '<div class="upgrade-plan-price">₦4,900<span>/mo</span></div>' +
               '<ul class="upgrade-plan-features">' +
                 '<li>Up to 5 waiters</li>' +
-                '<li>Unlimited tables</li>' +
-                '<li>Unlimited menu items</li>' +
+                '<li>Unlimited tables &amp; menu items</li>' +
                 '<li>Full analytics &amp; revenue</li>' +
-                '<li>Waiter performance history</li>' +
+                '<li>Remove VW branding</li>' +
+                '<li>Push notifications</li>' +
               '</ul>' +
             '</div>'
           : '') +
-        '<div class="upgrade-plan-card upgrade-plan-featured">' +
-          '<div class="upgrade-plan-badge">Best Value</div>' +
+        '<div class="upgrade-plan-card' + (!isGrowth ? '' : ' upgrade-plan-featured') + '">' +
+          (isGrowth ? '<div class="upgrade-plan-badge">Best Value</div>' : '') +
           '<div class="upgrade-plan-name">Pro</div>' +
-          '<div class="upgrade-plan-price">₦7,000<span>/mo</span></div>' +
+          '<div class="upgrade-plan-price">₦15,000<span>/mo</span></div>' +
           '<ul class="upgrade-plan-features">' +
-            '<li>Unlimited waiters</li>' +
-            '<li>Up to 3 locations</li>' +
             '<li>Everything in Growth</li>' +
+            '<li>Up to 3 locations</li>' +
+            '<li>Unlimited waiters</li>' +
             '<li>Priority support</li>' +
           '</ul>' +
+          prorationHtml +
         '</div>' +
       '</div>' +
-      '<a href="https://virtualwaitress.com/#pricing" target="_blank" rel="noopener" class="upgrade-modal-cta">View Plans &amp; Pricing</a>' +
-      '<p class="upgrade-modal-note">To activate a plan, visit our pricing page or contact us at hello@virtualwaitress.com</p>' +
+      '<a href="' + waLink + '" target="_blank" rel="noopener" class="upgrade-modal-cta">Upgrade Plan &#8594;</a>' +
+      '<p class="upgrade-modal-note">You\'ll be connected with us on WhatsApp to complete your upgrade.</p>' +
     '</div>';
 
   overlay.classList.add('upgrade-modal-visible');

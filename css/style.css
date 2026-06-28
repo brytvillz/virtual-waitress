@@ -1558,3 +1558,28 @@ body {
   0%, 80%, 100% { opacity: 0.25; transform: scale(0.75); }
   40%           { opacity: 1;    transform: scale(1); }
 }
+
+/* ── Powered by Virtual Waitress badge (free plan only) ──────────────────── */
+
+.vw-powered-badge {
+  text-align: center;
+  padding: 16px 0 24px;
+}
+
+.vw-badge-hidden { display: none !important; }
+
+.vw-powered-link {
+  display: inline-block;
+  color: rgba(255,255,255,0.35);
+  font-size: 0.72rem;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  transition: color 0.2s;
+}
+
+.vw-powered-link strong {
+  color: rgba(255,255,255,0.55);
+  font-weight: 700;
+}
+
+.vw-powered-link:hover { color: rgba(255,255,255,0.6); }

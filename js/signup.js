@@ -72,6 +72,13 @@ function setupToggle(toggleId, inputEl) {
 setupToggle('suPwToggle',  passInput);
 setupToggle('suPwToggle2', confirmInput);
 
+// ── Terms checkbox ────────────────────────────────────────────────────────────
+
+const agreeBox = document.getElementById('suAgree');
+agreeBox.addEventListener('change', () => {
+  submitBtn.disabled = !agreeBox.checked;
+});
+
 // ── Promo code ────────────────────────────────────────────────────────────────
 
 const promoInput = document.getElementById('suPromoCode');

@@ -519,6 +519,67 @@ body {
   }
 }
 
+/* ── Terms checkbox ─────────────────────────────────────────────────────────── */
+
+.su-terms-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.su-terms-check input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.su-terms-box {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  margin-top: 1px;
+  transition: border-color 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.su-terms-check input:checked ~ .su-terms-box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.su-terms-check input:checked ~ .su-terms-box::after {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.su-terms-text {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.su-terms-text a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.su-terms-text a:hover { text-decoration: underline; }
+
 /* ── Promo code ─────────────────────────────────────────────────────────────── */
 
 .su-promo-input {
