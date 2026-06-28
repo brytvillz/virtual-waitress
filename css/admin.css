@@ -204,6 +204,26 @@
   flex-shrink: 0;
 }
 
+.sidebar-support-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(37, 211, 102, 0.1);
+  border: 1px solid rgba(37, 211, 102, 0.25);
+  border-radius: 8px;
+  color: #25D366;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.sidebar-support-btn:hover {
+  background: rgba(37, 211, 102, 0.18);
+}
+
 .sidebar-footer-link {
   display: block;
   text-align: center;

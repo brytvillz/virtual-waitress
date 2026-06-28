@@ -81,6 +81,11 @@
         </nav>
 
         <div class="sidebar-footer">
+          <button id="upgradePlanBtn" class="sidebar-upgrade-btn admin-hidden">Upgrade Plan</button>
+          <a href="https://wa.me/2347076077265?text=Hi%2C%20I%20need%20help%20with%20my%20Virtual%20Waitress%20account." target="_blank" rel="noopener" class="sidebar-support-btn">
+            <span>💬</span> Chat Support
+          </a>
+          <a href="https://wa.me/2347076077265?text=Hi%2C%20I%20want%20to%20report%20an%20issue%20with%20my%20Virtual%20Waitress%20account." target="_blank" rel="noopener" class="sidebar-footer-link">↗ Report an Issue</a>
           <a href="waiter.html" class="sidebar-footer-link">↗ Staff Dashboard</a>
           <button id="logoutBtn" class="sidebar-logout-btn">Log Out</button>
         </div>
@@ -95,6 +100,15 @@
           <h1 class="topbar-title" id="topbarTitle">Analytics</h1>
           <button id="refreshBtn" class="topbar-action-btn" type="button" title="Refresh">🔄</button>
         </header>
+
+        <!-- Plan expiry warning banner -->
+        <div id="planExpiryBanner" class="plan-expiry-banner admin-hidden">
+          <span id="planExpiryMsg"></span>
+          <div class="peb-actions">
+            <button class="peb-upgrade-btn" id="planExpiryUpgradeBtn">Renew Now</button>
+            <button class="peb-dismiss" id="planExpiryDismissBtn" aria-label="Dismiss">&#x2715;</button>
+          </div>
+        </div>
 
         <!-- Analytics section -->
         <section id="analyticsSection" class="admin-section">
