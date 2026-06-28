@@ -161,17 +161,23 @@ document.getElementById('suForm').addEventListener('submit', async e => {
       resendBtn.disabled = true;
       resendBtn.textContent = 'Sending…';
       const { error } = await db.auth.resend({ type: 'signup', email });
-      if (error) {
-        resendHint.textContent = 'Could not resend — try again in a minute.';
-      } else {
-        resendHint.textContent = 'Sent! Check your inbox (and spam folder).';
-      }
-      resendBtn.textContent = 'Resend confirmation email';
-      setTimeout(() => {
-        resendCooldown = false;
-        resendBtn.disabled = false;
-        resendHint.textContent = 'Didn\'t get it? Check your spam folder.';
-      }, 60000);
+      resendHint.textContent = error
+        ? 'Could not resend — try again in a minute.'
+        : 'Sent! Check your inbox (and spam folder).';
+
+      let secs = 60;
+      resendBtn.textContent = 'Resend in ' + secs + 's';
+      const interval = setInterval(() => {
+        secs--;
+        resendBtn.textContent = 'Resend in ' + secs + 's';
+        if (secs <= 0) {
+          clearInterval(interval);
+          resendCooldown = false;
+          resendBtn.disabled = false;
+          resendBtn.textContent = 'Resend confirmation email';
+          resendHint.textContent = 'Didn\'t get it? Check your spam folder.';
+        }
+      }, 1000);
     });
 
   } catch (err) {
