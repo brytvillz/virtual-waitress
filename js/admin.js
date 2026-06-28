@@ -1802,7 +1802,7 @@ function renderWizardStep(overlay, step) {
         const res = await fetch(SUPABASE_URL + '/functions/v1/create-waiter', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-          body: JSON.stringify({ waiter_name: name, restaurant_id: RESTAURANT_ID })
+          body: JSON.stringify({ name, restaurant_id: RESTAURANT_ID })
         });
         const result = await res.json();
         if (!res.ok || result.error) throw new Error(result.error || 'Failed');
