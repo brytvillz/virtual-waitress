@@ -152,6 +152,28 @@ document.getElementById('suForm').addEventListener('submit', async e => {
       setLoading(false);
     });
 
+    const resendBtn = document.getElementById('suResendBtn');
+    const resendHint = document.getElementById('suResendHint');
+    let resendCooldown = false;
+    resendBtn.addEventListener('click', async () => {
+      if (resendCooldown) return;
+      resendCooldown = true;
+      resendBtn.disabled = true;
+      resendBtn.textContent = 'Sending…';
+      const { error } = await db.auth.resend({ type: 'signup', email });
+      if (error) {
+        resendHint.textContent = 'Could not resend — try again in a minute.';
+      } else {
+        resendHint.textContent = 'Sent! Check your inbox (and spam folder).';
+      }
+      resendBtn.textContent = 'Resend confirmation email';
+      setTimeout(() => {
+        resendCooldown = false;
+        resendBtn.disabled = false;
+        resendHint.textContent = 'Didn\'t get it? Check your spam folder.';
+      }, 60000);
+    });
+
   } catch (err) {
     showError('Network error — please check your connection and try again.');
     setLoading(false);

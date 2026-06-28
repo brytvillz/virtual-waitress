@@ -400,6 +400,28 @@ body {
   text-align: center;
 }
 
+.su-resend-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-family: var(--font);
+  font-weight: 600;
+  padding: 12px 20px;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.su-resend-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.su-resend-btn:disabled { opacity: 0.5; cursor: default; }
+
 .su-success-hint {
   font-size: 0.82rem;
   color: var(--muted);
