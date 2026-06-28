@@ -190,7 +190,15 @@ document.getElementById('suForm').addEventListener('submit', async e => {
         verifyBtn.textContent = 'Verify & Log In →';
         return;
       }
-      window.location.href = '/admin';
+
+      // Show success state before redirecting
+      step2.innerHTML =
+        '<div class="su-otp-success">' +
+          '<div class="su-otp-success-icon">&#10003;</div>' +
+          '<h2 class="su-title">Verified!</h2>' +
+          '<p class="su-subtitle">Logging you in<span class="su-otp-dots"><span>.</span><span>.</span><span>.</span></span></p>' +
+        '</div>';
+      setTimeout(() => { window.location.href = '/admin'; }, 1800);
     }
 
     verifyBtn.addEventListener('click', submitOtp);
