@@ -380,3 +380,57 @@ body {
 .admin-hidden {
   display: none !important;
 }
+
+/* ── Reset Password — strength & toggles ─────────────────────────────────── */
+
+.rp-pw-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.rp-pw-wrap input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.rp-pw-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted, #6B6570);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.rp-eye-hidden { display: none; }
+
+.rp-strength {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.rp-strength li {
+  font-size: 0.78rem;
+  color: var(--muted, #6B6570);
+  padding-left: 18px;
+  position: relative;
+}
+
+.rp-strength li::before {
+  content: '✗';
+  position: absolute;
+  left: 0;
+  color: var(--muted, #6B6570);
+}
+
+.rp-strength li.rp-rule-ok { color: #4CAF50; }
+.rp-strength li.rp-rule-ok::before { content: '✓'; color: #4CAF50; }

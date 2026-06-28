@@ -25,6 +25,36 @@ async function init() {
     if (!recoveryReady) showLinkError();
   }, 5000);
 
+  // ── Password strength indicator ───────────────────────────────────────────
+  const pwInput = document.getElementById("newPassword");
+  const rules = {
+    "rp-len":   v => v.length >= 8,
+    "rp-upper": v => /[A-Z]/.test(v),
+    "rp-lower": v => /[a-z]/.test(v),
+    "rp-num":   v => /[0-9]/.test(v),
+  };
+  pwInput.addEventListener("input", () => {
+    const v = pwInput.value;
+    Object.entries(rules).forEach(([id, fn]) => {
+      document.getElementById(id).classList.toggle("rp-rule-ok", fn(v));
+    });
+  });
+
+  // ── Password visibility toggles ───────────────────────────────────────────
+  function wireToggle(btnId, inputId) {
+    const btn = document.getElementById(btnId);
+    const inp = document.getElementById(inputId);
+    btn.addEventListener("click", () => {
+      const show = inp.type === "password";
+      inp.type = show ? "text" : "password";
+      btn.querySelector(".rp-eye").classList.toggle("rp-eye-hidden", show);
+      btn.querySelector(".rp-eye-off").classList.toggle("rp-eye-hidden", !show);
+    });
+  }
+  wireToggle("rpPwToggle", "newPassword");
+  wireToggle("rpPwToggle2", "confirmPassword");
+
+  // ── Form submit ────────────────────────────────────────────────────────────
   document.getElementById("resetForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const password = document.getElementById("newPassword").value;
@@ -34,8 +64,8 @@ async function init() {
 
     errorEl.textContent = "";
 
-    if (password.length < 8) {
-      errorEl.textContent = "Password must be at least 8 characters.";
+    if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+      errorEl.textContent = "Password must be 8+ characters with an uppercase letter, lowercase letter, and number.";
       return;
     }
     if (password !== confirm) {
@@ -48,8 +78,7 @@ async function init() {
 
     const { error } = await db.auth.updateUser({ password });
     if (error) {
-      errorEl.textContent =
-        "Failed to update password. Try requesting a new reset link.";
+      errorEl.textContent = "Failed to update password. Try requesting a new reset link.";
       btn.textContent = "Update Password";
       btn.disabled = false;
       return;
