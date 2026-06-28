@@ -370,13 +370,13 @@ body {
 }
 
 .su-otp-box {
-  width: 46px;
-  height: 54px;
+  width: 40px;
+  height: 50px;
   border: 1.5px solid var(--border);
   border-radius: 10px;
   background: #111;
   color: var(--text);
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 700;
   text-align: center;
   outline: none;

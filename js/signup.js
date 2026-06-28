@@ -150,25 +150,25 @@ document.getElementById('suForm').addEventListener('submit', async e => {
 
     const getCode = () => otpBoxes.map(b => b.value).join('');
 
-    function refreshVerifyBtn() { verifyBtn.disabled = getCode().length < 6; }
+    function refreshVerifyBtn() { verifyBtn.disabled = getCode().length < 8; }
 
     otpBoxes.forEach((box, i) => {
       box.addEventListener('input', () => {
         box.value = box.value.replace(/\D/g, '').slice(-1);
-        if (box.value && i < 5) otpBoxes[i + 1].focus();
+        if (box.value && i < 7) otpBoxes[i + 1].focus();
         refreshVerifyBtn();
-        if (getCode().length === 6) submitOtp();
+        if (getCode().length === 8) submitOtp();
       });
       box.addEventListener('keydown', e => {
         if (e.key === 'Backspace' && !box.value && i > 0) otpBoxes[i - 1].focus();
       });
       box.addEventListener('paste', e => {
         e.preventDefault();
-        const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+        const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 8);
         digits.split('').forEach((ch, j) => { if (otpBoxes[j]) otpBoxes[j].value = ch; });
-        otpBoxes[Math.min(digits.length, 5)].focus();
+        otpBoxes[Math.min(digits.length, 7)].focus();
         refreshVerifyBtn();
-        if (getCode().length === 6) submitOtp();
+        if (getCode().length === 8) submitOtp();
       });
     });
     otpBoxes[0].focus();
