@@ -137,13 +137,20 @@ document.getElementById('suForm').addEventListener('submit', async e => {
     step1.classList.add('su-hidden');
 
     const successMsg = result.promo_applied
-      ? '🎉 Promo applied! Your ' + (planLabels[result.promo_plan] || result.promo_plan) + ' plan is active. Log in below to start setting up your restaurant.'
-      : 'You\'re all set! Log in below to start building your menu.';
+      ? '🎉 Promo applied! Your ' + (planLabels[result.promo_plan] || result.promo_plan) + ' plan is active. Check your inbox to verify, then log in.'
+      : 'We sent a confirmation link to:';
 
     document.getElementById('suSuccessMsg').textContent = successMsg;
+    document.getElementById('suSuccessEmail').textContent = email;
     document.getElementById('suSuccessUrl').textContent =
       'app.virtualwaitress.com/' + slug + '/1';
     step2.classList.remove('su-hidden');
+
+    document.getElementById('suNotYouBtn').addEventListener('click', () => {
+      step2.classList.add('su-hidden');
+      step1.classList.remove('su-hidden');
+      setLoading(false);
+    });
 
   } catch (err) {
     showError('Network error — please check your connection and try again.');

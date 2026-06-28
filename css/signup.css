@@ -353,6 +353,34 @@ body {
 }
 
 /* ── Success state ────────────────────── */
+.su-success-email {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  margin: 4px 0 6px;
+  word-break: break-all;
+}
+
+.su-not-you {
+  text-align: center;
+  margin: 0 0 24px;
+}
+
+.su-not-you-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-family: var(--font);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0;
+}
+
+.su-not-you-btn:hover { color: var(--accent); }
+
 .su-success-icon {
   font-size: 3rem;
   margin-bottom: 16px;
