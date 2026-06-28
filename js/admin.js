@@ -677,11 +677,13 @@ async function applyMenuTemplate(templateId) {
     for (let ci = 0; ci < template.categories.length; ci++) {
       const cat = template.categories[ci];
 
+      const slug = cat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const { data: catRow, error: catErr } = await db
         .from('menu_categories')
         .insert({
           restaurant_id: RESTAURANT_ID,
           name: cat.name,
+          slug,
           emoji: cat.emoji,
           ada_message: cat.ada_message,
           sort_order: ci + 1,
