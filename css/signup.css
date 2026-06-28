@@ -362,6 +362,38 @@ body {
   word-break: break-all;
 }
 
+.su-otp-wrap {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 20px 0 6px;
+}
+
+.su-otp-box {
+  width: 46px;
+  height: 54px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: #111;
+  color: var(--text);
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+  caret-color: transparent;
+}
+
+.su-otp-box:focus { border-color: var(--accent); }
+
+@keyframes su-shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-5px); }
+  40%,80% { transform: translateX(5px); }
+}
+
+.su-otp-shake { animation: su-shake 0.45s ease; border-color: var(--accent) !important; }
+
 .su-not-you {
   text-align: center;
   margin: 0 0 24px;

@@ -125,19 +125,27 @@
             <p class="su-login-link">Already have an account? <a href="/admin">Log in</a></p>
           </div>
 
-          <!-- Step 2: Email verification -->
+          <!-- Step 2: OTP verification -->
           <div id="suStep2" class="su-step su-hidden">
-            <div class="su-success-icon">&#128140;</div>
-            <h1 class="su-title">Check your inbox</h1>
-            <p class="su-subtitle" id="suSuccessMsg">We sent a confirmation link to:</p>
+            <div class="su-success-icon">&#128274;</div>
+            <h1 class="su-title">Enter your code</h1>
+            <p class="su-subtitle">We sent a 6-digit code to:</p>
             <p class="su-success-email" id="suSuccessEmail"></p>
-            <p class="su-not-you"><button type="button" id="suNotYouBtn" class="su-not-you-btn">Not your email? Go back</button></p>
-            <div class="su-success-url" id="suSuccessUrl"></div>
-            <div class="su-success-actions">
-              <a href="/admin" class="su-submit">Go to Login &#8594;</a>
-              <button type="button" id="suResendBtn" class="su-resend-btn">Resend confirmation email</button>
-              <p class="su-success-hint" id="suResendHint">Didn't get it? Check your spam folder.</p>
+
+            <div class="su-otp-wrap" id="suOtpWrap">
+              <input class="su-otp-box" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" />
+              <input class="su-otp-box" type="text" inputmode="numeric" maxlength="1" />
+              <input class="su-otp-box" type="text" inputmode="numeric" maxlength="1" />
+              <input class="su-otp-box" type="text" inputmode="numeric" maxlength="1" />
+              <input class="su-otp-box" type="text" inputmode="numeric" maxlength="1" />
+              <input class="su-otp-box" type="text" inputmode="numeric" maxlength="1" />
             </div>
+
+            <p class="su-error" id="suOtpError"></p>
+            <button type="button" id="suVerifyBtn" class="su-submit" disabled>Verify &amp; Log In &#8594;</button>
+            <button type="button" id="suResendBtn" class="su-resend-btn">Resend code</button>
+            <p class="su-success-hint" id="suResendHint">Didn't get it? Check your spam folder.</p>
+            <p class="su-not-you"><button type="button" id="suNotYouBtn" class="su-not-you-btn">Not your email? Go back</button></p>
           </div>
 
         </div>

@@ -131,50 +131,97 @@ document.getElementById('suForm').addEventListener('submit', async e => {
       return;
     }
 
-    const slug = result.slug || toSlug(restaurantName);
-    const planLabels = { growth: 'Growth', pro: 'Pro' };
+    // Send OTP to the newly created account
+    const { error: otpErr } = await db.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+    if (otpErr) {
+      showError('Account created but could not send verification code. Go to the login page to sign in.');
+      setLoading(false);
+      return;
+    }
 
     step1.classList.add('su-hidden');
-
-    const successMsg = result.promo_applied
-      ? '🎉 Promo applied! Your ' + (planLabels[result.promo_plan] || result.promo_plan) + ' plan is active. Check your inbox to verify, then log in.'
-      : 'We sent a confirmation link to:';
-
-    document.getElementById('suSuccessMsg').textContent = successMsg;
     document.getElementById('suSuccessEmail').textContent = email;
-    document.getElementById('suSuccessUrl').textContent =
-      'app.virtualwaitress.com/' + slug + '/1';
     step2.classList.remove('su-hidden');
 
+    // ── OTP boxes ─────────────────────────────────────────────────────────────
+    const otpBoxes  = Array.from(document.querySelectorAll('.su-otp-box'));
+    const verifyBtn = document.getElementById('suVerifyBtn');
+    const otpError  = document.getElementById('suOtpError');
+
+    const getCode = () => otpBoxes.map(b => b.value).join('');
+
+    function refreshVerifyBtn() { verifyBtn.disabled = getCode().length < 6; }
+
+    otpBoxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        box.value = box.value.replace(/\D/g, '').slice(-1);
+        if (box.value && i < 5) otpBoxes[i + 1].focus();
+        refreshVerifyBtn();
+        if (getCode().length === 6) submitOtp();
+      });
+      box.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !box.value && i > 0) otpBoxes[i - 1].focus();
+      });
+      box.addEventListener('paste', e => {
+        e.preventDefault();
+        const digits = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+        digits.split('').forEach((ch, j) => { if (otpBoxes[j]) otpBoxes[j].value = ch; });
+        otpBoxes[Math.min(digits.length, 5)].focus();
+        refreshVerifyBtn();
+        if (getCode().length === 6) submitOtp();
+      });
+    });
+    otpBoxes[0].focus();
+
+    async function submitOtp() {
+      const token = getCode();
+      if (token.length < 6) return;
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = 'Verifying…';
+      otpError.textContent = '';
+
+      const { error } = await db.auth.verifyOtp({ email, token, type: 'email' });
+      if (error) {
+        otpError.textContent = 'Invalid or expired code. Please try again.';
+        otpBoxes.forEach(b => { b.value = ''; b.classList.add('su-otp-shake'); });
+        setTimeout(() => otpBoxes.forEach(b => b.classList.remove('su-otp-shake')), 500);
+        otpBoxes[0].focus();
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = 'Verify & Log In →';
+        return;
+      }
+      window.location.href = '/admin';
+    }
+
+    verifyBtn.addEventListener('click', submitOtp);
+
+    // ── Not your email ─────────────────────────────────────────────────────────
     document.getElementById('suNotYouBtn').addEventListener('click', () => {
       step2.classList.add('su-hidden');
       step1.classList.remove('su-hidden');
       setLoading(false);
     });
 
-    const resendBtn = document.getElementById('suResendBtn');
+    // ── Resend ─────────────────────────────────────────────────────────────────
+    const resendBtn  = document.getElementById('suResendBtn');
     const resendHint = document.getElementById('suResendHint');
     let resendCooldown = false;
     resendBtn.addEventListener('click', async () => {
       if (resendCooldown) return;
       resendCooldown = true;
       resendBtn.disabled = true;
-      resendBtn.textContent = 'Sending…';
-      const { error } = await db.auth.resend({ type: 'signup', email });
-      resendHint.textContent = error
-        ? 'Could not resend — try again in a minute.'
-        : 'Sent! Check your inbox (and spam folder).';
-
+      const { error } = await db.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+      resendHint.textContent = error ? 'Could not resend — try again shortly.' : 'New code sent!';
       let secs = 60;
       resendBtn.textContent = 'Resend in ' + secs + 's';
-      const interval = setInterval(() => {
+      const iv = setInterval(() => {
         secs--;
         resendBtn.textContent = 'Resend in ' + secs + 's';
         if (secs <= 0) {
-          clearInterval(interval);
+          clearInterval(iv);
           resendCooldown = false;
           resendBtn.disabled = false;
-          resendBtn.textContent = 'Resend confirmation email';
+          resendBtn.textContent = 'Resend code';
           resendHint.textContent = 'Didn\'t get it? Check your spam folder.';
         }
       }, 1000);
