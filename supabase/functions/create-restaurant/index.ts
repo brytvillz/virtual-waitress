@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { restaurant_name, email, password } = await req.json();
+    const { restaurant_name, email, password, promo_code } = await req.json();
 
     if (!restaurant_name?.trim() || !email?.trim() || !password) {
       return new Response(JSON.stringify({ error: 'Restaurant name, email, and password are required.' }), {
@@ -50,7 +50,43 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // Generate unique slug
+    // ── Validate promo code (if provided) ────────────────────────────────────
+    type PromoRow = { id: string; plan: string; duration_days: number | null; uses_count: number };
+    let promoRow: PromoRow | null = null;
+
+    if (promo_code?.trim()) {
+      const code = promo_code.trim().toUpperCase();
+      const { data: promo } = await admin
+        .from('promo_codes')
+        .select('id, plan, duration_days, max_uses, uses_count, expires_at')
+        .eq('code', code)
+        .maybeSingle();
+
+      if (!promo) {
+        return new Response(JSON.stringify({ error: 'Invalid promo code. Please check and try again.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+        return new Response(JSON.stringify({ error: 'This promo code has expired.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
+        return new Response(JSON.stringify({ error: 'This promo code has already been fully redeemed.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      promoRow = { id: promo.id, plan: promo.plan, duration_days: promo.duration_days, uses_count: promo.uses_count };
+    }
+
+    // ── Generate unique slug ──────────────────────────────────────────────────
     const baseSlug = toSlug(restaurant_name.trim());
     if (!baseSlug) {
       return new Response(JSON.stringify({ error: 'Restaurant name must contain letters or numbers.' }), {
@@ -72,11 +108,11 @@ Deno.serve(async (req) => {
       counter++;
     }
 
-    // Create auth user (auto-confirm so they can log in immediately)
+    // ── Create auth user ──────────────────────────────────────────────────────
     const { data: authData, error: authError } = await admin.auth.admin.createUser({
       email: email.trim(),
       password,
-      email_confirm: true,
+      email_confirm: false,
     });
 
     if (authError) {
@@ -91,10 +127,28 @@ Deno.serve(async (req) => {
 
     const userId = authData.user.id;
 
-    // Create restaurant record
+    // ── Build restaurant row ──────────────────────────────────────────────────
+    const planExpiresAt = promoRow?.duration_days
+      ? new Date(Date.now() + promoRow.duration_days * 86400000).toISOString()
+      : null;
+
+    const restaurantRow: Record<string, unknown> = {
+      name: restaurant_name.trim(),
+      slug,
+      accent_color: '#C41E3A',
+      owner_id: userId,
+    };
+
+    if (promoRow) {
+      restaurantRow.plan = promoRow.plan;
+      restaurantRow.plan_status = 'active';
+      if (planExpiresAt) restaurantRow.plan_expires_at = planExpiresAt;
+    }
+
+    // ── Create restaurant record ──────────────────────────────────────────────
     const { data: restaurant, error: restaurantError } = await admin
       .from('restaurants')
-      .insert({ name: restaurant_name.trim(), slug, accent_color: '#C41E3A', owner_id: userId })
+      .insert(restaurantRow)
       .select('id')
       .single();
 
@@ -106,7 +160,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create staff record (manager role)
+    // ── Create staff record (manager role) ────────────────────────────────────
     const { error: staffError } = await admin
       .from('staff')
       .insert({ id: userId, restaurant_id: restaurant.id, name: restaurant_name.trim(), role: 'manager' });
@@ -120,7 +174,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, slug, restaurant_id: restaurant.id }), {
+    // ── Increment promo uses_count ────────────────────────────────────────────
+    if (promoRow) {
+      await admin
+        .from('promo_codes')
+        .update({ uses_count: promoRow.uses_count + 1 })
+        .eq('id', promoRow.id);
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      slug,
+      restaurant_id: restaurant.id,
+      promo_applied: !!promoRow,
+      promo_plan: promoRow?.plan ?? null,
+    }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
