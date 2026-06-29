@@ -73,46 +73,45 @@
 
     <!-- ── Main App ─────────────────────────────────────────────────────── -->
     <div id="app">
-      <!-- Hero Section (also serves as the header) -->
-      <header class="hero-section">
-        <div class="hero-bg"></div>
-        <div class="hero-content">
-          <div class="hero-info">
-            <h1 class="restaurant-name" id="restaurantName">Loading…</h1>
-            <p class="restaurant-tagline" id="restaurantTagline"></p>
+
+      <!-- Cover page — full-screen, slides up when tapped -->
+      <div id="coverPage" class="cover-page">
+        <div class="cover-bg" id="coverBg"></div>
+        <div class="cover-vignette"></div>
+        <div class="cover-content">
+          <p class="cover-table-badge" id="coverTable">Table —</p>
+          <div class="cover-text">
+            <h1 class="cover-restaurant-name" id="coverRestaurantName">—</h1>
+            <p class="cover-tagline" id="coverTagline"></p>
           </div>
-          <div class="hero-right">
-            <div class="table-badge" id="tableBadge">Table —</div>
-            <a href="/admin" class="hero-signin-btn">Sign In</a>
-            <button
-              class="hero-menu-btn"
-              id="heroMenuBtn"
-              aria-label="Open menu"
-            >
-              ☰
-            </button>
-          </div>
+          <button class="cover-cta" id="coverCta">
+            <span>&#127869;&#65039;</span>
+            <span>Open Menu</span>
+          </button>
+          <p class="cover-hint">Scroll to browse &middot; Tap + to order</p>
+        </div>
+      </div>
+
+      <!-- Compact sticky header (revealed after cover dismissed) -->
+      <header id="magHeader" class="mag-header mag-header-hidden">
+        <div class="mag-header-left">
+          <span class="mag-header-name" id="magRestaurantName">—</span>
+          <span class="mag-header-table" id="magTableBadge">Table —</span>
+        </div>
+        <div class="mag-header-right">
+          <a href="/admin" class="mag-header-signin">Sign In</a>
+          <button class="mag-header-menu-btn" id="magMenuBtn" aria-label="Open menu">&#9776;</button>
         </div>
       </header>
 
-      <!-- Category tabs — existing pills, now auto-sliding -->
-      <nav class="category-nav" aria-label="Menu categories">
-        <div class="category-tabs" id="categoryTabs"></div>
+      <!-- Category pill nav -->
+      <nav id="magNav" class="mag-nav mag-nav-hidden" aria-label="Menu categories">
+        <div class="mag-nav-inner" id="magNavInner"></div>
       </nav>
 
-      <!-- New category box grid -->
-      <section class="category-grid-section" aria-label="Browse categories">
-        <div class="category-grid" id="categoryGrid"></div>
-        <button class="all-categories-btn" id="allCategoriesBtn">
-          🍽️ &nbsp;Show All Items
-        </button>
-      </section>
-
-      <!-- Menu items -->
-      <main class="menu-content">
-        <div class="menu-grid" id="menuGrid">
-          <div class="loading">Loading menu…</div>
-        </div>
+      <!-- Magazine content — all categories as scrolling sections -->
+      <main id="magContent" class="mag-content">
+        <div class="loading">Loading menu…</div>
       </main>
 
       <!-- Ada character -->
