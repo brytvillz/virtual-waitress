@@ -2165,3 +2165,165 @@
   .plan-nudge-title { font-size: 0.8rem; }
   .plan-nudge-msg { font-size: 0.72rem; }
 }
+
+/* ── Ada generate button ─────────────────────────────────────────────────── */
+
+.ada-gen-wrap {
+  position: relative;
+}
+
+.ada-gen-btn {
+  display: block;
+  margin-top: 6px;
+  background: none;
+  border: 1px solid rgba(196,30,58,0.35);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: var(--font);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ada-gen-btn:hover:not(:disabled) {
+  background: rgba(196,30,58,0.08);
+  border-color: var(--accent);
+}
+
+.ada-gen-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Section header actions ──────────────────────────────────────────────── */
+
+.section-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── Menu scanner modal ──────────────────────────────────────────────────── */
+
+.scan-modal-card {
+  max-width: 520px;
+  width: 100%;
+}
+
+.scan-modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--text);
+}
+
+.scan-modal-sub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.scan-drop-zone {
+  border: 2px dashed rgba(255,255,255,0.12);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  cursor: pointer;
+  overflow: hidden;
+  margin-bottom: 12px;
+  transition: border-color 0.15s;
+  position: relative;
+}
+
+.scan-drop-zone:hover { border-color: var(--accent); }
+
+.scan-drop-zone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.scan-drop-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  gap: 10px;
+}
+
+.scan-drop-icon { font-size: 2.2rem; }
+
+.scan-drop-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+  text-align: center;
+}
+
+.scan-preview-img {
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  display: block;
+  border-radius: 10px;
+}
+
+.scan-error {
+  font-size: 0.82rem;
+  color: var(--error, #E85A4F);
+  min-height: 1.2em;
+  margin-bottom: 8px;
+}
+
+.scan-results-wrap { margin-bottom: 12px; }
+
+.scan-results-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+}
+
+.scan-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.scan-item-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.83rem;
+}
+
+.scan-item-row:hover { background: rgba(255,255,255,0.07); }
+
+.scan-item-check { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+
+.scan-item-name { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.scan-item-price { color: var(--accent); font-weight: 700; white-space: nowrap; }
+
+.scan-item-cat { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
+
+.scan-import-btn { width: 100%; margin-top: 12px; }
+
+.scan-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding-top: 16px;
+}

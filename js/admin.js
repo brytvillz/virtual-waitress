@@ -1898,6 +1898,176 @@ function renderWizardStep(overlay, step) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
+// ── Claude AI helpers ──────────────────────────────────────────────────────────
+
+async function claudeAI(payload) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/claude-ai`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+function initAdaGenerators() {
+  // Category modal — generate Ada message from category name + its items
+  document.getElementById('genCategoryAda').addEventListener('click', async function () {
+    const name = document.getElementById('categoryName').value.trim();
+    if (!name) { showPlanNudge('Enter a category name first', 'Ada needs the category name to write a message.'); return; }
+    this.textContent = '⏳ Generating…';
+    this.disabled = true;
+    const catItems = editingCategoryId ? itemsCache.filter(i => i.category_id === editingCategoryId) : [];
+    const { message, error } = await claudeAI({ action: 'ada-message', category_name: name, items: catItems, restaurant_name: restaurantName || 'our restaurant' });
+    this.textContent = '✨ Generate';
+    this.disabled = false;
+    if (error || !message) { showPlanNudge('Generation failed', 'Could not reach Ada. Check your API key.'); return; }
+    document.getElementById('categoryAdaMessage').value = message;
+  });
+
+  // Item modal — generate Ada message from item name
+  document.getElementById('genItemAda').addEventListener('click', async function () {
+    const name = document.getElementById('itemName').value.trim();
+    if (!name) { showPlanNudge('Enter an item name first', 'Ada needs the item name to write a message.'); return; }
+    this.textContent = '⏳ Generating…';
+    this.disabled = true;
+    const { message, error } = await claudeAI({ action: 'ada-message', category_name: name, items: [], restaurant_name: restaurantName || 'our restaurant' });
+    this.textContent = '✨ Generate';
+    this.disabled = false;
+    if (error || !message) { showPlanNudge('Generation failed', 'Could not reach Ada. Check your API key.'); return; }
+    document.getElementById('itemAdaMessage').value = message;
+  });
+}
+
+function initMenuScanner() {
+  const scanMenuBtn    = document.getElementById('scanMenuBtn');
+  const scanModal      = document.getElementById('scanMenuModal');
+  const scanCancelBtn  = document.getElementById('scanCancelBtn');
+  const scanFileInput  = document.getElementById('scanFileInput');
+  const scanDropZone   = document.getElementById('scanDropZone');
+  const scanPreview    = document.getElementById('scanPreviewImg');
+  const scanSubmitBtn  = document.getElementById('scanSubmitBtn');
+  const scanError      = document.getElementById('scanError');
+  const scanResultsWrap = document.getElementById('scanResultsWrap');
+  const scanResultsList = document.getElementById('scanResultsList');
+  const scanItemCount  = document.getElementById('scanItemCount');
+  const scanImportBtn  = document.getElementById('scanImportBtn');
+
+  let scannedItems = [];
+
+  function openScanModal() {
+    scanModal.classList.remove('admin-hidden');
+    scanFileInput.value = '';
+    scanPreview.classList.add('admin-hidden');
+    scanPreview.src = '';
+    scanSubmitBtn.disabled = true;
+    scanError.textContent = '';
+    scanResultsWrap.classList.add('admin-hidden');
+    scanResultsList.innerHTML = '';
+    scannedItems = [];
+  }
+
+  function closeScanModal() { scanModal.classList.add('admin-hidden'); }
+
+  scanMenuBtn.addEventListener('click', openScanModal);
+  scanCancelBtn.addEventListener('click', closeScanModal);
+  scanModal.addEventListener('click', e => { if (e.target === scanModal) closeScanModal(); });
+
+  scanDropZone.addEventListener('click', () => scanFileInput.click());
+
+  scanFileInput.addEventListener('change', () => {
+    const file = scanFileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      scanPreview.src = e.target.result;
+      scanPreview.classList.remove('admin-hidden');
+      scanSubmitBtn.disabled = false;
+      scanResultsWrap.classList.add('admin-hidden');
+      scanError.textContent = '';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  scanSubmitBtn.addEventListener('click', async () => {
+    const file = scanFileInput.files[0];
+    if (!file) return;
+    scanSubmitBtn.textContent = '⏳ Scanning…';
+    scanSubmitBtn.disabled = true;
+    scanError.textContent = '';
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target.result;
+      const base64 = dataUrl.split(',')[1];
+      const media_type = file.type || 'image/jpeg';
+
+      const { items, error } = await claudeAI({ action: 'scan-menu', image_base64: base64, media_type });
+
+      scanSubmitBtn.textContent = '✨ Scan with Ada';
+      scanSubmitBtn.disabled = false;
+
+      if (error || !items) {
+        scanError.textContent = 'Could not read the menu. Try a clearer photo.';
+        return;
+      }
+
+      scannedItems = items;
+      scanItemCount.textContent = items.length;
+      scanResultsList.innerHTML = items.map((item, i) =>
+        '<label class="scan-item-row">' +
+          '<input type="checkbox" class="scan-item-check" data-index="' + i + '" checked />' +
+          '<span class="scan-item-name">' + (item.name || 'Unknown') + '</span>' +
+          '<span class="scan-item-price">₦' + (item.price || 0).toLocaleString('en-NG') + '</span>' +
+          '<span class="scan-item-cat">' + (item.category || '') + '</span>' +
+        '</label>'
+      ).join('');
+      scanResultsWrap.classList.remove('admin-hidden');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  scanImportBtn.addEventListener('click', async () => {
+    const checked = Array.from(scanResultsList.querySelectorAll('.scan-item-check:checked'));
+    const toImport = checked.map(cb => scannedItems[parseInt(cb.dataset.index)]);
+    if (!toImport.length) return;
+
+    scanImportBtn.textContent = 'Importing…';
+    scanImportBtn.disabled = true;
+
+    // Group by category — find or create category, then insert items
+    const categoryMap = {};
+    for (const item of toImport) {
+      const catName = (item.category || 'Imported').trim();
+      if (!categoryMap[catName]) {
+        // Check if category already exists
+        const existing = categoriesCache.find(c => c.name.toLowerCase() === catName.toLowerCase());
+        if (existing) {
+          categoryMap[catName] = existing.id;
+        } else {
+          const slug = catName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const { data: newCat, error } = await db.from('menu_categories').insert({ name: catName, slug, restaurant_id: RESTAURANT_ID }).select().single();
+          if (error) { console.error('Category insert failed', error); continue; }
+          categoryMap[catName] = newCat.id;
+        }
+      }
+      const catId = categoryMap[catName];
+      if (!catId) continue;
+      await db.from('menu_items').insert({
+        name: item.name,
+        price: item.price || 0,
+        description: item.description || '',
+        category_id: catId,
+        restaurant_id: RESTAURANT_ID,
+        available: true,
+      });
+    }
+
+    closeScanModal();
+    await loadMenu();
+    showPlanNudge('Import complete', toImport.length + ' items imported from your paper menu.');
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initNav();
@@ -1908,4 +2078,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initWaiterModal();
   initForgotPassword();
   initWaiterProfile();
+  initAdaGenerators();
+  initMenuScanner();
 });

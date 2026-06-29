@@ -171,7 +171,10 @@
         <section id="menuSection" class="admin-section admin-hidden">
           <div class="section-header">
             <h2 class="section-title">Menu Editor</h2>
-            <button id="addCategoryBtn" class="btn-primary">+ New Category</button>
+            <div class="section-header-actions">
+              <button id="scanMenuBtn" class="btn-secondary">&#128247; Scan Paper Menu</button>
+              <button id="addCategoryBtn" class="btn-primary">+ New Category</button>
+            </div>
           </div>
           <div id="categoriesEditor"></div>
         </section>
@@ -338,7 +341,10 @@
         <label class="modal-field-label">Name<input type="text" id="itemName" required /></label>
         <label class="modal-field-label">Price (₦)<input type="number" id="itemPrice" min="0" required /></label>
         <label class="modal-field-label">Description<textarea id="itemDescription" rows="2"></textarea></label>
-        <label class="modal-field-label">Ada's message<textarea id="itemAdaMessage" rows="2"></textarea></label>
+        <div class="ada-gen-wrap">
+          <label class="modal-field-label">Ada's message<textarea id="itemAdaMessage" rows="2" placeholder="Ada's note about this item"></textarea></label>
+          <button type="button" class="ada-gen-btn" id="genItemAda">&#10024; Generate</button>
+        </div>
         <div class="item-img-upload-wrap">
           <img id="itemImgPreview" class="item-img-preview admin-hidden" alt="" />
           <label class="item-img-upload-btn" for="itemImageFile">📷 <span id="itemImgBtnLabel">Add photo</span></label>
@@ -358,7 +364,10 @@
         <h2 id="categoryModalTitle">Edit Category</h2>
         <label class="modal-field-label">Name<input type="text" id="categoryName" required /></label>
         <label class="modal-field-label">Emoji<input type="text" id="categoryEmoji" maxlength="4" /></label>
-        <label class="modal-field-label">Ada's message<textarea id="categoryAdaMessage" rows="2"></textarea></label>
+        <div class="ada-gen-wrap">
+          <label class="modal-field-label">Ada's message<textarea id="categoryAdaMessage" rows="2" placeholder="Ada's greeting when customers tap this category"></textarea></label>
+          <button type="button" class="ada-gen-btn" id="genCategoryAda">&#10024; Generate</button>
+        </div>
         <div class="modal-actions">
           <button type="button" id="categoryCancelBtn" class="btn-secondary">Cancel</button>
           <button type="submit" class="btn-primary">Save</button>
@@ -391,6 +400,36 @@
           <button type="submit" id="waiterSubmitBtn" class="btn-primary">Create Waiter</button>
         </div>
       </form>
+    </div>
+
+    <!-- Menu scanner modal -->
+    <div id="scanMenuModal" class="modal-overlay admin-hidden">
+      <div class="modal-card scan-modal-card">
+        <h2 class="scan-modal-title">&#128247; Scan Paper Menu</h2>
+        <p class="scan-modal-sub">Take a clear photo of your paper menu. Ada will read it and extract the items for you to review and import.</p>
+
+        <div id="scanDropZone" class="scan-drop-zone">
+          <input type="file" id="scanFileInput" accept="image/*" capture="environment" />
+          <div class="scan-drop-inner">
+            <span class="scan-drop-icon">&#128444;</span>
+            <p class="scan-drop-label">Tap to upload or take a photo</p>
+          </div>
+          <img id="scanPreviewImg" class="scan-preview-img admin-hidden" alt="" />
+        </div>
+
+        <p id="scanError" class="scan-error"></p>
+
+        <div id="scanResultsWrap" class="scan-results-wrap admin-hidden">
+          <p class="scan-results-label">Found <strong id="scanItemCount">0</strong> items — tick what you want to import:</p>
+          <div id="scanResultsList" class="scan-results-list"></div>
+          <button type="button" id="scanImportBtn" class="btn-primary scan-import-btn">Import Selected</button>
+        </div>
+
+        <div class="scan-modal-actions">
+          <button type="button" id="scanCancelBtn" class="btn-secondary">Cancel</button>
+          <button type="button" id="scanSubmitBtn" class="btn-primary" disabled>&#10024; Scan with Ada</button>
+        </div>
+      </div>
     </div>
 
     <script src="js/vendor/supabase.js"></script>
