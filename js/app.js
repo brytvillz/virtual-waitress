@@ -18,9 +18,9 @@ const CHARACTERS = {
 };
 
 const SPLASH_MSGS = [
-  'No menu to wait for. Browse every dish from your table, right now.',
-  'Order at your own pace. Your waiter is notified the moment you\'re ready.',
-  'No need to flag anyone down. See your order status in real time.',
+  'Browse the full menu from your table — no waiting.',
+  'Order when you\'re ready. Waiter notified instantly.',
+  'Track your order live. No need to flag anyone.',
 ];
 
 const CATEGORY_CHARACTER = {
@@ -395,6 +395,7 @@ function initCoverCta() {
     hideCover();
     setTimeout(() => {
       const charKey  = localStorage.getItem('vw_selected_char') || 'ada';
+      applySelectedCharacter(charKey);
       const charName = CHARACTERS[charKey]?.name || 'Ada';
       const base     = menuData?.ada?.welcome || 'Browse our menu and tap + to order.';
       Ada.speak(`Hi! I'm ${charName}. ${base}`, 7000);
@@ -403,44 +404,28 @@ function initCoverCta() {
   });
 }
 
-// ── Character picker ──────────────────────────────────────────────────────────
+// ── Cover page character picker ───────────────────────────────────────────────
 
-function showCharPicker() {
-  const picker = document.getElementById('charPicker');
-  const grid   = document.getElementById('charPickerGrid');
-  if (!picker || !grid) return;
+function initCoverCharPicker() {
+  const row = document.getElementById('coverCharRow');
+  if (!row) return;
 
-  grid.innerHTML = Object.entries(CHARACTERS).map(([key, char]) =>
-    `<button class="char-card" data-key="${key}">
-      <img src="${char.src}" alt="${char.name}" class="char-card-img" />
-      <p class="char-card-name">${char.name}</p>
-      <p class="char-card-role">${char.role}</p>
+  const savedChar = localStorage.getItem('vw_selected_char') || 'ada';
+
+  row.innerHTML = Object.entries(CHARACTERS).map(([key, char]) =>
+    `<button class="cover-char-btn${key === savedChar ? ' selected' : ''}" data-key="${key}">
+      <img src="${char.src}" alt="${char.name}" class="cover-char-btn-img" />
+      <span class="cover-char-btn-name">${char.name}</span>
     </button>`
   ).join('');
 
-  picker.removeAttribute('hidden');
-  requestAnimationFrame(() => picker.classList.add('char-picker-visible'));
-
-  grid.querySelectorAll('.char-card').forEach(btn => {
+  row.querySelectorAll('.cover-char-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      grid.querySelectorAll('.char-card').forEach(b => b.classList.remove('selected'));
+      row.querySelectorAll('.cover-char-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
-      const key = btn.dataset.key;
-      localStorage.setItem('vw_selected_char', key);
-      setTimeout(() => dismissCharPicker(key), 380);
+      localStorage.setItem('vw_selected_char', btn.dataset.key);
     });
   });
-}
-
-function dismissCharPicker(key) {
-  const picker = document.getElementById('charPicker');
-  if (!picker) return;
-  picker.classList.remove('char-picker-visible');
-  picker.classList.add('char-picker-exit');
-  setTimeout(() => {
-    picker.remove();
-    applySelectedCharacter(key);
-  }, 380);
 }
 
 function applySelectedCharacter(key) {
@@ -492,6 +477,7 @@ function applyMagazine(categories, isFirstRender) {
     initMyOrder();
     initHamburgerMenu();
     initCoverCta();
+    initCoverCharPicker();
   }
 }
 
@@ -828,13 +814,6 @@ async function init() {
     if (!dataOk) return;
   }
 
-  // Splash hidden — show character picker or apply saved choice
-  const savedChar = localStorage.getItem('vw_selected_char');
-  if (savedChar && CHARACTERS[savedChar]) {
-    applySelectedCharacter(savedChar);
-  } else {
-    showCharPicker();
-  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

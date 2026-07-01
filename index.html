@@ -70,16 +70,6 @@
       </div>
     </div>
 
-    <!-- ── Character Picker ──────────────────────────────────────────────── -->
-    <div id="charPicker" class="char-picker" hidden>
-      <div class="char-picker-content">
-        <p class="char-picker-eyebrow">Your waiter tonight</p>
-        <h2 class="char-picker-title">Who do you want<br>serving you?</h2>
-        <div class="char-picker-grid" id="charPickerGrid"></div>
-        <p class="char-picker-hint">We'll remember your choice</p>
-      </div>
-    </div>
-
     <!-- ── Main App ─────────────────────────────────────────────────────── -->
     <div id="app">
 
@@ -93,6 +83,12 @@
             <h1 class="cover-restaurant-name" id="coverRestaurantName">—</h1>
             <p class="cover-tagline" id="coverTagline"></p>
           </div>
+          <!-- Character selection -->
+          <div class="cover-char-section">
+            <p class="cover-char-label">Your waiter tonight</p>
+            <div class="cover-char-row" id="coverCharRow"></div>
+          </div>
+
           <button class="cover-cta" id="coverCta">
             <span>&#127869;&#65039;</span>
             <span>Open Menu</span>
