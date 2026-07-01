@@ -654,8 +654,14 @@ function initMyOrder() {
 
 // ── Splash ────────────────────────────────────────────────────────────────────
 
-const SPLASH_MIN_MS = 5000;
-const SPLASH_CHARS  = ['images/mamachef.png', 'images/cheftunde.png', 'images/ada.png'];
+const SPLASH_MIN_MS = 5000; // always show full 5s — first impression matters
+// Lady appears 3× to give her 75% frequency
+const SPLASH_CHARS  = [
+  'images/splash-waitress.png',
+  'images/splash-waitress.png',
+  'images/splash-waitress.png',
+  'images/splash-chef.png',
+];
 let _splashStart = 0;
 
 function splashStart() {
@@ -724,7 +730,7 @@ async function init() {
     applyBranding(menuData.restaurant);
     applyMagazine(menuData.categories, true);
     revealApp();
-    splashHide(true);
+    splashHide(); // always wait full 5s even on repeat visits
 
     // Refresh in background
     loadMenuData().then(fresh => {
