@@ -776,6 +776,8 @@
   color: var(--text-muted);
 }
 
+.settings-hint--spaced { margin-bottom: 14px; }
+
 .settings-saved-msg {
   font-size: 0.85rem;
   font-weight: 600;
