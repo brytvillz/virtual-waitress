@@ -399,6 +399,38 @@ function initCoverCta() {
   });
 }
 
+// ── Cover page pain-point carousel ───────────────────────────────────────────
+
+const COVER_MSGS = [
+  { l1: 'No menu to wait for.',        l2: 'Browse everything from your table.' },
+  { l1: 'Order at your own pace —',    l2: 'your waiter is notified instantly.' },
+  { l1: 'No need to flag anyone down.', l2: 'Track your order in real time.'   },
+];
+
+function initCoverMsgCarousel() {
+  const line1 = document.getElementById('coverMsgLine1');
+  const line2 = document.getElementById('coverMsgLine2');
+  const dots  = document.querySelectorAll('.cover-msg-dot');
+  if (!line1 || !line2) return;
+
+  let idx = 0;
+
+  function show(i) {
+    line1.classList.add('fading');
+    line2.classList.add('fading');
+    setTimeout(() => {
+      line1.textContent = COVER_MSGS[i].l1;
+      line2.textContent = COVER_MSGS[i].l2;
+      line1.classList.remove('fading');
+      line2.classList.remove('fading');
+      dots.forEach((d, di) => d.classList.toggle('active', di === i));
+    }, 380);
+  }
+
+  show(0);
+  setInterval(() => { idx = (idx + 1) % COVER_MSGS.length; show(idx); }, 3500);
+}
+
 // ── Cover page character picker ───────────────────────────────────────────────
 
 function initCoverCharPicker() {
@@ -473,6 +505,7 @@ function applyMagazine(categories, isFirstRender) {
     initHamburgerMenu();
     initCoverCta();
     initCoverCharPicker();
+    initCoverMsgCarousel();
   }
 }
 

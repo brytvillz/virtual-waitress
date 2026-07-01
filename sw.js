@@ -1,7 +1,7 @@
 // Virtual Waitress — Service Worker
 // Caches all assets so the menu works even with poor network (common in restaurants)
 
-const CACHE = 'vw-v63';
+const CACHE = 'vw-v64';
 const ASSETS = [
   '/',
   '/index.html',
