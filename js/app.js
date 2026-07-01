@@ -80,6 +80,7 @@ async function loadMenuData() {
         plan:            restaurant.plan            || 'free',
         plan_status:     restaurant.plan_status     || 'inactive',
         plan_expires_at: restaurant.plan_expires_at || null,
+        menu_layout:     restaurant.menu_layout     || 'magazine',
       },
       ada: {
         name:    restaurant.ada_name,
@@ -309,6 +310,115 @@ function wireQtySteppers(container, allItems) {
   });
 }
 
+// ── Classic List renderer ─────────────────────────────────────────────────────
+
+function renderClassicList(categories) {
+  const content = document.getElementById('magContent');
+  if (!categories.length) {
+    content.innerHTML = '<div class="mag-empty">Menu coming soon — check back shortly.</div>';
+    return;
+  }
+  content.innerHTML = categories
+    .filter(c => c.items.length)
+    .map(cat => `
+      <section class="classic-section" id="cat-${cat.id}" data-cat="${cat.id}">
+        <div class="classic-cat-header">
+          <span class="classic-cat-emoji">${cat.emoji || ''}</span>
+          <h2 class="classic-cat-name">${cat.name}</h2>
+        </div>
+        <div class="classic-items">
+          ${cat.items.map(item => renderClassicItem(item, cat.id)).join('')}
+        </div>
+      </section>`)
+    .join('');
+  const allItems = {};
+  categories.forEach(cat => cat.items.forEach(i => { allItems[i.name] = i; }));
+  wireQtySteppers(content, allItems);
+  initCategoryNav(categories);
+}
+
+function renderClassicItem(item, catId) {
+  const soldOut = item.available === false;
+  const qty     = (orderState[item.name] || {}).qty || 0;
+  const stepper = soldOut
+    ? '<span class="item-sold-out-tag">Sold Out</span>'
+    : `<div class="qty-stepper" data-item="${item.name}" data-price="${item.price}">
+         <button class="qty-btn qty-minus" aria-label="Remove">−</button>
+         <span class="qty-value">${qty}</span>
+         <button class="qty-btn qty-plus" aria-label="Add">+</button>
+       </div>`;
+  return `
+    <div class="classic-item${soldOut ? ' sold-out' : ''}" data-item="${item.name}" data-cat="${catId}">
+      <div class="classic-item-body">
+        <p class="classic-item-name">${item.name}</p>
+        ${item.description ? `<p class="classic-item-desc">${item.description}</p>` : ''}
+      </div>
+      <div class="classic-item-right">
+        <p class="classic-item-price">${formatPrice(item.price)}</p>
+        ${stepper}
+      </div>
+    </div>`;
+}
+
+// ── Visual Grid renderer ──────────────────────────────────────────────────────
+
+function renderVisualGrid(categories) {
+  const content = document.getElementById('magContent');
+  if (!categories.length) {
+    content.innerHTML = '<div class="mag-empty">Menu coming soon — check back shortly.</div>';
+    return;
+  }
+  content.innerHTML = categories
+    .filter(c => c.items.length)
+    .map(cat => {
+      const fallback = CAT_IMAGES[cat.id] || null;
+      return `
+        <section class="vgrid-section" id="cat-${cat.id}" data-cat="${cat.id}">
+          <div class="vgrid-cat-header">
+            <span class="vgrid-cat-emoji">${cat.emoji || ''}</span>
+            <h2 class="vgrid-cat-name">${cat.name}</h2>
+          </div>
+          <div class="vgrid-items">
+            ${cat.items.map(item => renderGridItem(item, cat.id, fallback)).join('')}
+          </div>
+        </section>`;
+    })
+    .join('');
+  const allItems = {};
+  categories.forEach(cat => cat.items.forEach(i => { allItems[i.name] = i; }));
+  wireQtySteppers(content, allItems);
+  initCategoryNav(categories);
+}
+
+function renderGridItem(item, catId, fallbackImg) {
+  const soldOut = item.available === false;
+  const qty     = (orderState[item.name] || {}).qty || 0;
+  const imgSrc  = item.image_url || fallbackImg;
+  const stepper = soldOut
+    ? '<span class="item-sold-out-tag">Sold Out</span>'
+    : `<div class="qty-stepper" data-item="${item.name}" data-price="${item.price}">
+         <button class="qty-btn qty-minus" aria-label="Remove">−</button>
+         <span class="qty-value">${qty}</span>
+         <button class="qty-btn qty-plus" aria-label="Add">+</button>
+       </div>`;
+  return `
+    <div class="vgrid-card${soldOut ? ' sold-out' : ''}" data-item="${item.name}" data-cat="${catId}">
+      <div class="vgrid-img-wrap">
+        ${imgSrc
+          ? `<img class="vgrid-img" src="${imgSrc}" alt="${item.name}" loading="lazy" />`
+          : `<div class="vgrid-img-placeholder">${item.emoji || '🍽️'}</div>`}
+        ${soldOut ? '<span class="vgrid-sold-badge">Sold Out</span>' : ''}
+      </div>
+      <div class="vgrid-body">
+        <p class="vgrid-name">${item.name}</p>
+        <div class="vgrid-footer">
+          <span class="vgrid-price">${formatPrice(item.price)}</span>
+          ${stepper}
+        </div>
+      </div>
+    </div>`;
+}
+
 function initCategoryNav(categories) {
   const inner = document.getElementById('magNavInner');
   inner.innerHTML = categories
@@ -496,7 +606,11 @@ function applyBranding(restaurant) {
 }
 
 function applyMagazine(categories, isFirstRender) {
-  renderMagazine(categories);
+  const layout = menuData?.restaurant?.menu_layout || 'magazine';
+  if (layout === 'classic')   renderClassicList(categories);
+  else if (layout === 'grid') renderVisualGrid(categories);
+  else                        renderMagazine(categories);
+
   if (isFirstRender) {
     initCallWaiter();
     initPlaceOrder();

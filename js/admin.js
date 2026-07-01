@@ -1398,7 +1398,7 @@ async function loadQrSection() {
 
 async function loadSettings() {
   const { data, error } = await db.from('restaurants')
-    .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter')
+    .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout')
     .eq('id', RESTAURANT_ID)
     .single();
 
@@ -1418,6 +1418,11 @@ async function loadSettings() {
   document.getElementById('settingAccentColor').value = color;
   document.getElementById('colorHint').textContent     = color;
   document.documentElement.style.setProperty('--accent', color);
+
+  const layout = data.menu_layout || 'magazine';
+  document.querySelectorAll('.layout-option').forEach(btn => {
+    btn.classList.toggle('layout-option--active', btn.dataset.layout === layout);
+  });
 }
 
 function initSettingsForm() {
@@ -1425,6 +1430,16 @@ function initSettingsForm() {
   colorInput.addEventListener('input', () => {
     document.getElementById('colorHint').textContent = colorInput.value;
     document.documentElement.style.setProperty('--accent', colorInput.value);
+  });
+
+  // Layout picker
+  let selectedLayout = 'magazine';
+  document.querySelectorAll('.layout-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.layout-option').forEach(b => b.classList.remove('layout-option--active'));
+      btn.classList.add('layout-option--active');
+      selectedLayout = btn.dataset.layout;
+    });
   });
 
   document.getElementById('settingsForm').addEventListener('submit', async (e) => {
@@ -1436,12 +1451,17 @@ function initSettingsForm() {
     const maxTables = parseInt(document.getElementById('settingMaxTables').value);
     const msg       = document.getElementById('settingsSavedMsg');
 
+    // Read active layout from DOM in case loadSettings ran after initSettingsForm
+    const activeBtn = document.querySelector('.layout-option--active');
+    if (activeBtn) selectedLayout = activeBtn.dataset.layout;
+
     const { data: updated, error } = await db.from('restaurants').update({
       name,
       tagline,
       whatsapp,
       accent_color: color,
-      max_tables_per_waiter: maxTables
+      max_tables_per_waiter: maxTables,
+      menu_layout: selectedLayout,
     }).eq('id', RESTAURANT_ID).select('id');
 
     if (error || !updated || updated.length === 0) {
