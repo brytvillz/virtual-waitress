@@ -39,35 +39,34 @@
   </head>
   <body>
     <!-- ── Splash Screen ─────────────────────────────────────────────────── -->
-    <div
-      id="splashScreen"
-      class="splash-screen"
-      aria-live="polite"
-      aria-label="Loading menu"
-    >
+    <div id="splashScreen" class="splash-screen" aria-live="polite" aria-label="Loading menu">
       <div class="splash-content">
-        <p class="splash-restaurant" id="splashRestaurant"></p>
-        <p class="splash-tagline-text" id="splashTagline"></p>
-        <div class="splash-ada-wrap">
-          <img
-            class="splash-ada-img"
-            id="splashAdaImg"
-            src=""
-            alt=""
-            aria-hidden="true"
-          />
+
+        <!-- Restaurant name + tagline -->
+        <div class="splash-header">
+          <p class="splash-restaurant" id="splashRestaurant"></p>
+          <p class="splash-tagline-text" id="splashTagline"></p>
         </div>
-        <div class="splash-bubble">
-          <p class="splash-message">
-            Welcome! I'm Ada, your virtual waitress. Browse our menu and order
-            at your own pace — I'll make sure you're well taken care of. 🍽️
-          </p>
+
+        <!-- Cloud speech bubble -->
+        <div class="splash-cloud-wrap">
+          <div class="splash-cloud">
+            <p class="splash-message">Welcome! I'm Ada, your virtual waitress. Browse our menu and order at your own pace &#8212; I'll make sure you're well taken care of. &#127869;&#65039;</p>
+          </div>
         </div>
+
+        <!-- Chef character — large, centrepiece -->
+        <div class="splash-character-wrap">
+          <img class="splash-character-img" id="splashAdaImg" src="images/mamachef.png" alt="" aria-hidden="true" />
+        </div>
+
+        <!-- Loading dots -->
         <div class="splash-dots" aria-hidden="true">
           <span class="splash-dot"></span>
           <span class="splash-dot"></span>
           <span class="splash-dot"></span>
         </div>
+
       </div>
     </div>
 

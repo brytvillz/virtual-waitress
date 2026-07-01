@@ -655,7 +655,7 @@ function initMyOrder() {
 // ── Splash ────────────────────────────────────────────────────────────────────
 
 const SPLASH_MIN_MS = 5000;
-const SPLASH_CHARS  = ['images/ada.png', 'images/chisom.png', 'images/emeka.png', 'images/mamachef.png', 'images/cheftunde.png'];
+const SPLASH_CHARS  = ['images/mamachef.png', 'images/cheftunde.png', 'images/ada.png'];
 let _splashStart = 0;
 
 function splashStart() {
