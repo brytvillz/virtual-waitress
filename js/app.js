@@ -17,11 +17,6 @@ const CHARACTERS = {
   cheftunde: { src: 'images/cheftunde.png', name: 'Chef Tunde', role: 'The grill master'       },
 };
 
-const SPLASH_MSGS = [
-  'Browse the full menu from your table — no waiting.',
-  'Order when you\'re ready. Waiter notified instantly.',
-  'Track your order live. No need to flag anyone.',
-];
 
 const CATEGORY_CHARACTER = {
   soups:         'ada',
@@ -716,10 +711,6 @@ function splashStart() {
   const img = document.getElementById('splashAdaImg');
   if (img) img.src = SPLASH_CHARS[Math.floor(Math.random() * SPLASH_CHARS.length)];
 
-  const idx = (parseInt(localStorage.getItem('vw_splash_msg') || '-1', 10) + 1) % SPLASH_MSGS.length;
-  localStorage.setItem('vw_splash_msg', String(idx));
-  const msgEl = document.querySelector('.splash-message');
-  if (msgEl) msgEl.textContent = SPLASH_MSGS[idx];
 }
 
 function splashUpdate(restaurant) {
