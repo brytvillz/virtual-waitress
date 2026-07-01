@@ -10,12 +10,18 @@ const CAT_IMAGES = {
 };
 
 const CHARACTERS = {
-  ada:       { src: 'images/ada.png',       name: 'Ada'        },
-  chisom:    { src: 'images/chisom.png',    name: 'Chisom'     },
-  emeka:     { src: 'images/emeka.png',     name: 'Emeka'      },
-  mamachef:  { src: 'images/mamachef.png',  name: 'Mama Chef'  },
-  cheftunde: { src: 'images/cheftunde.png', name: 'Chef Tunde' },
+  ada:       { src: 'images/ada.png',       name: 'Ada',        role: 'Friendly & attentive'  },
+  chisom:    { src: 'images/chisom.png',    name: 'Chisom',     role: 'Warm & welcoming'       },
+  emeka:     { src: 'images/emeka.png',     name: 'Emeka',      role: 'Quick & sharp'          },
+  mamachef:  { src: 'images/mamachef.png',  name: 'Mama Chef',  role: 'Knows every dish'       },
+  cheftunde: { src: 'images/cheftunde.png', name: 'Chef Tunde', role: 'The grill master'       },
 };
+
+const SPLASH_MSGS = [
+  'No menu to wait for. Browse every dish from your table, right now.',
+  'Order at your own pace. Your waiter is notified the moment you\'re ready.',
+  'No need to flag anyone down. See your order status in real time.',
+];
 
 const CATEGORY_CHARACTER = {
   soups:         'ada',
@@ -388,12 +394,67 @@ function initCoverCta() {
   btn.addEventListener('click', () => {
     hideCover();
     setTimeout(() => {
-      if (menuData?.ada?.welcome) {
-        Ada.speak(menuData.ada.welcome, 7000);
-        Ada.resetIdleTimer();
-      }
+      const charKey  = localStorage.getItem('vw_selected_char') || 'ada';
+      const charName = CHARACTERS[charKey]?.name || 'Ada';
+      const base     = menuData?.ada?.welcome || 'Browse our menu and tap + to order.';
+      Ada.speak(`Hi! I'm ${charName}. ${base}`, 7000);
+      Ada.resetIdleTimer();
     }, 800);
   });
+}
+
+// ── Character picker ──────────────────────────────────────────────────────────
+
+function showCharPicker() {
+  const picker = document.getElementById('charPicker');
+  const grid   = document.getElementById('charPickerGrid');
+  if (!picker || !grid) return;
+
+  grid.innerHTML = Object.entries(CHARACTERS).map(([key, char]) =>
+    `<button class="char-card" data-key="${key}">
+      <img src="${char.src}" alt="${char.name}" class="char-card-img" />
+      <p class="char-card-name">${char.name}</p>
+      <p class="char-card-role">${char.role}</p>
+    </button>`
+  ).join('');
+
+  picker.removeAttribute('hidden');
+  requestAnimationFrame(() => picker.classList.add('char-picker-visible'));
+
+  grid.querySelectorAll('.char-card').forEach(btn => {
+    btn.addEventListener('click', () => {
+      grid.querySelectorAll('.char-card').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      const key = btn.dataset.key;
+      localStorage.setItem('vw_selected_char', key);
+      setTimeout(() => dismissCharPicker(key), 380);
+    });
+  });
+}
+
+function dismissCharPicker(key) {
+  const picker = document.getElementById('charPicker');
+  if (!picker) return;
+  picker.classList.remove('char-picker-visible');
+  picker.classList.add('char-picker-exit');
+  setTimeout(() => {
+    picker.remove();
+    applySelectedCharacter(key);
+  }, 380);
+}
+
+function applySelectedCharacter(key) {
+  const char = CHARACTERS[key];
+  if (!char) return;
+  const img = document.getElementById('adaImg');
+  if (img) {
+    img.style.opacity = '0';
+    setTimeout(() => {
+      img.src = char.src;
+      img.style.transition = 'opacity 0.3s ease';
+      img.style.opacity = '1';
+    }, 150);
+  }
 }
 
 // ── Branding ──────────────────────────────────────────────────────────────────
@@ -668,6 +729,11 @@ function splashStart() {
   _splashStart = Date.now();
   const img = document.getElementById('splashAdaImg');
   if (img) img.src = SPLASH_CHARS[Math.floor(Math.random() * SPLASH_CHARS.length)];
+
+  const idx = (parseInt(localStorage.getItem('vw_splash_msg') || '-1', 10) + 1) % SPLASH_MSGS.length;
+  localStorage.setItem('vw_splash_msg', String(idx));
+  const msgEl = document.querySelector('.splash-message');
+  if (msgEl) msgEl.textContent = SPLASH_MSGS[idx];
 }
 
 function splashUpdate(restaurant) {
@@ -678,16 +744,15 @@ function splashUpdate(restaurant) {
   document.documentElement.style.setProperty('--accent', restaurant.accentColor || '#C41E3A');
 }
 
-async function splashHide(fast = false) {
-  if (!fast) {
-    const elapsed   = Date.now() - _splashStart;
-    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
-    await new Promise(r => setTimeout(r, remaining));
-  }
+async function splashHide() {
+  const elapsed   = Date.now() - _splashStart;
+  const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+  await new Promise(r => setTimeout(r, remaining));
   const el = document.getElementById('splashScreen');
   if (!el) return;
   el.classList.add('splash-hiding');
-  setTimeout(() => el.remove(), 600);
+  await new Promise(r => setTimeout(r, 600));
+  el.remove();
 }
 
 function splashError(title, sub) {
@@ -730,9 +795,8 @@ async function init() {
     applyBranding(menuData.restaurant);
     applyMagazine(menuData.categories, true);
     revealApp();
-    splashHide(); // always wait full 5s even on repeat visits
 
-    // Refresh in background
+    // Background refresh while splash shows
     loadMenuData().then(fresh => {
       if (JSON.stringify(fresh) !== JSON.stringify(cached)) {
         menuData = fresh;
@@ -740,22 +804,36 @@ async function init() {
         applyMagazine(menuData.categories, false);
       }
     }).catch(() => {});
+
+    await splashHide();
   } else {
     document.getElementById('magContent').innerHTML =
       Array.from({ length: 6 }, () => '<div class="skeleton-item"></div>').join('');
     revealApp();
-    splashHide();
 
-    try {
-      menuData = await loadMenuData();
-    } catch {
-      document.getElementById('magContent').innerHTML =
-        '<div class="mag-empty">Unable to load menu — please reload the page.</div>';
-      return;
-    }
+    let dataOk = true;
+    await Promise.all([
+      loadMenuData().then(data => {
+        menuData = data;
+        applyBranding(menuData.restaurant);
+        applyMagazine(menuData.categories, true);
+      }).catch(() => {
+        dataOk = false;
+        document.getElementById('magContent').innerHTML =
+          '<div class="mag-empty">Unable to load menu — please reload the page.</div>';
+      }),
+      splashHide(),
+    ]);
 
-    applyBranding(menuData.restaurant);
-    applyMagazine(menuData.categories, true);
+    if (!dataOk) return;
+  }
+
+  // Splash hidden — show character picker or apply saved choice
+  const savedChar = localStorage.getItem('vw_selected_char');
+  if (savedChar && CHARACTERS[savedChar]) {
+    applySelectedCharacter(savedChar);
+  } else {
+    showCharPicker();
   }
 }
 
