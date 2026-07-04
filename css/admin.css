@@ -2395,3 +2395,192 @@
 }
 
 .layout-option--active .layout-option-check { opacity: 1; }
+
+/* ── Ada welcome banner ──────────────────────────────────────────────────── */
+
+.ada-welcome-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: linear-gradient(135deg, rgba(196,30,58,0.10) 0%, rgba(26,18,18,0.65) 100%);
+  border: 1px solid rgba(196,30,58,0.28);
+  border-radius: 16px;
+  padding: 18px 20px;
+  margin: 0 0 20px;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.ada-welcome-banner.ada-welcome-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ada-welcome-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid rgba(196,30,58,0.45);
+}
+
+.ada-welcome-body { flex: 1; min-width: 0; }
+
+.ada-welcome-greeting {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #F0EBE3;
+  margin: 0 0 4px;
+}
+
+.ada-welcome-msg {
+  font-size: 0.82rem;
+  color: rgba(240,235,227,0.65);
+  margin: 0 0 14px;
+  line-height: 1.45;
+}
+
+.ada-welcome-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.ada-welcome-start {
+  background: var(--accent, #C41E3A);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ada-welcome-skip {
+  background: none;
+  border: none;
+  color: rgba(240,235,227,0.38);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+/* ── Nav pulse guide ─────────────────────────────────────────────────────── */
+
+@keyframes nav-pulse-dot {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(196,30,58,0.7); }
+  50%       { transform: scale(1.25); box-shadow: 0 0 0 5px rgba(196,30,58,0); }
+}
+
+.nav-pulse { position: relative; }
+
+.nav-pulse::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  background: var(--accent, #C41E3A);
+  border-radius: 50%;
+  animation: nav-pulse-dot 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ── Wizard Ada header ───────────────────────────────────────────────────── */
+
+.wz-ada-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.wz-ada-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(196,30,58,0.45);
+  flex-shrink: 0;
+}
+
+.wz-ada-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: rgba(240,235,227,0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Analytics teaser (free plan) ───────────────────────────────────────── */
+
+.analytics-teaser { margin-top: 6px; }
+
+.analytics-teaser-inner {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.analytics-teaser-blur {
+  filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.55;
+}
+
+.analytics-teaser-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10,10,10,0.52);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  gap: 6px;
+  padding: 24px 20px;
+}
+
+.analytics-lock-icon { font-size: 2rem; }
+
+.analytics-lock-title {
+  font-family: var(--serif, 'Playfair Display', Georgia, serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #F0EBE3;
+  margin: 0;
+  text-align: center;
+}
+
+.analytics-lock-sub {
+  font-size: 0.79rem;
+  color: rgba(240,235,227,0.55);
+  text-align: center;
+  line-height: 1.4;
+  max-width: 240px;
+  margin: 0;
+}
+
+.analytics-lock-btn {
+  margin-top: 10px;
+  background: var(--accent, #C41E3A);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 24px;
+  font-size: 0.87rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}

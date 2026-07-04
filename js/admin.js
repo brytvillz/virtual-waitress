@@ -510,11 +510,10 @@ function navigateTo(section) {
   document.getElementById(currentSection + 'Section').classList.add('admin-hidden');
   document.getElementById(section + 'Section').classList.remove('admin-hidden');
 
-  document.querySelectorAll('.sidebar-nav-item').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.section === section);
-  });
-  document.querySelectorAll('.bottom-nav-item').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.section === section);
+  document.querySelectorAll('.sidebar-nav-item, .bottom-nav-item').forEach(btn => {
+    const isActive = btn.dataset.section === section;
+    btn.classList.toggle('active', isActive);
+    if (isActive) btn.classList.remove('nav-pulse');
   });
 
   const titleEl = document.getElementById('topbarTitle');
@@ -591,6 +590,11 @@ async function loadOnboardingChecklist() {
     btn.addEventListener('click', () => navigateTo(btn.dataset.section));
   });
 
+  // Pulse sidebar items for incomplete steps after wizard is dismissed
+  if (localStorage.getItem('vw_wizard_done_' + RESTAURANT_ID)) {
+    startPulseGuide([...new Set(steps.filter(s => !s.done).map(s => s.section))]);
+  }
+
   document.getElementById('checklistDismissBtn').addEventListener('click', () => {
     localStorage.setItem(dismissKey, '1');
     el.classList.add('admin-hidden');
@@ -622,6 +626,7 @@ async function loadAnalytics() {
     ]);
     renderWaiterPerformance(staffList || [], todayOrders || [], true);
     loadOnboardingChecklist();
+    renderAnalyticsTeaser();
     return;
   }
 
@@ -727,6 +732,46 @@ function renderRecentOrders(orders) {
       </div>
     `;
   }).join('');
+}
+
+function renderAnalyticsTeaser() {
+  const existing = document.getElementById('analyticsTeaser');
+  if (existing) existing.remove();
+
+  const teaser = document.createElement('div');
+  teaser.id = 'analyticsTeaser';
+  teaser.className = 'analytics-teaser';
+  teaser.innerHTML =
+    '<div class="analytics-teaser-inner">' +
+      '<div class="analytics-teaser-blur" aria-hidden="true">' +
+        '<div class="stat-grid">' +
+          '<div class="stat-card"><span class="stat-label">Today\'s Orders</span><span class="stat-value">18</span></div>' +
+          '<div class="stat-card"><span class="stat-label">Today\'s Revenue</span><span class="stat-value">₦42,500</span></div>' +
+          '<div class="stat-card"><span class="stat-label">All-Time Orders</span><span class="stat-value">234</span></div>' +
+          '<div class="stat-card"><span class="stat-label">All-Time Revenue</span><span class="stat-value">₦587,200</span></div>' +
+        '</div>' +
+        '<h3 class="subsection-title">🔥 Best Sellers</h3>' +
+        '<div class="card-list">' +
+          '<div class="dash-card best-seller-card"><span><span class="best-seller-rank">#1</span>Egusi Soup — 48 sold</span><span>₦72,000</span></div>' +
+          '<div class="dash-card best-seller-card"><span><span class="best-seller-rank">#2</span>Jollof Rice — 36 sold</span><span>₦54,000</span></div>' +
+          '<div class="dash-card best-seller-card"><span><span class="best-seller-rank">#3</span>Pepper Soup — 24 sold</span><span>₦36,000</span></div>' +
+        '</div>' +
+        '<h3 class="subsection-title">🧾 Recent Orders</h3>' +
+        '<div class="card-list">' +
+          '<div class="dash-card"><div class="dash-card-top"><span class="dash-card-table">Table 4 · delivered</span></div><div class="dash-card-items"><div>2× Egusi Soup, 1× Pounded Yam</div></div><div class="dash-card-total">Total: ₦4,500</div></div>' +
+          '<div class="dash-card"><div class="dash-card-top"><span class="dash-card-table">Table 7 · delivered</span></div><div class="dash-card-items"><div>3× Jollof Rice, 2× Malt</div></div><div class="dash-card-total">Total: ₦7,200</div></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="analytics-teaser-overlay">' +
+        '<div class="analytics-lock-icon">🔒</div>' +
+        '<p class="analytics-lock-title">Revenue & Full Analytics</p>' +
+        '<p class="analytics-lock-sub">Track revenue, best sellers, and full order history with Growth plan</p>' +
+        '<button class="analytics-lock-btn" id="analyticsUpgradeBtn">Unlock with Growth →</button>' +
+      '</div>' +
+    '</div>';
+
+  document.getElementById('analyticsSection').appendChild(teaser);
+  document.getElementById('analyticsUpgradeBtn').addEventListener('click', showUpgradeModal);
 }
 
 // ── Menu editor ───────────────────────────────────────────────────────────────
@@ -1772,7 +1817,53 @@ async function maybeShowWizard() {
     return;
   }
 
-  showWizard();
+  showAdaWelcomeBanner();
+}
+
+function showAdaWelcomeBanner() {
+  if (document.getElementById('adaWelcomeBanner')) return;
+  const section = document.getElementById('analyticsSection');
+  if (!section) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'adaWelcomeBanner';
+  banner.className = 'ada-welcome-banner';
+  banner.innerHTML =
+    '<img class="ada-welcome-img" src="images/ada.png" alt="Ada" />' +
+    '<div class="ada-welcome-body">' +
+      '<p class="ada-welcome-greeting">Hi! I\'m Ada 👋</p>' +
+      '<p class="ada-welcome-msg">I\'ll walk you through setting up your restaurant so you can start taking orders in minutes.</p>' +
+      '<div class="ada-welcome-actions">' +
+        '<button class="ada-welcome-start" id="adaWelcomeStart">Get Started →</button>' +
+        '<button class="ada-welcome-skip" id="adaWelcomeSkip">I\'ll explore on my own</button>' +
+      '</div>' +
+    '</div>';
+
+  const header = section.querySelector('.section-header');
+  if (header) header.after(banner);
+  else section.prepend(banner);
+
+  requestAnimationFrame(() => banner.classList.add('ada-welcome-visible'));
+
+  document.getElementById('adaWelcomeStart').addEventListener('click', () => {
+    banner.classList.remove('ada-welcome-visible');
+    setTimeout(() => { if (banner.parentNode) banner.remove(); showWizard(); }, 280);
+  });
+
+  document.getElementById('adaWelcomeSkip').addEventListener('click', () => {
+    banner.classList.remove('ada-welcome-visible');
+    setTimeout(() => { if (banner.parentNode) banner.remove(); }, 280);
+    localStorage.setItem('vw_wizard_done_' + RESTAURANT_ID, '1');
+    startPulseGuide(['menu', 'tables', 'staff']);
+  });
+}
+
+function startPulseGuide(sections) {
+  sections.forEach(sec => {
+    document.querySelectorAll('[data-section="' + sec + '"]').forEach(btn => {
+      btn.classList.add('nav-pulse');
+    });
+  });
 }
 
 function showWizard() {
@@ -1843,6 +1934,10 @@ function renderWizardStep(overlay, step) {
 
   overlay.innerHTML = `
     <div class="wz-card">
+      <div class="wz-ada-header">
+        <img class="wz-ada-img" src="images/ada.png" alt="Ada" />
+        <span class="wz-ada-label">Ada · Setup Guide</span>
+      </div>
       <div class="wz-progress">${progressHtml}</div>
       <div class="wz-body">${bodyHtml}</div>
     </div>
