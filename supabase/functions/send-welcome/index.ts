@@ -45,25 +45,31 @@ function buildWelcomeEmail(restaurantName: string, slug: string): string {
             <td style="background:#161616;border-radius:18px;border:1px solid rgba(255,255,255,0.08);padding:40px 36px 36px;">
 
               <!-- Icon -->
-              <p style="text-align:center;font-size:48px;margin:0 0 24px;line-height:1;">&#127881;</p>
+              <p style="text-align:center;font-size:48px;margin:0 0 24px;line-height:1;">&#9989;</p>
 
               <!-- Heading -->
               <h1 style="color:#F0EDE8;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:700;text-align:center;margin:0 0 12px;line-height:1.25;letter-spacing:-0.01em;">
-                Your account is ready!
+                Email verified — you're in!
               </h1>
 
               <!-- Subtext -->
               <p style="color:#6B6570;font-size:14px;line-height:1.6;text-align:center;margin:0 0 28px;">
-                Welcome to Virtual Waitress. Your restaurant <strong style="color:#F0EDE8;">${restaurantName}</strong> has been set up and your digital menu is live.
+                Your account for <strong style="color:#F0EDE8;">${restaurantName}</strong> is fully activated. Here's how to get your first order in under 10 minutes.
               </p>
 
-              <!-- Notice box -->
+              <!-- Next steps -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
                 <tr>
                   <td style="background:#1a1218;border-radius:12px;border:1px solid rgba(196,30,58,0.2);padding:20px 24px;">
-                    <p style="color:#C41E3A;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 8px;">Next Step</p>
+                    <p style="color:#C41E3A;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 16px;">What to do next</p>
+                    <p style="color:#9a9098;font-size:13px;margin:0 0 10px;line-height:1.6;">
+                      <strong style="color:#F0EDE8;">1. Add your menu</strong> — Go to Menu Editor and add your categories and dishes.
+                    </p>
+                    <p style="color:#9a9098;font-size:13px;margin:0 0 10px;line-height:1.6;">
+                      <strong style="color:#F0EDE8;">2. Add your tables</strong> — Go to Tables and set up how many tables you have.
+                    </p>
                     <p style="color:#9a9098;font-size:13px;margin:0;line-height:1.6;">
-                      Check your inbox for a <strong style="color:#F0EDE8;">confirmation email</strong> from us. Click the link inside to verify your email and activate your account.
+                      <strong style="color:#F0EDE8;">3. Add a waiter</strong> — Go to Staff and create a waiter account. They log in with the code you give them.
                     </p>
                   </td>
                 </tr>
@@ -74,7 +80,7 @@ function buildWelcomeEmail(restaurantName: string, slug: string): string {
                 <tr>
                   <td align="center">
                     <a href="${dashboardUrl}" style="display:inline-block;background:#C41E3A;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:99px;letter-spacing:0.01em;">
-                      Go to Admin Dashboard &rarr;
+                      Open My Dashboard &rarr;
                     </a>
                   </td>
                 </tr>
@@ -83,7 +89,7 @@ function buildWelcomeEmail(restaurantName: string, slug: string): string {
               <!-- Menu link -->
               <p style="text-align:center;margin:0 0 28px;">
                 <a href="${menuUrl}" style="color:#6B6570;font-size:13px;text-decoration:none;">
-                  View your customer menu &rarr;
+                  Preview your customer menu &rarr;
                 </a>
               </p>
 

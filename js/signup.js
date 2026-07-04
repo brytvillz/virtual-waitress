@@ -198,6 +198,13 @@ document.getElementById('suForm').addEventListener('submit', async e => {
         return;
       }
 
+      // Send welcome email now that email is confirmed (fire and forget)
+      fetch(`${SUPABASE_URL}/functions/v1/send-welcome`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+        body: JSON.stringify({ email, restaurant_name: restaurantName, slug: result.slug }),
+      }).catch(() => {});
+
       // Show success state before redirecting
       step2.innerHTML =
         '<div class="su-otp-success">' +
