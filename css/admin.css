@@ -129,16 +129,16 @@
   border: 1px solid rgba(255,255,255,0.1);
 }
 
-.sidebar-plan-badge.plan-growth {
-  background: rgba(62,204,138,0.15);
-  color: #3ECC8A;
-  border: 1px solid rgba(62,204,138,0.3);
-}
-
 .sidebar-plan-badge.plan-pro {
   background: rgba(196,30,58,0.18);
   color: var(--accent);
   border: 1px solid rgba(196,30,58,0.35);
+}
+
+.sidebar-plan-badge.plan-custom {
+  background: rgba(212,170,60,0.18);
+  color: #D4AA3C;
+  border: 1px solid rgba(212,170,60,0.35);
 }
 
 .sidebar-nav-item.nav-locked {
@@ -2584,3 +2584,27 @@
   cursor: pointer;
   white-space: nowrap;
 }
+
+/* ── Upgrade modal custom footer ─────────────────────────────────────────── */
+
+.upgrade-modal-custom {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  text-align: center;
+}
+
+.upgrade-modal-custom-text {
+  font-size: 0.78rem;
+  color: rgba(240,235,227,0.4);
+  margin: 0 0 6px;
+}
+
+.upgrade-modal-custom-link {
+  font-size: 0.8rem;
+  color: #D4AA3C;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.upgrade-modal-custom-link:hover { text-decoration: underline; }

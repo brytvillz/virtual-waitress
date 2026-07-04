@@ -15,8 +15,8 @@ let ownedLocations = [];
 
 const PLAN_LIMITS = {
   free:   { staff: 1,        tables: 5,        items: 20,       locations: 1 },
-  growth: { staff: 5,        tables: Infinity,  items: Infinity, locations: 1 },
   pro:    { staff: Infinity, tables: Infinity,  items: Infinity, locations: 3 },
+  custom: { staff: Infinity, tables: Infinity,  items: Infinity, locations: Infinity },
 };
 
 function planLimit(resource) {
@@ -85,74 +85,41 @@ function showUpgradeModal() {
     document.body.appendChild(overlay);
   }
 
-  const isGrowth = currentPlan === 'growth';
-
-  // Proration for Growth → Pro
-  let prorationHtml = '';
-  let proAmount = 15000;
-  if (isGrowth && currentPlanExpiresAt) {
-    const daysLeft = Math.max(0, Math.ceil((new Date(currentPlanExpiresAt) - new Date()) / 86400000));
-    const credit   = Math.round((daysLeft / 30) * 4900);
-    proAmount      = Math.max(0, 15000 - credit);
-    if (credit > 0) {
-      prorationHtml =
-        '<div class="upgrade-proration">' +
-          '<span class="upgrade-proration-label">Growth credit (' + daysLeft + ' days left)</span>' +
-          '<span class="upgrade-proration-credit">−₦' + credit.toLocaleString() + '</span>' +
-        '</div>' +
-        '<div class="upgrade-proration upgrade-proration-total">' +
-          '<span class="upgrade-proration-label">You pay today</span>' +
-          '<span class="upgrade-proration-amount">₦' + proAmount.toLocaleString() + '</span>' +
-        '</div>';
-    }
-  }
-
-  // WhatsApp upgrade message
   const restaurantName = document.getElementById('sidebarRestaurantName')?.textContent || 'my restaurant';
-  const targetPlan     = isGrowth ? 'Pro' : 'Growth';
-  const waMsg = encodeURIComponent(
-    'Hi, I\'d like to upgrade ' + restaurantName + ' to the ' + targetPlan + ' plan on Virtual Waitress.' +
-    (isGrowth && prorationHtml ? ' I have ' + Math.ceil((new Date(currentPlanExpiresAt) - new Date()) / 86400000) + ' days left on Growth.' : '')
-  );
-  const waLink = 'https://wa.me/2347076077265?text=' + waMsg;
+  const waMsg     = encodeURIComponent('Hi, I\'d like to upgrade ' + restaurantName + ' to the Pro plan on Virtual Waitress.');
+  const waLink    = 'https://wa.me/2347076077265?text=' + waMsg;
+  const customMsg = encodeURIComponent('Hi, I\'d like to discuss a Custom plan for ' + restaurantName + ' on Virtual Waitress.');
+  const customLink = 'https://wa.me/2347076077265?text=' + customMsg;
 
   overlay.innerHTML =
     '<div class="upgrade-modal">' +
       '<button class="upgrade-modal-close" id="upgradeModalClose" aria-label="Close">&#x2715;</button>' +
       '<div class="upgrade-modal-header">' +
-        '<p class="upgrade-modal-eyebrow">You are on the <strong>' + (isGrowth ? 'Growth' : 'Free') + '</strong> plan</p>' +
-        '<h2 class="upgrade-modal-title">Unlock more for your restaurant</h2>' +
+        '<p class="upgrade-modal-eyebrow">You are on the <strong>Free</strong> plan</p>' +
+        '<h2 class="upgrade-modal-title">Unlock the full Virtual Waitress</h2>' +
       '</div>' +
       '<div class="upgrade-modal-plans">' +
-        (!isGrowth
-          ? '<div class="upgrade-plan-card upgrade-plan-featured">' +
-              '<div class="upgrade-plan-badge">Most Popular</div>' +
-              '<div class="upgrade-plan-name">Growth</div>' +
-              '<div class="upgrade-plan-price">₦4,900<span>/mo</span></div>' +
-              '<ul class="upgrade-plan-features">' +
-                '<li>Up to 5 waiters</li>' +
-                '<li>Unlimited tables &amp; menu items</li>' +
-                '<li>Full analytics &amp; revenue</li>' +
-                '<li>Remove VW branding</li>' +
-                '<li>Push notifications</li>' +
-              '</ul>' +
-            '</div>'
-          : '') +
-        '<div class="upgrade-plan-card' + (!isGrowth ? '' : ' upgrade-plan-featured') + '">' +
-          (isGrowth ? '<div class="upgrade-plan-badge">Best Value</div>' : '') +
+        '<div class="upgrade-plan-card upgrade-plan-featured">' +
+          '<div class="upgrade-plan-badge">Most Popular</div>' +
           '<div class="upgrade-plan-name">Pro</div>' +
-          '<div class="upgrade-plan-price">₦15,000<span>/mo</span></div>' +
+          '<div class="upgrade-plan-price">₦9,900<span>/mo</span></div>' +
           '<ul class="upgrade-plan-features">' +
-            '<li>Everything in Growth</li>' +
+            '<li>Unlimited waiters, tables &amp; menu items</li>' +
+            '<li>Full analytics &amp; revenue tracking</li>' +
+            '<li>All menu layouts — Magazine, Grid &amp; Classic</li>' +
+            '<li>Ada AI — generate descriptions &amp; messages</li>' +
+            '<li>Scan paper menus with AI</li>' +
+            '<li>Push notifications</li>' +
             '<li>Up to 3 locations</li>' +
-            '<li>Unlimited waiters</li>' +
-            '<li>Priority support</li>' +
           '</ul>' +
-          prorationHtml +
         '</div>' +
       '</div>' +
-      '<a href="' + waLink + '" target="_blank" rel="noopener" class="upgrade-modal-cta">Upgrade Plan &#8594;</a>' +
-      '<p class="upgrade-modal-note">You\'ll be connected with us on WhatsApp to complete your upgrade.</p>' +
+      '<a href="' + waLink + '" target="_blank" rel="noopener" class="upgrade-modal-cta">Upgrade to Pro &#8594;</a>' +
+      '<p class="upgrade-modal-note">You\'ll be connected on WhatsApp to complete your upgrade.</p>' +
+      '<div class="upgrade-modal-custom">' +
+        '<p class="upgrade-modal-custom-text">Running a hotel or multi-location group?</p>' +
+        '<a href="' + customLink + '" target="_blank" rel="noopener" class="upgrade-modal-custom-link">Talk to us about a Custom plan &#8594;</a>' +
+      '</div>' +
     '</div>';
 
   overlay.classList.add('upgrade-modal-visible');
@@ -197,7 +164,8 @@ function setActiveRestaurant(restaurant) {
   let plan = 'free';
   if (restaurant.plan_status === 'active') {
     const expired = currentPlanExpiresAt && new Date(currentPlanExpiresAt) < new Date();
-    plan = expired ? 'free' : (restaurant.plan || 'free');
+    const raw = restaurant.plan || 'free';
+    plan = expired ? 'free' : (raw === 'growth' ? 'pro' : raw);
   }
   currentPlan = plan;
 
@@ -236,7 +204,7 @@ async function checkAccessAndEnter() {
 function applyPlanGating() {
   const badge = document.getElementById('sidebarPlanBadge');
   if (badge) {
-    const labels = { free: 'Free', growth: 'Growth', pro: 'Pro' };
+    const labels = { free: 'Free', pro: 'Pro', custom: 'Custom' };
     badge.textContent = labels[currentPlan] || 'Free';
     badge.className = 'sidebar-plan-badge plan-' + currentPlan;
   }
@@ -248,14 +216,14 @@ function applyPlanGating() {
     analyticsBtn.title = '';
   }
 
-  // Upgrade button — hidden for Pro, visible for free/growth
+  // Upgrade button — hidden for Pro and Custom, visible for free
   const upgradeBtn = document.getElementById('upgradePlanBtn');
   if (upgradeBtn) {
-    if (currentPlan === 'pro') {
+    if (currentPlan === 'pro' || currentPlan === 'custom') {
       upgradeBtn.classList.add('admin-hidden');
     } else {
       upgradeBtn.classList.remove('admin-hidden');
-      upgradeBtn.textContent = currentPlan === 'growth' ? 'Upgrade to Pro' : 'Upgrade Plan';
+      upgradeBtn.textContent = 'Upgrade to Pro';
     }
   }
 
@@ -267,7 +235,7 @@ function applyPlanGating() {
       const daysLeft = Math.ceil((new Date(currentPlanExpiresAt) - new Date()) / 86400000);
       if (daysLeft > 0 && daysLeft <= 7) {
         bannerMsg.textContent =
-          `Your ${currentPlan === 'growth' ? 'Growth' : 'Pro'} plan expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}. Renew to keep your features.`;
+          `Your Pro plan expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}. Renew to keep your features.`;
         banner.classList.remove('admin-hidden');
       } else {
         banner.classList.add('admin-hidden');
@@ -285,25 +253,19 @@ function updateLocationSwitcher() {
   const existing = document.getElementById('locationSwitcherBtn');
   if (existing) existing.remove();
 
-  const showSwitcher = ownedLocations.length > 1 || currentPlan === 'pro' || currentPlan === 'growth';
+  const isPaid = currentPlan === 'pro' || currentPlan === 'custom';
+  const showSwitcher = ownedLocations.length > 1 || isPaid;
   if (showSwitcher) {
     const sidebar = document.querySelector('.sidebar-nav') || document.querySelector('.sidebar');
     if (!sidebar) return;
     const btn = document.createElement('button');
     btn.id = 'locationSwitcherBtn';
-    const isGrowthLocked = currentPlan === 'growth' && ownedLocations.length <= 1;
-    btn.className = 'location-switcher-btn' + (isGrowthLocked ? ' location-switcher-locked' : '');
+    btn.className = 'location-switcher-btn';
     const label = ownedLocations.length > 1 ? 'Switch Location' : 'Add Location';
-    btn.innerHTML = '<span class="ls-icon">&#127968;</span>' +
-      '<span class="ls-text">' + label + '</span>' +
-      (isGrowthLocked ? '<span class="ls-pro-badge">Pro</span>' : '');
+    btn.innerHTML = '<span class="ls-icon">&#127968;</span><span class="ls-text">' + label + '</span>';
     btn.addEventListener('click', () => {
-      if (isGrowthLocked) { showPlanNudge('Multiple locations is a Pro feature', 'Your Growth plan supports 1 location. Upgrade to Pro to manage up to 3 locations.'); return; }
-      if (ownedLocations.length > 1) {
-        showLocationPicker(ownedLocations);
-      } else {
-        showAddLocationModal();
-      }
+      if (ownedLocations.length > 1) showLocationPicker(ownedLocations);
+      else showAddLocationModal();
     });
     sidebar.appendChild(btn);
   }
@@ -323,8 +285,8 @@ function showLocationPicker(restaurants) {
     document.body.appendChild(overlay);
   }
 
-  const canAdd = currentPlan === 'pro' && restaurants.length < PLAN_LIMITS.pro.locations;
-  const showLockedAdd = currentPlan === 'growth';
+  const locationLimit = planLimit('locations');
+  const canAdd = locationLimit === Infinity || restaurants.length < locationLimit;
 
   overlay.innerHTML =
     '<div class="lp-card">' +
@@ -335,18 +297,14 @@ function showLocationPicker(restaurants) {
       '</div>' +
       '<div class="lp-list">' +
         restaurants.map(r =>
-          '<button class="lp-loc-btn" data-id="' + r.id + '" data-plan="' + (r.plan || 'free') + '" data-status="' + (r.plan_status || 'inactive') + '">' +
+          '<button class="lp-loc-btn" data-id="' + r.id + '">' +
             '<span class="lp-loc-icon">&#127968;</span>' +
             '<span class="lp-loc-name">' + (r.name || 'Restaurant') + '</span>' +
             '<span class="lp-loc-arrow">&#8250;</span>' +
           '</button>'
         ).join('') +
       '</div>' +
-      (canAdd
-        ? '<button class="lp-add-btn" id="lpAddLocationBtn">+ Add New Location</button>'
-        : showLockedAdd
-          ? '<button class="lp-add-btn lp-add-btn-locked" id="lpAddLocationBtn"><span class="lp-pro-lock-badge">Pro</span> Add New Location</button>'
-          : '') +
+      (canAdd ? '<button class="lp-add-btn" id="lpAddLocationBtn">+ Add New Location</button>' : '') +
     '</div>';
 
   overlay.classList.add('lp-visible');
@@ -363,15 +321,7 @@ function showLocationPicker(restaurants) {
   });
 
   const addBtn = overlay.querySelector('#lpAddLocationBtn');
-  if (addBtn) {
-    addBtn.addEventListener('click', () => {
-      if (addBtn.classList.contains('lp-add-btn-locked')) {
-        showPlanNudge('Multiple locations is a Pro feature', 'Your Growth plan supports 1 location. Upgrade to Pro to manage up to 3 locations.');
-      } else {
-        showAddLocationModal();
-      }
-    });
-  }
+  if (addBtn) addBtn.addEventListener('click', showAddLocationModal);
 }
 
 function showAddLocationModal() {
@@ -1036,7 +986,7 @@ function initItemModal() {
     } else {
       const itemLimit = planLimit('items');
       if (itemLimit !== Infinity && itemsCache.length >= itemLimit) {
-        showPlanNudge('Menu item limit reached', 'Free plan allows up to 20 menu items. Upgrade to Growth for unlimited items.');
+        showPlanNudge('Menu item limit reached', 'Free plan allows up to 20 menu items. Upgrade to Pro for unlimited items.');
         return;
       }
       ({ error } = await db.from('menu_items').insert({
@@ -1149,7 +1099,7 @@ async function loadStaff() {
     const atLimit = limit !== Infinity && currentWaiterCount >= limit;
     addWaiterBtn.disabled = atLimit;
     addWaiterBtn.title = atLimit
-      ? 'Staff limit reached for your ' + currentPlan + ' plan. Upgrade to add more.'
+      ? 'Staff limit reached — upgrade to Pro for unlimited waiters.'
       : '';
   }
 
@@ -1259,7 +1209,7 @@ async function loadTablesSection() {
     const atLimit = limit !== Infinity && currentTableCount >= limit;
     addTableBtn.disabled = atLimit;
     addTableBtn.title = atLimit
-      ? 'Table limit reached for Free plan (max 5). Upgrade to Growth for unlimited tables.'
+      ? 'Table limit reached — upgrade to Pro for unlimited tables.'
       : '';
   }
   renderTableGrid(tables || [], assignments || [], waiters || []);
@@ -1710,9 +1660,7 @@ function openWaiterModal() {
     const isFree = currentPlan === 'free' || !currentPlan;
     showPlanNudge(
       'Waiter limit reached',
-      isFree
-        ? 'Free plan includes 1 waiter. Upgrade to Growth to add up to 5.'
-        : 'Growth plan includes up to 5 waiters. Upgrade to Pro for unlimited staff.'
+      'Free plan includes 1 waiter. Upgrade to Pro for unlimited staff.'
     );
     return;
   }
