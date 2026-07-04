@@ -185,6 +185,7 @@
             <h2 class="section-title">Staff</h2>
             <button id="newWaiterBtn" class="btn-primary">+ New Waiter</button>
           </div>
+          <div id="waiterLoginUrl" class="qr-menu-url-bar"></div>
           <div id="staffList" class="card-list">
             <p class="empty-state">Loading…</p>
           </div>
@@ -325,6 +326,27 @@
             <button type="submit" class="btn-primary">Save Settings</button>
             <p id="settingsSavedMsg" class="settings-saved-msg"></p>
           </form>
+
+          <div class="settings-group" id="myAccountGroup">
+            <h3 class="settings-group-title">My Account</h3>
+            <p id="accountCurrentEmail" class="settings-hint settings-hint--spaced"></p>
+            <label class="settings-label">
+              New Email
+              <input type="email" id="profileEmail" placeholder="Enter new email address" autocomplete="email" />
+            </label>
+            <label class="settings-label">
+              New Password
+              <input type="password" id="profilePassword" placeholder="Leave blank to keep current" autocomplete="new-password" />
+              <span class="settings-hint">Minimum 8 characters</span>
+            </label>
+            <label class="settings-label">
+              Confirm Password
+              <input type="password" id="profilePasswordConfirm" placeholder="Repeat new password" autocomplete="new-password" />
+            </label>
+            <button type="button" class="btn-primary" id="profileSaveBtn">Update Account</button>
+            <p id="profileSavedMsg" class="settings-saved-msg"></p>
+          </div>
+
           <div class="settings-custom-design-banner">
             <p class="settings-custom-design-title">Want a fully custom menu design?</p>
             <p class="settings-custom-design-desc">Our team can build a unique menu that matches your restaurant's brand — custom colours, layout, and style.</p>

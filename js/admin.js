@@ -19,6 +19,18 @@ const PLAN_LIMITS = {
   custom: { staff: Infinity, tables: Infinity,  items: Infinity, locations: Infinity },
 };
 
+function handleCopyBtn(e) {
+  const btn = e.currentTarget;
+  const text = btn.dataset.copy;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.classList.add('copy-link-btn--done');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copy-link-btn--done'); }, 2000);
+  }).catch(() => {});
+}
+
 function planLimit(resource) {
   return (PLAN_LIMITS[currentPlan] || PLAN_LIMITS.free)[resource];
 }
@@ -1103,6 +1115,16 @@ async function loadStaff() {
       : '';
   }
 
+  const waiterLoginUrl = document.getElementById('waiterLoginUrl');
+  if (waiterLoginUrl) {
+    const url = `${window.location.origin}/waiter.html`;
+    waiterLoginUrl.innerHTML =
+      `<span class="qr-url-label">Waiter login link:</span>
+       <a class="qr-url-value" href="${url}" target="_blank" rel="noopener">${url}</a>
+       <button class="copy-link-btn" data-copy="${url}" type="button">Copy</button>`;
+    waiterLoginUrl.querySelector('.copy-link-btn')?.addEventListener('click', handleCopyBtn);
+  }
+
   renderStaff(staffList || [], waiterTables, waiterStats);
 }
 
@@ -1130,6 +1152,7 @@ function renderStaff(staffList, waiterTables, waiterStats) {
     const codeHtml = isWaiter ? `
       <div class="staff-code-row">
         <span class="staff-code-badge">${member.access_code || 'No code'}</span>
+        ${member.access_code ? `<button class="copy-link-btn" data-copy="${member.access_code}" type="button">Copy</button>` : ''}
         <button class="icon-btn view-profile-btn" data-id="${member.id}" type="button">View Profile</button>
         <button class="icon-btn regen-code-btn" data-id="${member.id}" type="button">↺ New Code</button>
         <button class="icon-btn danger deactivate-btn" data-id="${member.id}" data-name="${member.name || 'this waiter'}" type="button">Remove</button>
@@ -1160,6 +1183,9 @@ function renderStaff(staffList, waiterTables, waiterStats) {
   });
   list.querySelectorAll('.deactivate-btn').forEach(btn => {
     btn.addEventListener('click', () => deactivateWaiter(btn.dataset.id, btn.dataset.name));
+  });
+  list.querySelectorAll('.copy-link-btn').forEach(btn => {
+    btn.addEventListener('click', handleCopyBtn);
   });
 }
 
@@ -1354,9 +1380,12 @@ async function loadQrSection() {
   }
 
   const menuUrl = `${window.location.origin}/${restaurantSlug}/1`;
-  document.getElementById('qrMenuUrl').innerHTML =
+  const qrMenuUrlEl = document.getElementById('qrMenuUrl');
+  qrMenuUrlEl.innerHTML =
     `<span class="qr-url-label">Your menu link:</span>
-     <a class="qr-url-value" href="${menuUrl}" target="_blank" rel="noopener">${menuUrl}</a>`;
+     <a class="qr-url-value" href="${menuUrl}" target="_blank" rel="noopener">${menuUrl}</a>
+     <button class="copy-link-btn" data-copy="${menuUrl}" type="button">Copy</button>`;
+  qrMenuUrlEl.querySelector('.copy-link-btn')?.addEventListener('click', handleCopyBtn);
 
   const grid = document.getElementById('qrGrid');
   if (!tables || !tables.length) {
@@ -1418,6 +1447,10 @@ async function loadSettings() {
   document.querySelectorAll('.layout-option').forEach(btn => {
     btn.classList.toggle('layout-option--active', btn.dataset.layout === layout);
   });
+
+  const { data: { user } } = await db.auth.getUser();
+  const emailDisplayEl = document.getElementById('accountCurrentEmail');
+  if (emailDisplayEl && user) emailDisplayEl.textContent = `Signed in as: ${user.email}`;
 }
 
 function initSettingsForm() {
@@ -1435,6 +1468,52 @@ function initSettingsForm() {
       btn.classList.add('layout-option--active');
       selectedLayout = btn.dataset.layout;
     });
+  });
+
+  document.getElementById('profileSaveBtn')?.addEventListener('click', async () => {
+    const emailVal  = document.getElementById('profileEmail').value.trim();
+    const pwVal     = document.getElementById('profilePassword').value;
+    const pwConf    = document.getElementById('profilePasswordConfirm').value;
+    const msgEl     = document.getElementById('profileSavedMsg');
+
+    if (!emailVal && !pwVal) {
+      msgEl.textContent = 'Enter a new email or password to update.';
+      msgEl.style.color = '#E85A5A';
+      return;
+    }
+    if (pwVal && pwVal.length < 8) {
+      msgEl.textContent = 'Password must be at least 8 characters.';
+      msgEl.style.color = '#E85A5A';
+      return;
+    }
+    if (pwVal && pwVal !== pwConf) {
+      msgEl.textContent = 'Passwords do not match.';
+      msgEl.style.color = '#E85A5A';
+      return;
+    }
+
+    const updates = {};
+    if (emailVal) updates.email = emailVal;
+    if (pwVal) updates.password = pwVal;
+
+    const { error } = await db.auth.updateUser(updates);
+    if (error) {
+      msgEl.textContent = error.message;
+      msgEl.style.color = '#E85A5A';
+    } else {
+      msgEl.textContent = emailVal
+        ? 'Done! Check your new email to confirm the change.'
+        : 'Password updated successfully.';
+      msgEl.style.color = 'var(--accent)';
+      document.getElementById('profileEmail').value = '';
+      document.getElementById('profilePassword').value = '';
+      document.getElementById('profilePasswordConfirm').value = '';
+      if (emailVal) {
+        const emailDisplayEl = document.getElementById('accountCurrentEmail');
+        if (emailDisplayEl) emailDisplayEl.textContent = `Signed in as: ${emailVal} (pending confirmation)`;
+      }
+      setTimeout(() => { msgEl.textContent = ''; }, 5000);
+    }
   });
 
   document.getElementById('settingsForm').addEventListener('submit', async (e) => {

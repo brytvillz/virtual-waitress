@@ -1071,6 +1071,7 @@
   flex-wrap: wrap;
   margin-top: 6px;
 }
+.staff-code-row .copy-link-btn { margin-left: 0; }
 
 .staff-code-badge {
   font-family: 'Courier New', monospace;
@@ -1266,6 +1267,22 @@
   text-decoration: none;
 }
 .qr-url-value:hover { text-decoration: underline; }
+
+.copy-link-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: var(--surface2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.copy-link-btn:hover { background: var(--border); color: var(--text-body); }
+.copy-link-btn--done { background: var(--accent); color: #000; border-color: transparent; }
 
 .qr-admin-grid {
   display: grid;

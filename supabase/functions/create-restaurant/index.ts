@@ -182,6 +182,16 @@ Deno.serve(async (req) => {
         .eq('id', promoRow.id);
     }
 
+    // ── Send welcome email (fire-and-forget) ──────────────────────────────────
+    fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-welcome`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      },
+      body: JSON.stringify({ email: email.trim(), restaurant_name: restaurant_name.trim(), slug }),
+    }).catch(() => {});
+
     return new Response(JSON.stringify({
       success: true,
       slug,
