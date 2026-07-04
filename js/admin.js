@@ -2015,6 +2015,13 @@ function renderWizardStep(overlay, step) {
 
 // ── Claude AI helpers ──────────────────────────────────────────────────────────
 
+function summariseAIError(msg) {
+  if (!msg) return 'No response from Ada — try again.';
+  if (msg.toLowerCase().includes('quota')) return 'AI quota exceeded — try again in a moment.';
+  if (msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('api_key')) return 'AI not configured — contact support.';
+  return msg.length > 80 ? msg.slice(0, 80) + '…' : msg;
+}
+
 async function claudeAI(payload) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/claude-ai`, {
     method: 'POST',
@@ -2022,7 +2029,8 @@ async function claudeAI(payload) {
     body: JSON.stringify(payload),
   });
   const data = await res.json();
-  if (!res.ok && !data.error) data.error = `Server error ${res.status}`;
+  if (data.error) data.error = summariseAIError(data.error);
+  else if (!res.ok) data.error = `Server error ${res.status}`;
   return data;
 }
 
