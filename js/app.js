@@ -213,35 +213,6 @@ function updateOrderSummary() {
 
 // ── Magazine rendering ────────────────────────────────────────────────────────
 
-function renderHeroItem(item, catId, catImgSrc) {
-  const soldOut = item.available === false;
-  const qty     = (orderState[item.name] || {}).qty || 0;
-  const imgSrc  = item.image_url || catImgSrc;
-
-  const stepper = soldOut
-    ? '<span class="item-sold-out-tag">Sold Out</span>'
-    : `<div class="qty-stepper" data-item="${item.name}" data-price="${item.price}">
-         <button class="qty-btn qty-minus" aria-label="Remove">−</button>
-         <span class="qty-value">${qty}</span>
-         <button class="qty-btn qty-plus" aria-label="Add">+</button>
-       </div>`;
-
-  return `
-    <div class="mag-hero ${soldOut ? 'sold-out' : ''}" data-item="${item.name}" data-cat="${catId}">
-      <div class="mag-hero-visual">
-        ${imgSrc ? `<img class="mag-hero-img" src="${imgSrc}" alt="${item.name}" loading="lazy" />` : ''}
-        <div class="mag-hero-overlay"></div>
-        <div class="mag-hero-body">
-          <h3 class="mag-hero-name">${item.name}</h3>
-          ${item.description ? `<p class="mag-hero-desc">${item.description}</p>` : ''}
-          <div class="mag-hero-footer">
-            <span class="mag-hero-price">${formatPrice(item.price)}</span>
-            ${stepper}
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
 
 function renderGridCard(item, catId) {
   const soldOut = item.available === false;
@@ -272,19 +243,19 @@ function renderGridCard(item, catId) {
 
 function renderCategorySection(cat) {
   if (!cat.items.length) return '';
-  const [hero, ...rest] = cat.items;
   const catImg = CAT_IMAGES[cat.id] || null;
 
   return `
     <section class="mag-section" id="cat-${cat.id}" data-cat="${cat.id}">
-      <div class="mag-section-label">
-        <div class="mag-section-line"></div>
-        <span class="mag-section-emoji">${cat.emoji || '🍽️'}</span>
-        <h2 class="mag-section-title">${cat.name}</h2>
-        <div class="mag-section-line"></div>
+      <div class="mag-cat-banner">
+        ${catImg ? `<img class="mag-cat-banner-img" src="${catImg}" alt="${cat.name}" loading="lazy" />` : ''}
+        <div class="mag-cat-banner-overlay"></div>
+        <div class="mag-cat-banner-body">
+          <span class="mag-cat-banner-emoji">${cat.emoji || '🍽️'}</span>
+          <h2 class="mag-cat-banner-name">${cat.name}</h2>
+        </div>
       </div>
-      ${renderHeroItem(hero, cat.id, catImg)}
-      ${rest.length ? `<div class="mag-grid">${rest.map(i => renderGridCard(i, cat.id)).join('')}</div>` : ''}
+      <div class="mag-grid">${cat.items.map(i => renderGridCard(i, cat.id)).join('')}</div>
     </section>`;
 }
 

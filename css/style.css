@@ -1973,23 +1973,16 @@ body {
   flex-shrink: 0;
 }
 
-/* ── Hero item card ──────────────────────────────────────────────────────── */
+/* ── Category banner ─────────────────────────────────────────────────────── */
 
-.mag-hero {
+.mag-cat-banner {
   position: relative;
-  margin: 0 16px 4px;
-  border-radius: 18px;
+  aspect-ratio: 16 / 7;
   overflow: hidden;
-  cursor: pointer;
+  background: linear-gradient(135deg, rgba(196,30,58,0.5) 0%, rgba(13,13,13,0.9) 100%);
 }
 
-.mag-hero-visual {
-  position: relative;
-  aspect-ratio: 4 / 3;
-  background: linear-gradient(135deg, rgba(196,30,58,0.4) 0%, rgba(13,13,13,0.8) 100%);
-}
-
-.mag-hero-img {
+.mag-cat-banner-img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1998,55 +1991,41 @@ body {
   display: block;
 }
 
-.mag-hero-overlay {
+.mag-cat-banner-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(
     to bottom,
-    transparent 30%,
-    rgba(0,0,0,0.8) 100%
+    rgba(0,0,0,0.08) 0%,
+    rgba(0,0,0,0.74) 100%
   );
 }
 
-.mag-hero-body {
+.mag-cat-banner-body {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px;
-}
-
-.mag-hero-name {
-  font-family: var(--serif, 'Playfair Display', Georgia, serif);
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: #fff;
-  margin: 0 0 4px;
-  line-height: 1.2;
-  text-shadow: 0 1px 8px rgba(0,0,0,0.6);
-}
-
-.mag-hero-desc {
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.65);
-  margin: 0 0 10px;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.mag-hero-footer {
+  padding: 14px 20px 18px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
 }
 
-.mag-hero-price {
-  font-size: 1.1rem;
-  font-weight: 800;
+.mag-cat-banner-emoji {
+  font-size: 1.7rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.mag-cat-banner-name {
+  font-family: var(--serif, 'Playfair Display', Georgia, serif);
+  font-size: 1.9rem;
+  font-weight: 700;
   color: #fff;
+  margin: 0;
+  line-height: 1.1;
+  text-shadow: 0 2px 14px rgba(0,0,0,0.75);
 }
 
 /* ── 2-column grid ───────────────────────────────────────────────────────── */
@@ -2128,10 +2107,7 @@ body {
 }
 
 /* Sold out states */
-.mag-hero.sold-out .mag-hero-visual,
 .mag-card.sold-out .mag-card-img-wrap { opacity: 0.45; }
-
-.mag-hero.sold-out .mag-hero-name,
 .mag-card.sold-out .mag-card-name { opacity: 0.5; }
 
 /* ── Cover page — character row ───────────────────────────────────────────── */
