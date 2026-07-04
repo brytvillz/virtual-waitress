@@ -370,7 +370,10 @@
         <h2 id="itemModalTitle">Edit Item</h2>
         <label class="modal-field-label">Name<input type="text" id="itemName" required /></label>
         <label class="modal-field-label">Price (₦)<input type="number" id="itemPrice" min="0" required /></label>
-        <label class="modal-field-label">Description<textarea id="itemDescription" rows="2"></textarea></label>
+        <div class="ada-gen-wrap">
+          <label class="modal-field-label">Description<textarea id="itemDescription" rows="2"></textarea></label>
+          <button type="button" class="ada-gen-btn" id="genItemDesc">&#10024; Generate</button>
+        </div>
         <div class="ada-gen-wrap">
           <label class="modal-field-label">Ada's message<textarea id="itemAdaMessage" rows="2" placeholder="Ada's note about this item"></textarea></label>
           <button type="button" class="ada-gen-btn" id="genItemAda">&#10024; Generate</button>

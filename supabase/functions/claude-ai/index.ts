@@ -48,6 +48,16 @@ serve(async (req) => {
       return json({ message });
     }
 
+    // ── Item description ───────────────────────────────────────────────────────
+    if (action === 'item-description') {
+      const { item_name, restaurant_name = 'a Nigerian restaurant' } = body;
+      const prompt =
+        `Write a short appetising description (1 sentence, max 15 words) for a menu item called "${item_name}" at ${restaurant_name}. ` +
+        `Be specific and mouth-watering. No emojis. No quotation marks. Write only the description.`;
+      const message = await gemini(GEMINI_MODEL, [{ text: prompt }], API_KEY);
+      return json({ message });
+    }
+
     // ── Menu scanner: extract items from photo ─────────────────────────────────
     if (action === 'scan-menu') {
       const { image_base64, media_type = 'image/jpeg' } = body;

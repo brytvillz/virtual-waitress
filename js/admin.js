@@ -2041,6 +2041,19 @@ function initAdaGenerators() {
     document.getElementById('categoryAdaMessage').value = message;
   });
 
+  // Item modal — generate description from item name
+  document.getElementById('genItemDesc').addEventListener('click', async function () {
+    const name = document.getElementById('itemName').value.trim();
+    if (!name) { showPlanNudge('Enter an item name first', 'Ada needs the item name to write a description.'); return; }
+    this.textContent = '⏳ Generating…';
+    this.disabled = true;
+    const { message, error } = await claudeAI({ action: 'item-description', item_name: name, restaurant_name: restaurantName || 'our restaurant' });
+    this.textContent = '✨ Generate';
+    this.disabled = false;
+    if (error || !message) { showPlanNudge('Generation failed', error || 'No response from Ada — try again.'); return; }
+    document.getElementById('itemDescription').value = message;
+  });
+
   // Item modal — generate Ada message from item name
   document.getElementById('genItemAda').addEventListener('click', async function () {
     const name = document.getElementById('itemName').value.trim();
