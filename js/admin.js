@@ -2021,7 +2021,9 @@ async function claudeAI(payload) {
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
     body: JSON.stringify(payload),
   });
-  return res.json();
+  const data = await res.json();
+  if (!res.ok && !data.error) data.error = `Server error ${res.status}`;
+  return data;
 }
 
 function initAdaGenerators() {
@@ -2035,7 +2037,7 @@ function initAdaGenerators() {
     const { message, error } = await claudeAI({ action: 'ada-message', category_name: name, items: catItems, restaurant_name: restaurantName || 'our restaurant' });
     this.textContent = '✨ Generate';
     this.disabled = false;
-    if (error || !message) { showPlanNudge('Generation failed', 'Could not reach Ada. Check your API key.'); return; }
+    if (error || !message) { showPlanNudge('Generation failed', error || 'No response from Ada — try again.'); return; }
     document.getElementById('categoryAdaMessage').value = message;
   });
 
@@ -2048,7 +2050,7 @@ function initAdaGenerators() {
     const { message, error } = await claudeAI({ action: 'ada-message', category_name: name, items: [], restaurant_name: restaurantName || 'our restaurant' });
     this.textContent = '✨ Generate';
     this.disabled = false;
-    if (error || !message) { showPlanNudge('Generation failed', 'Could not reach Ada. Check your API key.'); return; }
+    if (error || !message) { showPlanNudge('Generation failed', error || 'No response from Ada — try again.'); return; }
     document.getElementById('itemAdaMessage').value = message;
   });
 }
