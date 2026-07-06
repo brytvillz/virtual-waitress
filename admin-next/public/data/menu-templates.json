@@ -1,0 +1,85 @@
+[
+  {
+    "id": "nigerian-restaurant",
+    "name": "Nigerian Restaurant",
+    "description": "Soups, swallows, rice dishes, grills, small chops & drinks — ready to customise",
+    "emoji": "🍲",
+    "categories": [
+      {
+        "name": "Soups",
+        "emoji": "🥣",
+        "ada_message": "Our soups are made fresh every morning! 🥣 Tap any soup to learn more about it.",
+        "items": [
+          { "name": "Egusi Soup",    "price": 1500, "description": "Rich ground melon seed soup with assorted meat",                  "ada_message": "Egusi is loaded with protein and healthy fats — great with pounded yam! 💪" },
+          { "name": "Ofe Onugbu",   "price": 1500, "description": "Bitterleaf soup with assorted meat and stockfish — an Igbo classic", "ada_message": "A true Igbo classic! The slight bitterness is what makes it special 😋" },
+          { "name": "Oha Soup",     "price": 1800, "description": "Seasonal delicacy with cocoyam thickener and oha leaves",          "ada_message": "Oha leaves are packed with vitamins A and C — very nutritious! 🌿" },
+          { "name": "Ogbono Soup",  "price": 1500, "description": "Draw soup with assorted meat — smooth and filling",                 "ada_message": "Ogbono is great for digestion and keeps you full for hours 👌" },
+          { "name": "Nsala Soup",   "price": 2000, "description": "White soup with fresh catfish — light and fragrant",               "ada_message": "Light and fresh! Very popular with our guests 🐟" },
+          { "name": "Ofe Akwu",    "price": 1500, "description": "Palm fruit soup — a true Eastern Nigerian classic",                 "ada_message": "Rich in vitamin E and antioxidants — good for your skin and heart! ✨" }
+        ]
+      },
+      {
+        "name": "Swallows",
+        "emoji": "🫓",
+        "ada_message": "Pounded yam is our most popular swallow! 😋 It pairs perfectly with any soup on our menu.",
+        "items": [
+          { "name": "Pounded Yam", "price": 800,  "description": "Smooth and satisfying — our most popular swallow",          "ada_message": "Our number one! Freshly pounded, smooth and stretchy — pairs with any soup 🤩" },
+          { "name": "Eba (Garri)", "price": 400,  "description": "Light and quick — perfect everyday meal",                    "ada_message": "Eba is light on the stomach, very filling, and quick to prepare!" },
+          { "name": "Fufu",        "price": 500,  "description": "Traditional and filling — the original swallow",            "ada_message": "High in resistant starch which feeds the good bacteria in your gut 💚" },
+          { "name": "Semolina",    "price": 600,  "description": "Smooth texture, easy on the stomach",                       "ada_message": "Super smooth and easy to swallow — popular with guests who prefer it mild 😊" },
+          { "name": "Wheat",       "price": 600,  "description": "High in fibre — the healthy swallow choice",                "ada_message": "The healthiest swallow we offer! High in fibre and nutrients 🌾" }
+        ]
+      },
+      {
+        "name": "Rice Dishes",
+        "emoji": "🍚",
+        "ada_message": "Our Jollof Rice is smoky and cooked the party way 🍚 — the real deal!",
+        "items": [
+          { "name": "Jollof Rice",        "price": 1500, "description": "Smoky party-style jollof — cooked over firewood",                   "ada_message": "The real deal! Smoky bottom-pot jollof cooked over firewood 🍚🔥" },
+          { "name": "Fried Rice",         "price": 1500, "description": "Colourful and flavourful with mixed vegetables and proteins",         "ada_message": "Colourful, flavourful, and loaded with vegetables 🥕" },
+          { "name": "White Rice & Stew",  "price": 1200, "description": "Classic comfort food with rich tomato stew",                         "ada_message": "Classic Nigerian comfort food — sometimes simple is best 🍅" },
+          { "name": "Coconut Rice",       "price": 1800, "description": "Fragrant and creamy — a weekend favourite",                          "ada_message": "Fragrant coconut rice that sells out fast — grab it while you can! 🥥" }
+        ]
+      },
+      {
+        "name": "Grills & Peppered",
+        "emoji": "🍗",
+        "ada_message": "Everything here is grilled fresh to order 🔥 The suya is an absolute must-try!",
+        "items": [
+          { "name": "Peppered Chicken",  "price": 2500, "description": "Spicy and tender — marinated and grilled to perfection",  "ada_message": "Marinated for hours before hitting the grill — the flavour goes all the way in! 🔥" },
+          { "name": "Suya",             "price": 1500, "description": "Skewered beef with our secret spice blend",                "ada_message": "Our suya spice blend is a family secret 🥩" },
+          { "name": "Peppered Gizzard", "price": 1200, "description": "Crunchy, spicy, and completely addictive",                 "ada_message": "High in protein, low in fat — and absolutely addictive! 😄" },
+          { "name": "Peppered Fish",    "price": 2000, "description": "Fresh catfish, heavily peppered and grilled",              "ada_message": "Fresh catfish, heavily peppered 🐟🔥 A real crowd favourite!" },
+          { "name": "Peppered Ponmo",   "price": 1000, "description": "Soft cow skin, peppered and stewed",                      "ada_message": "Soft, chewy ponmo in our peppered sauce — great as a side 😋" }
+        ]
+      },
+      {
+        "name": "Small Chops",
+        "emoji": "🫔",
+        "ada_message": "Perfect for sharing or a light snack! Our puff puff is made fresh every morning 🤤",
+        "items": [
+          { "name": "Puff Puff",    "price": 500, "description": "6 pieces — soft, sweet, freshly fried",              "ada_message": "Made fresh every morning — soft, golden, and slightly sweet 🤤" },
+          { "name": "Meat Pie",     "price": 400, "description": "Flaky pastry filled with spiced minced meat",         "ada_message": "Baked fresh, never reheated! Flaky golden crust with perfect filling 🥧" },
+          { "name": "Moi Moi",      "price": 500, "description": "Steamed bean pudding — high in plant protein",        "ada_message": "Loaded with plant protein — great for energy and keeps you full 💪" },
+          { "name": "Spring Roll",  "price": 600, "description": "4 pieces — crispy fried rolls with vegetable filling", "ada_message": "Crispy outside, loaded with veggies inside — perfect for sharing! 🥬" },
+          { "name": "Buns",         "price": 300, "description": "Sweet fried dough balls — a Nigerian classic",         "ada_message": "A Nigerian childhood classic! Sweet, soft, and dangerously addictive 😄" }
+        ]
+      },
+      {
+        "name": "Drinks",
+        "emoji": "🥤",
+        "ada_message": "We have cold drinks to go with your meal — ask your waiter! 🥤",
+        "items": [
+          { "name": "Coca-Cola",      "price": 300, "description": "Ice cold",                                "ada_message": "Nothing beats an ice cold Coke with your meal! 🥤" },
+          { "name": "Fanta Orange",   "price": 300, "description": "Ice cold",                                "ada_message": "Sweet and fizzy — great for cooling down after spicy dishes! 🍊" },
+          { "name": "Sprite",         "price": 300, "description": "Ice cold",                                "ada_message": "Light and refreshing — perfect to cleanse the palate 💚" },
+          { "name": "Maltina",        "price": 400, "description": "Rich in B vitamins — great energy boost",  "ada_message": "Loaded with B vitamins — a natural energy boost! 🌟" },
+          { "name": "Water (50cl)",   "price": 200, "description": "Ice cold",                                "ada_message": "Stay hydrated! Especially important with the spicy dishes 💧" },
+          { "name": "Guinness Stout", "price": 700, "description": "Ice cold",                                "ada_message": "Smooth, rich, and refreshing — best enjoyed ice cold 🍺" },
+          { "name": "Star Lager",     "price": 600, "description": "Ice cold",                                "ada_message": "Nigeria's favourite! Smooth and refreshing 🌟🍺" },
+          { "name": "Chivita Juice",  "price": 500, "description": "Assorted flavours — apple, orange, mango", "ada_message": "100% fruit juice — great for kids and non-drinkers 🧃" }
+        ]
+      }
+    ]
+  }
+]
