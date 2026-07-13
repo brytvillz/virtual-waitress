@@ -93,7 +93,7 @@ export default function LoginPage() {
 
         <p className="text-center text-[#4a4a4a] text-xs mt-6">
           Don&apos;t have an account?{' '}
-          <a href="https://app.virtualwaitress.com/signup.html" className="text-[#9a9098] hover:text-[#F0EDE8] transition-colors">
+          <a href="/signup" className="text-[#9a9098] hover:text-[#F0EDE8] transition-colors">
             Sign up
           </a>
         </p>
