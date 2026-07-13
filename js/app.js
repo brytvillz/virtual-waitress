@@ -14,11 +14,11 @@ const CAT_IMAGES = {
 };
 
 const CHARACTERS = {
-  ada:       { src: 'images/ada.png',       name: 'Ada',        role: 'Friendly & attentive'  },
-  chisom:    { src: 'images/chisom.png',    name: 'Chisom',     role: 'Warm & welcoming'       },
-  emeka:     { src: 'images/emeka.png',     name: 'Emeka',      role: 'Quick & sharp'          },
-  mamachef:  { src: 'images/mamachef.png',  name: 'Mama Chef',  role: 'Knows every dish'       },
-  cheftunde: { src: 'images/cheftunde.png', name: 'Chef Tunde', role: 'The grill master'       },
+  ada:       { src: 'images/ada.webp',       name: 'Ada',        role: 'Friendly & attentive'  },
+  chisom:    { src: 'images/chisom.webp',    name: 'Chisom',     role: 'Warm & welcoming'       },
+  emeka:     { src: 'images/emeka.webp',     name: 'Emeka',      role: 'Quick & sharp'          },
+  mamachef:  { src: 'images/mamachef.webp',  name: 'Mama Chef',  role: 'Knows every dish'       },
+  cheftunde: { src: 'images/cheftunde.webp', name: 'Chef Tunde', role: 'The grill master'       },
 };
 
 
@@ -821,10 +821,10 @@ function initMyOrder() {
 const SPLASH_MIN_MS = 5000; // always show full 5s — first impression matters
 // Lady appears 3× to give her 75% frequency
 const SPLASH_CHARS  = [
-  'images/splash-waitress.png',
-  'images/splash-waitress.png',
-  'images/splash-waitress.png',
-  'images/splash-chef.png',
+  'images/splash-waitress.webp',
+  'images/splash-waitress.webp',
+  'images/splash-waitress.webp',
+  'images/splash-chef.webp',
 ];
 let _splashStart = 0;
 
