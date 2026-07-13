@@ -21,6 +21,32 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim()
+            || req.headers.get('x-real-ip')
+            || 'unknown';
+
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    // ── Rate limit: max 5 signup attempts per IP per hour ────────────────────
+    const windowStart = new Date(Date.now() - 3600_000).toISOString();
+    const { count } = await admin
+      .from('signup_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('ip', ip)
+      .gte('created_at', windowStart);
+
+    if ((count ?? 0) >= 5) {
+      return new Response(JSON.stringify({ error: 'Too many signup attempts. Please try again in an hour.' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    await admin.from('signup_attempts').insert({ ip });
+
     const { restaurant_name, email, password, promo_code } = await req.json();
 
     if (!restaurant_name?.trim() || !email?.trim() || !password) {
@@ -44,11 +70,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
 
     // ── Validate promo code (if provided) ────────────────────────────────────
     type PromoRow = { id: string; plan: string; duration_days: number | null; uses_count: number };
