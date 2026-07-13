@@ -11,6 +11,7 @@ const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT")!;
 const SB_URL = Deno.env.get("SB_URL")!;
 const SB_SERVICE_ROLE_KEY = Deno.env.get("SB_SERVICE_ROLE_KEY")!;
+const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET")!;
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
@@ -19,6 +20,11 @@ webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 const supabase = createClient(SB_URL, SB_SERVICE_ROLE_KEY);
 
 Deno.serve(async (req) => {
+  const secret = req.headers.get("x-webhook-secret");
+  if (!secret || secret !== WEBHOOK_SECRET) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   const payload = await req.json();
   const record = payload.record;
   const table = payload.table;

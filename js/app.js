@@ -1,5 +1,9 @@
 // Virtual Waitress — Magazine layout
 
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 const CAT_IMAGES = {
   soups:         'images/cat-soups.jpg',
   swallows:      'images/cat-swallows.jpg',
@@ -220,19 +224,19 @@ function renderGridCard(item, catId) {
 
   const stepper = soldOut
     ? '<span class="item-sold-out-tag">Sold Out</span>'
-    : `<div class="qty-stepper mag-stepper" data-item="${item.name}" data-price="${item.price}">
+    : `<div class="qty-stepper mag-stepper" data-item="${esc(item.name)}" data-price="${item.price}">
          <button class="qty-btn qty-minus" aria-label="Remove">−</button>
          <span class="qty-value">${qty}</span>
          <button class="qty-btn qty-plus" aria-label="Add">+</button>
        </div>`;
 
   return `
-    <div class="mag-card ${soldOut ? 'sold-out' : ''}" data-item="${item.name}" data-cat="${catId}">
+    <div class="mag-card ${soldOut ? 'sold-out' : ''}" data-item="${esc(item.name)}" data-cat="${esc(catId)}">
       <div class="mag-card-img-wrap">
-        ${item.image_url ? `<img class="mag-card-img" src="${item.image_url}" alt="${item.name}" loading="lazy" />` : ''}
+        ${item.image_url ? `<img class="mag-card-img" src="${esc(item.image_url)}" alt="${esc(item.name)}" loading="lazy" />` : ''}
       </div>
       <div class="mag-card-body">
-        <p class="mag-card-name">${item.name}</p>
+        <p class="mag-card-name">${esc(item.name)}</p>
         <div class="mag-card-footer">
           <span class="mag-card-price">${formatPrice(item.price)}</span>
           ${stepper}
@@ -246,13 +250,13 @@ function renderCategorySection(cat) {
   const catImg = CAT_IMAGES[cat.id] || null;
 
   return `
-    <section class="mag-section" id="cat-${cat.id}" data-cat="${cat.id}">
+    <section class="mag-section" id="cat-${esc(cat.id)}" data-cat="${esc(cat.id)}">
       <div class="mag-cat-banner">
-        ${catImg ? `<img class="mag-cat-banner-img" src="${catImg}" alt="${cat.name}" loading="lazy" />` : ''}
+        ${catImg ? `<img class="mag-cat-banner-img" src="${catImg}" alt="${esc(cat.name)}" loading="lazy" />` : ''}
         <div class="mag-cat-banner-overlay"></div>
         <div class="mag-cat-banner-body">
-          <span class="mag-cat-banner-emoji">${cat.emoji || '🍽️'}</span>
-          <h2 class="mag-cat-banner-name">${cat.name}</h2>
+          <span class="mag-cat-banner-emoji">${esc(cat.emoji) || '🍽️'}</span>
+          <h2 class="mag-cat-banner-name">${esc(cat.name)}</h2>
         </div>
       </div>
       <div class="mag-grid">${cat.items.map(i => renderGridCard(i, cat.id)).join('')}</div>
@@ -294,8 +298,8 @@ function renderClassicList(categories) {
     .map(cat => `
       <section class="classic-section" id="cat-${cat.id}" data-cat="${cat.id}">
         <div class="classic-cat-header">
-          <span class="classic-cat-emoji">${cat.emoji || ''}</span>
-          <h2 class="classic-cat-name">${cat.name}</h2>
+          <span class="classic-cat-emoji">${esc(cat.emoji) || ''}</span>
+          <h2 class="classic-cat-name">${esc(cat.name)}</h2>
         </div>
         <div class="classic-items">
           ${cat.items.map(item => renderClassicItem(item, cat.id)).join('')}
@@ -313,16 +317,16 @@ function renderClassicItem(item, catId) {
   const qty     = (orderState[item.name] || {}).qty || 0;
   const stepper = soldOut
     ? '<span class="item-sold-out-tag">Sold Out</span>'
-    : `<div class="qty-stepper" data-item="${item.name}" data-price="${item.price}">
+    : `<div class="qty-stepper" data-item="${esc(item.name)}" data-price="${item.price}">
          <button class="qty-btn qty-minus" aria-label="Remove">−</button>
          <span class="qty-value">${qty}</span>
          <button class="qty-btn qty-plus" aria-label="Add">+</button>
        </div>`;
   return `
-    <div class="classic-item${soldOut ? ' sold-out' : ''}" data-item="${item.name}" data-cat="${catId}">
+    <div class="classic-item${soldOut ? ' sold-out' : ''}" data-item="${esc(item.name)}" data-cat="${esc(catId)}">
       <div class="classic-item-body">
-        <p class="classic-item-name">${item.name}</p>
-        ${item.description ? `<p class="classic-item-desc">${item.description}</p>` : ''}
+        <p class="classic-item-name">${esc(item.name)}</p>
+        ${item.description ? `<p class="classic-item-desc">${esc(item.description)}</p>` : ''}
       </div>
       <div class="classic-item-right">
         <p class="classic-item-price">${formatPrice(item.price)}</p>
@@ -346,8 +350,8 @@ function renderVisualGrid(categories) {
       return `
         <section class="vgrid-section" id="cat-${cat.id}" data-cat="${cat.id}">
           <div class="vgrid-cat-header">
-            <span class="vgrid-cat-emoji">${cat.emoji || ''}</span>
-            <h2 class="vgrid-cat-name">${cat.name}</h2>
+            <span class="vgrid-cat-emoji">${esc(cat.emoji) || ''}</span>
+            <h2 class="vgrid-cat-name">${esc(cat.name)}</h2>
           </div>
           <div class="vgrid-items">
             ${cat.items.map(item => renderGridItem(item, cat.id, fallback)).join('')}
@@ -367,21 +371,21 @@ function renderGridItem(item, catId, fallbackImg) {
   const imgSrc  = item.image_url || fallbackImg;
   const stepper = soldOut
     ? '<span class="item-sold-out-tag">Sold Out</span>'
-    : `<div class="qty-stepper" data-item="${item.name}" data-price="${item.price}">
+    : `<div class="qty-stepper" data-item="${esc(item.name)}" data-price="${item.price}">
          <button class="qty-btn qty-minus" aria-label="Remove">−</button>
          <span class="qty-value">${qty}</span>
          <button class="qty-btn qty-plus" aria-label="Add">+</button>
        </div>`;
   return `
-    <div class="vgrid-card${soldOut ? ' sold-out' : ''}" data-item="${item.name}" data-cat="${catId}">
+    <div class="vgrid-card${soldOut ? ' sold-out' : ''}" data-item="${esc(item.name)}" data-cat="${esc(catId)}">
       <div class="vgrid-img-wrap">
         ${imgSrc
-          ? `<img class="vgrid-img" src="${imgSrc}" alt="${item.name}" loading="lazy" />`
-          : `<div class="vgrid-img-placeholder">${item.emoji || '🍽️'}</div>`}
+          ? `<img class="vgrid-img" src="${esc(imgSrc)}" alt="${esc(item.name)}" loading="lazy" />`
+          : `<div class="vgrid-img-placeholder">${esc(item.emoji) || '🍽️'}</div>`}
         ${soldOut ? '<span class="vgrid-sold-badge">Sold Out</span>' : ''}
       </div>
       <div class="vgrid-body">
-        <p class="vgrid-name">${item.name}</p>
+        <p class="vgrid-name">${esc(item.name)}</p>
         <div class="vgrid-footer">
           <span class="vgrid-price">${formatPrice(item.price)}</span>
           ${stepper}
@@ -394,7 +398,7 @@ function initCategoryNav(categories) {
   const inner = document.getElementById('magNavInner');
   inner.innerHTML = categories
     .filter(c => c.items.length)
-    .map(c => `<button class="mag-pill" data-cat="${c.id}">${c.emoji || ''} ${c.name}</button>`)
+    .map(c => `<button class="mag-pill" data-cat="${esc(c.id)}">${esc(c.emoji) || ''} ${esc(c.name)}</button>`)
     .join('');
 
   inner.querySelectorAll('.mag-pill').forEach(pill => {
@@ -779,7 +783,7 @@ function renderMyOrders(orders) {
     const time     = formatOrderTime(order.created_at);
     const itemRows = (order.order_items || []).map(i =>
       `<div class="my-order-item-row">
-        <span class="my-order-item-name"><span class="my-order-item-qty">${i.quantity}×</span> ${i.item_name}</span>
+        <span class="my-order-item-name"><span class="my-order-item-qty">${i.quantity}×</span> ${esc(i.item_name)}</span>
         <span class="my-order-item-price">₦${(i.quantity * i.price).toLocaleString()}</span>
       </div>`
     ).join('');

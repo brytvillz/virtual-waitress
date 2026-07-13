@@ -5,8 +5,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const SUPABASE_URL = 'https://rewdizxixvfytxnkcjyh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJld2RpenhpeHZmeXR4bmtjanloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1OTUyMjQsImV4cCI6MjA5NzE3MTIyNH0.JalhUqRkH4mHdZZsyZD0N3iNQWStCKptHc1fn8zLOas';
+const SUPABASE_URL      = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const SPLASH_MIN_MS = 5000;
 
 const CAT_IMAGES: Record<string, string> = {

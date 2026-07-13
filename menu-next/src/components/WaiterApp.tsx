@@ -3,9 +3,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { useState, useEffect, useRef } from 'react';
 
-const SUPABASE_URL = 'https://rewdizxixvfytxnkcjyh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJld2RpenhpeHZmeXR4bmtjanloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1OTUyMjQsImV4cCI6MjA5NzE3MTIyNH0.JalhUqRkH4mHdZZsyZD0N3iNQWStCKptHc1fn8zLOas';
-const VAPID_PUBLIC_KEY = 'BFrzpgDfqzIw6EeSnmB5KfxjmrOXkWxa9jdsxz_ZY6l44aobWVF1eWx7oQRnShFMgLGJfJOfuzBKB8baovjn8-g';
+const SUPABASE_URL     = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const VAPID_PUBLIC_KEY  = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
 
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { storageKey: 'vw_waiter_auth' },

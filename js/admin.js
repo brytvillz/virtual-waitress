@@ -1,6 +1,10 @@
 // Virtual Waitress — Admin Dashboard
 // Manager-only: analytics, menu editing, staff overview, table assignments, settings.
 
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 let categoriesCache = [];
 let itemsCache = [];
 let editingItemId = null;
@@ -645,7 +649,7 @@ function renderWaiterPerformance(staffList, todayOrders, hideRevenue = false) {
     return `
       <div class="dash-card waiter-perf-card">
         <div>
-          <div class="waiter-perf-name">${w.name || 'Unnamed'}</div>
+          <div class="waiter-perf-name">${esc(w.name) || 'Unnamed'}</div>
           <div class="waiter-perf-meta">${s.count} order${s.count !== 1 ? 's' : ''} handled today</div>
         </div>
         <div class="waiter-perf-right">
@@ -671,7 +675,7 @@ function renderBestSellers(orderItems) {
 
   list.innerHTML = ranked.map(([name, s], i) => `
     <div class="dash-card best-seller-card">
-      <span><span class="best-seller-rank">#${i + 1}</span>${name} — ${s.qty} sold</span>
+      <span><span class="best-seller-rank">#${i + 1}</span>${esc(name)} — ${s.qty} sold</span>
       <span>${formatPrice(s.revenue)}</span>
     </div>
   `).join('');
@@ -682,11 +686,11 @@ function renderRecentOrders(orders) {
   if (!orders.length) { list.innerHTML = '<p class="empty-state">No orders yet</p>'; return; }
 
   list.innerHTML = orders.map(order => {
-    const items = (order.order_items || []).map(i => `${i.quantity}× ${i.item_name}`).join(', ');
+    const items = (order.order_items || []).map(i => `${i.quantity}× ${esc(i.item_name)}`).join(', ');
     return `
       <div class="dash-card">
         <div class="dash-card-top">
-          <span class="dash-card-table">Table ${order.table_number} · ${order.status}</span>
+          <span class="dash-card-table">Table ${order.table_number} · ${esc(order.status)}</span>
           <span class="dash-card-time">${new Date(order.created_at).toLocaleString()}</span>
         </div>
         <div class="dash-card-items"><div>${items}</div></div>
@@ -826,10 +830,10 @@ function renderMenuEditor() {
     const itemsHtml = items.map(item => `
       <div class="item-edit-row" data-item-id="${item.id}">
         ${item.image_url
-          ? `<img class="item-edit-thumb" src="${item.image_url}" alt="${item.name}" loading="lazy" />`
+          ? `<img class="item-edit-thumb" src="${esc(item.image_url)}" alt="${esc(item.name)}" loading="lazy" />`
           : '<div class="item-edit-thumb-placeholder">🍽️</div>'}
         <div class="item-edit-info">
-          <span class="item-edit-name">${item.name} ${item.available ? '' : '· <span class="sold-out-label">Sold Out</span>'}</span>
+          <span class="item-edit-name">${esc(item.name)} ${item.available ? '' : '· <span class="sold-out-label">Sold Out</span>'}</span>
           <span class="item-edit-price">${formatPrice(item.price)}</span>
         </div>
         <div class="item-edit-actions">
@@ -846,14 +850,14 @@ function renderMenuEditor() {
     return `
       <div class="category-section" data-category-id="${cat.id}">
         <div class="category-section-header">
-          <span class="category-section-title"><span>${cat.emoji || ''}</span>${cat.name}</span>
+          <span class="category-section-title"><span>${esc(cat.emoji) || ''}</span>${esc(cat.name)}</span>
           <div class="category-section-actions">
             <button class="icon-btn edit-category-btn">Edit</button>
             <button class="icon-btn danger delete-category-btn">Delete</button>
           </div>
         </div>
         ${itemsHtml}
-        <button class="add-item-btn">+ Add item to ${cat.name}</button>
+        <button class="add-item-btn">+ Add item to ${esc(cat.name)}</button>
       </div>
     `;
   }).join('');
@@ -1151,23 +1155,23 @@ function renderStaff(staffList, waiterTables, waiterStats) {
 
     const codeHtml = isWaiter ? `
       <div class="staff-code-row">
-        <span class="staff-code-badge">${member.access_code || 'No code'}</span>
-        ${member.access_code ? `<button class="copy-link-btn" data-copy="${member.access_code}" type="button">Copy</button>` : ''}
+        <span class="staff-code-badge">${esc(member.access_code) || 'No code'}</span>
+        ${member.access_code ? `<button class="copy-link-btn" data-copy="${esc(member.access_code)}" type="button">Copy</button>` : ''}
         <button class="icon-btn view-profile-btn" data-id="${member.id}" type="button">View Profile</button>
         <button class="icon-btn regen-code-btn" data-id="${member.id}" type="button">↺ New Code</button>
-        <button class="icon-btn danger deactivate-btn" data-id="${member.id}" data-name="${member.name || 'this waiter'}" type="button">Remove</button>
+        <button class="icon-btn danger deactivate-btn" data-id="${member.id}" data-name="${esc(member.name) || 'this waiter'}" type="button">Remove</button>
       </div>
     ` : '';
 
     return `
       <div class="dash-card staff-card">
         <div class="staff-card-info">
-          <span class="staff-name">${member.name || 'Unnamed'}</span>
+          <span class="staff-name">${esc(member.name) || 'Unnamed'}</span>
           ${tablesHtml}
           ${codeHtml}
         </div>
         <div class="staff-card-meta">
-          <span class="role-badge role-badge--${member.role}">${member.role}</span>
+          <span class="role-badge role-badge--${esc(member.role)}">${esc(member.role)}</span>
           ${statsHtml}
         </div>
       </div>
@@ -1256,7 +1260,7 @@ function renderTableGrid(tables, assignments, waiters) {
     return;
   }
 
-  const waiterOptions = waiters.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+  const waiterOptions = waiters.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
 
   container.innerHTML = tables.map(table => {
     const assignment = assignmentMap[table.id];
@@ -1265,9 +1269,9 @@ function renderTableGrid(tables, assignments, waiters) {
       <div class="table-card ${isAssigned ? 'table-card--assigned' : ''}" data-table-id="${table.id}">
         <div class="table-card-header">
           <span class="table-card-number">${table.table_number}</span>
-          ${isAssigned ? `<span class="role-badge role-badge--waiter">${assignment.name.split(' ')[0]}</span>` : ''}
+          ${isAssigned ? `<span class="role-badge role-badge--waiter">${esc(assignment.name.split(' ')[0])}</span>` : ''}
         </div>
-        <span class="table-card-label">${table.label || 'Table ' + table.table_number}</span>
+        <span class="table-card-label">${esc(table.label) || 'Table ' + table.table_number}</span>
         <select class="table-assign-select" data-table-id="${table.id}">
           <option value="">Unassigned</option>
           ${waiterOptions}
@@ -1671,7 +1675,7 @@ function renderProfileShiftHistory(orders) {
   container.innerHTML = Object.entries(groups).map(([date, dayOrders]) => {
     const dayRevenue = dayOrders.reduce((s, o) => s + o.total, 0);
     const rows = dayOrders.map(o => {
-      const items = (o.order_items || []).map(i => `${i.quantity}× ${i.item_name}`).join(', ');
+      const items = (o.order_items || []).map(i => `${i.quantity}× ${esc(i.item_name)}`).join(', ');
       return `<div class="profile-order-row">
         <span class="profile-order-table">Table ${o.table_number}</span>
         <span class="profile-order-items">${items || '—'}</span>
@@ -2181,9 +2185,9 @@ function initMenuScanner() {
       scanResultsList.innerHTML = items.map((item, i) =>
         '<label class="scan-item-row">' +
           '<input type="checkbox" class="scan-item-check" data-index="' + i + '" checked />' +
-          '<span class="scan-item-name">' + (item.name || 'Unknown') + '</span>' +
+          '<span class="scan-item-name">' + (esc(item.name) || 'Unknown') + '</span>' +
           '<span class="scan-item-price">₦' + (item.price || 0).toLocaleString('en-NG') + '</span>' +
-          '<span class="scan-item-cat">' + (item.category || '') + '</span>' +
+          '<span class="scan-item-cat">' + esc(item.category || '') + '</span>' +
         '</label>'
       ).join('');
       scanResultsWrap.classList.remove('admin-hidden');
