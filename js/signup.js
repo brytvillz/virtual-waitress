@@ -212,7 +212,7 @@ document.getElementById('suForm').addEventListener('submit', async e => {
           '<h2 class="su-title">Verified!</h2>' +
           '<p class="su-subtitle">Logging you in<span class="su-otp-dots"><span>.</span><span>.</span><span>.</span></span></p>' +
         '</div>';
-      setTimeout(() => { window.location.href = '/admin'; }, 1800);
+      setTimeout(() => { window.location.href = 'https://dashboard.virtualwaitress.com'; }, 1800);
     }
 
     verifyBtn.addEventListener('click', submitOtp);

@@ -85,7 +85,7 @@ async function init() {
     }
 
     clearTimeout(timeout);
-    window.location.href = "/admin";
+    window.location.href = "https://dashboard.virtualwaitress.com";
   });
 }
 
