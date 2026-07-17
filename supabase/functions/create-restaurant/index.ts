@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Validate promo code (if provided) ────────────────────────────────────
-    type PromoRow = { id: string; plan: string; duration_days: number | null; uses_count: number };
+    type PromoRow = { id: string; plan: string; duration_days: number | null };
     let promoRow: PromoRow | null = null;
 
     if (promo_code?.trim()) {
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      promoRow = { id: promo.id, plan: promo.plan, duration_days: promo.duration_days, uses_count: promo.uses_count };
+      promoRow = { id: promo.id, plan: promo.plan, duration_days: promo.duration_days };
     }
 
     // ── Generate unique slug ──────────────────────────────────────────────────
@@ -195,12 +195,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Increment promo uses_count ────────────────────────────────────────────
+    // ── Atomically claim promo (SQL checks limit+expiry before incrementing) ──
     if (promoRow) {
-      await admin
-        .from('promo_codes')
-        .update({ uses_count: promoRow.uses_count + 1 })
-        .eq('id', promoRow.id);
+      await admin.rpc('claim_promo_uses', { p_promo_id: promoRow.id });
     }
 
     return new Response(JSON.stringify({
