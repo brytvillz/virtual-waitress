@@ -105,6 +105,10 @@ export default function TablesPage() {
     if (!restaurant) return;
     const num = parseInt(tableNumber);
     if (!num || num < 1) { setAddError('Enter a valid table number.'); return; }
+    if (restaurant.plan === 'free' && tables.length >= 5) {
+      setAddError('Free plan is limited to 5 tables. Upgrade to Pro for unlimited tables.');
+      return;
+    }
     setSaving(true);
     setAddError('');
     const supabase = createClient();
