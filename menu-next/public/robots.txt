@@ -1,0 +1,6 @@
+User-agent: *
+# Block table-specific menu pages — these are session URLs, not indexable content
+Disallow: /*/
+
+Allow: /
+Sitemap: https://virtualwaitress.com/sitemap.xml

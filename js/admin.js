@@ -181,7 +181,7 @@ function setActiveRestaurant(restaurant) {
   if (restaurant.plan_status === 'active') {
     const expired = currentPlanExpiresAt && new Date(currentPlanExpiresAt) < new Date();
     const raw = restaurant.plan || 'free';
-    plan = expired ? 'free' : (raw === 'growth' ? 'pro' : raw);
+    plan = expired ? 'free' : raw;
   }
   currentPlan = plan;
 
@@ -220,7 +220,7 @@ async function checkAccessAndEnter() {
 function applyPlanGating() {
   const badge = document.getElementById('sidebarPlanBadge');
   if (badge) {
-    const labels = { free: 'Free', pro: 'Pro', custom: 'Custom' };
+    const labels = { free: 'Free', growth: 'Growth', pro: 'Pro', custom: 'Custom' };
     badge.textContent = labels[currentPlan] || 'Free';
     badge.className = 'sidebar-plan-badge plan-' + currentPlan;
   }
@@ -250,8 +250,9 @@ function applyPlanGating() {
     if (currentPlanExpiresAt && currentPlan !== 'free') {
       const daysLeft = Math.ceil((new Date(currentPlanExpiresAt) - new Date()) / 86400000);
       if (daysLeft > 0 && daysLeft <= 7) {
+        const planLabel = { growth: 'Growth', pro: 'Pro', custom: 'Custom' }[currentPlan] || 'plan';
         bannerMsg.textContent =
-          `Your Pro plan expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}. Renew to keep your features.`;
+          `Your ${planLabel} plan expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}. Renew to keep your features.`;
         banner.classList.remove('admin-hidden');
       } else {
         banner.classList.add('admin-hidden');

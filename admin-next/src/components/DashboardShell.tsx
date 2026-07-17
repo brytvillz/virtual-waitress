@@ -78,7 +78,7 @@ export default function DashboardShell({
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
         {NAV.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href;
+          const active = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
           return (
             <Link
               key={href}
