@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SUPER_ADMIN_EMAIL = "codedbryt@gmail.com";
+const SUPER_ADMIN_EMAIL = "support@virtualwaitress.com";
 
 const supabase = createClient(
   Deno.env.get("SB_URL")!,
