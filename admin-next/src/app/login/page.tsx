@@ -62,8 +62,11 @@ export default function LoginPage() {
               />
             </label>
 
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">Password</span>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">Password</span>
+                <a href="/reset-password" className="text-[#6B6570] hover:text-[#C41E3A] text-xs transition-colors">Forgot password?</a>
+              </div>
               <input
                 type="password"
                 required
@@ -73,7 +76,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 className="bg-[#1f1f1f] border border-white/[0.08] rounded-xl px-4 py-3 text-[#F0EDE8] text-sm placeholder-[#4a4a4a] outline-none focus:border-[#C41E3A]/50 transition-colors"
               />
-            </label>
+            </div>
 
             {error && (
               <p className="text-[#ff6b6b] text-sm bg-[#ff6b6b]/10 border border-[#ff6b6b]/20 rounded-xl px-4 py-3">

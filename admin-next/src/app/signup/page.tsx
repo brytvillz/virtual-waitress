@@ -438,9 +438,9 @@ export default function SignupPage() {
                 </button>
               </form>
 
-              <p className="text-center text-[#4a4a4a] text-xs mt-6">
+              <p className="text-center text-[#6B6570] text-sm mt-6">
                 Already have an account?{' '}
-                <a href="/login" className="text-[#9a9098] hover:text-[#F0EDE8] transition-colors">Sign in</a>
+                <a href="/login" className="text-[#C41E3A] hover:underline transition-colors">Sign in</a>
               </p>
             </>
           )}
