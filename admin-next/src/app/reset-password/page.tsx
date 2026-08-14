@@ -26,7 +26,7 @@ function EyeIcon({ open }: { open: boolean }) {
   );
 }
 
-type Screen = 'checking' | 'invalid' | 'form' | 'done';
+type Screen = 'checking' | 'request' | 'request-sent' | 'invalid' | 'form' | 'done';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -39,6 +39,9 @@ export default function ResetPasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [error,       setError]       = useState('');
   const [loading,     setLoading]     = useState(false);
+  const [reqEmail,    setReqEmail]    = useState('');
+  const [reqLoading,  setReqLoading]  = useState(false);
+  const [reqError,    setReqError]    = useState('');
 
   useEffect(() => {
     // Supabase fires PASSWORD_RECOVERY when the page loads with a valid recovery hash
@@ -51,13 +54,13 @@ export default function ResetPasswordPage() {
     // Check for error in URL hash (e.g. otp_expired)
     const hash = new URLSearchParams(window.location.hash.slice(1));
     if (hash.get('error')) {
-      setScreen('invalid');
+      setScreen('request');
       return;
     }
 
-    // Fallback: if no recovery event within 6 seconds, link is expired
+    // Fallback: if no recovery event within 6 seconds, show request form
     const timeout = setTimeout(() => {
-      setScreen(s => s === 'checking' ? 'invalid' : s);
+      setScreen(s => s === 'checking' ? 'request' : s);
     }, 6000);
 
     return () => {
@@ -95,6 +98,74 @@ export default function ResetPasswordPage() {
         <div className="flex items-center gap-3 text-[#6B6570] text-sm">
           <span className="w-4 h-4 border-2 border-[#6B6570] border-t-transparent rounded-full animate-spin" />
           Verifying your reset link…
+        </div>
+      </div>
+    );
+  }
+
+  // ── Request reset link ────────────────────────────────────────────────────
+  async function handleRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setReqError('');
+    setReqLoading(true);
+    const { error: reqErr } = await supabase.auth.resetPasswordForEmail(reqEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setReqLoading(false);
+    if (reqErr) { setReqError('Could not send reset email. Check the address and try again.'); return; }
+    setScreen('request-sent');
+  }
+
+  if (screen === 'request') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f] px-4">
+        <div className="w-full max-w-sm">
+          <div className="flex items-center justify-center gap-3 mb-10">
+            <div className="w-9 h-9 rounded-[10px] bg-[#C41E3A] flex items-center justify-center">
+              <span className="text-white text-[10px] font-black tracking-wide">VW</span>
+            </div>
+            <span className="text-[#F0EDE8] text-base font-semibold tracking-tight">Virtual Waitress</span>
+          </div>
+          <div className="bg-[#161616] border border-white/[0.07] rounded-2xl p-8">
+            <h1 className="text-[#F0EDE8] text-xl font-bold mb-1">Reset password</h1>
+            <p className="text-[#6B6570] text-sm mb-7">Enter your email and we&apos;ll send you a reset link.</p>
+            <form onSubmit={handleRequest} className="flex flex-col gap-4">
+              <input
+                type="email" required placeholder="you@example.com"
+                value={reqEmail} onChange={e => setReqEmail(e.target.value)}
+                autoComplete="email"
+                className="bg-[#1f1f1f] border border-white/[0.08] rounded-xl px-4 py-3 text-[#F0EDE8] text-sm placeholder-[#4a4a4a] outline-none focus:border-[#C41E3A]/50 transition-colors"
+              />
+              {reqError && <p className="text-[#ff6b6b] text-sm">{reqError}</p>}
+              <button type="submit" disabled={reqLoading}
+                className="bg-[#C41E3A] hover:bg-[#a01830] disabled:opacity-50 text-white text-sm font-semibold rounded-xl py-3 transition-colors">
+                {reqLoading ? 'Sending…' : 'Send reset link'}
+              </button>
+            </form>
+          </div>
+          <p className="text-center mt-5">
+            <a href="/login" className="text-[#4a4a4a] hover:text-[#6B6570] text-xs transition-colors">Back to Login</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'request-sent') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f] px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-12 h-12 rounded-full bg-[#10b981]/10 border border-[#10b981]/30 flex items-center justify-center mx-auto mb-5">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+            </svg>
+          </div>
+          <h1 className="text-[#F0EDE8] text-xl font-bold mb-2">Check your email</h1>
+          <p className="text-[#6B6570] text-sm leading-relaxed">
+            We sent a reset link to <span className="text-[#F0EDE8]">{reqEmail}</span>.<br />
+            Click the link in the email to set a new password.
+          </p>
+          <p className="text-[#4a4a4a] text-xs mt-6">Didn&apos;t get it? Check your spam folder.</p>
         </div>
       </div>
     );
