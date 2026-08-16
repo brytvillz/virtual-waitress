@@ -16,6 +16,7 @@ export function useRestaurant() { return useContext(RestaurantContext); }
 
 const NAV = [
   { href: '/dashboard',          label: 'Analytics',  icon: IconChart },
+  { href: '/dashboard/orders',   label: 'Orders',     icon: IconOrders },
   { href: '/dashboard/menu',     label: 'Menu',       icon: IconMenu },
   { href: '/dashboard/tables',   label: 'Tables',     icon: IconTable },
   { href: '/dashboard/staff',    label: 'Staff',      icon: IconStaff },
@@ -187,6 +188,15 @@ function IconChart({ active }: { active: boolean }) {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#C41E3A' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
       <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+    </svg>
+  );
+}
+function IconOrders({ active }: { active: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#C41E3A' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+      <rect x="9" y="3" width="6" height="4" rx="1"/>
+      <path d="M9 12h6M9 16h4"/>
     </svg>
   );
 }
