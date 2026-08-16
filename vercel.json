@@ -1,17 +1,8 @@
 {
-  "cleanUrls": true,
-  "rewrites": [
-    { "source": "/:slug/:table", "destination": "/" },
-    { "source": "/:slug",        "destination": "/" }
-  ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "ALLOW-FROM https://ngwangwadigital.com"
-        },
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
@@ -27,10 +18,6 @@
         {
           "key": "Strict-Transport-Security",
           "value": "max-age=31536000; includeSubDomains; preload"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://api.qrserver.com https://rewdizxixvfytxnkcjyh.supabase.co data:; connect-src 'self' https://rewdizxixvfytxnkcjyh.supabase.co wss://rewdizxixvfytxnkcjyh.supabase.co; frame-ancestors 'self' https://ngwangwadigital.com"
         },
         {
           "key": "Permissions-Policy",
