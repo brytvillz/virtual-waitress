@@ -44,7 +44,7 @@ export default function ResetPasswordPage() {
   const [reqError,    setReqError]    = useState('');
 
   useEffect(() => {
-    // Supabase fires PASSWORD_RECOVERY when the page loads with a valid recovery hash
+    // Implicit flow: Supabase fires PASSWORD_RECOVERY when hash contains a valid recovery token
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setScreen('form');
@@ -55,7 +55,16 @@ export default function ResetPasswordPage() {
     const hash = new URLSearchParams(window.location.hash.slice(1));
     if (hash.get('error')) {
       setScreen('request');
-      return;
+      return () => subscription.unsubscribe();
+    }
+
+    // PKCE flow: reset link arrives as ?code=xxx — exchange it for a session
+    const code = new URLSearchParams(window.location.search).get('code');
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        setScreen(error ? 'request' : 'form');
+      });
+      return () => subscription.unsubscribe();
     }
 
     // Fallback: if no recovery event within 6 seconds, show request form
