@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useRestaurant } from '@/components/DashboardShell';
 
@@ -39,6 +40,7 @@ function StatusMsg({ status, errorText }: { status: SaveStatus; errorText: strin
 
 export default function SettingsPage() {
   const restaurant = useRestaurant();
+  const router = useRouter();
 
   // Restaurant settings state
   const [settings, setSettings] = useState<RestaurantSettings>({
@@ -60,6 +62,12 @@ export default function SettingsPage() {
   const [accountStatus, setAccountStatus] = useState<SaveStatus>('idle');
   const [accountMsg, setAccountMsg] = useState('');
   const [accountIsError, setAccountIsError] = useState(false);
+
+  // Delete account
+  const [deleteOpen, setDeleteOpen]       = useState(false);
+  const [deleteInput, setDeleteInput]     = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError]     = useState('');
 
   const load = useCallback(async (restaurantId: string) => {
     const supabase = createClient();
@@ -180,6 +188,38 @@ export default function SettingsPage() {
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setAccountMsg(''), 5000);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (deleteInput !== 'DELETE') return;
+    setDeleteLoading(true);
+    setDeleteError('');
+
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setDeleteError('Session expired — refresh and try again.'); setDeleteLoading(false); return; }
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-account`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+        }
+      );
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setDeleteError(data.error || 'Failed to delete account. Try again or contact support.');
+        setDeleteLoading(false);
+        return;
+      }
+
+      await supabase.auth.signOut();
+      router.push('/signup');
+    } catch {
+      setDeleteError('Network error — check your connection and try again.');
+      setDeleteLoading(false);
     }
   }
 
@@ -383,6 +423,73 @@ export default function SettingsPage() {
           </div>
         </form>
       </section>
+
+      {/* ── Danger Zone ── */}
+      <section className="bg-[#161616] border border-[#ff6b6b]/20 rounded-2xl p-6 mt-6">
+        <h2 className="text-[#ff6b6b] text-sm font-semibold mb-1">Danger Zone</h2>
+        <p className="text-[#6B6570] text-xs mb-5">
+          Permanently delete your account and all restaurant data. This cannot be undone.
+        </p>
+        <button
+          type="button"
+          onClick={() => { setDeleteOpen(true); setDeleteInput(''); setDeleteError(''); }}
+          className="border border-[#ff6b6b]/40 text-[#ff6b6b] text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-[#ff6b6b]/10 transition-colors"
+        >
+          Delete my account
+        </button>
+      </section>
+
+      {/* ── Delete confirmation modal ── */}
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-[#1a1a1a] border border-white/[0.08] rounded-2xl w-full max-w-sm p-6">
+            <h2 className="text-[#F0EDE8] text-lg font-semibold mb-2">Delete account?</h2>
+            <p className="text-[#6B6570] text-sm mb-1 leading-relaxed">
+              This will permanently delete:
+            </p>
+            <ul className="text-[#6B6570] text-sm mb-5 list-disc list-inside space-y-0.5 leading-relaxed">
+              <li>Your restaurant profile and settings</li>
+              <li>All menu items and categories</li>
+              <li>All tables, staff, and orders</li>
+              <li>Your login account</li>
+            </ul>
+            <p className="text-[#9a9098] text-sm mb-3">
+              Type <span className="text-[#ff6b6b] font-mono font-bold">DELETE</span> to confirm:
+            </p>
+            <input
+              type="text"
+              value={deleteInput}
+              onChange={e => setDeleteInput(e.target.value)}
+              placeholder="DELETE"
+              autoFocus
+              className="bg-[#111] border border-white/[0.08] rounded-xl px-4 py-3 text-[#F0EDE8] text-sm placeholder-[#4a4a4a] outline-none focus:border-[#ff6b6b]/40 transition-colors w-full mb-4 font-mono"
+            />
+            {deleteError && (
+              <p className="text-[#ff6b6b] text-sm mb-4 bg-[#ff6b6b]/10 border border-[#ff6b6b]/20 rounded-xl px-4 py-3">
+                {deleteError}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleteLoading}
+                className="flex-1 py-3 rounded-xl border border-white/[0.08] text-[#9a9098] text-sm font-medium hover:bg-white/[0.04] disabled:opacity-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleteInput !== 'DELETE' || deleteLoading}
+                className="flex-1 py-3 rounded-xl bg-[#ff6b6b] hover:bg-[#e05555] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+              >
+                {deleteLoading ? 'Deleting…' : 'Delete everything'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
