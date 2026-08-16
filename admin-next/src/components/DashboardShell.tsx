@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { createContext, useContext } from 'react';
 import type { User } from '@supabase/supabase-js';
+
+const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 type Restaurant = { id: string; name: string; slug: string; plan: string } | null;
 
@@ -33,6 +35,7 @@ export default function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function signOut() {
     const supabase = createClient();
@@ -40,6 +43,21 @@ export default function DashboardShell({
     router.push('/login');
     router.refresh();
   }
+
+  useEffect(() => {
+    function resetTimer() {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      idleTimer.current = setTimeout(signOut, IDLE_TIMEOUT_MS);
+    }
+    const events = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'];
+    events.forEach(e => window.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer();
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetTimer));
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const sidebar = (
     <aside className={`

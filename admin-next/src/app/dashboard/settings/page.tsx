@@ -4,6 +4,21 @@ import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRestaurant } from '@/components/DashboardShell';
 
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  ) : (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+
 type RestaurantSettings = {
   name: string;
   tagline: string;
@@ -36,8 +51,12 @@ export default function SettingsPage() {
   // Account state
   const [userEmail, setUserEmail] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [accountStatus, setAccountStatus] = useState<SaveStatus>('idle');
   const [accountMsg, setAccountMsg] = useState('');
   const [accountIsError, setAccountIsError] = useState(false);
@@ -116,9 +135,29 @@ export default function SettingsPage() {
       setAccountIsError(true);
       return;
     }
+    if (newPassword && !currentPassword) {
+      setAccountMsg('Enter your current password to set a new one.');
+      setAccountIsError(true);
+      return;
+    }
 
     setAccountStatus('saving');
     const supabase = createClient();
+
+    // Verify current password before allowing a password change
+    if (newPassword) {
+      const { error: verifyErr } = await supabase.auth.signInWithPassword({
+        email: userEmail.replace(' (pending confirmation)', ''),
+        password: currentPassword,
+      });
+      if (verifyErr) {
+        setAccountMsg('Current password is incorrect.');
+        setAccountIsError(true);
+        setAccountStatus('idle');
+        return;
+      }
+    }
+
     const updates: { email?: string; password?: string } = {};
     if (newEmail) updates.email = newEmail;
     if (newPassword) updates.password = newPassword;
@@ -137,6 +176,7 @@ export default function SettingsPage() {
       setAccountStatus('idle');
       if (newEmail) setUserEmail(newEmail + ' (pending confirmation)');
       setNewEmail('');
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setAccountMsg(''), 5000);
@@ -263,27 +303,64 @@ export default function SettingsPage() {
             />
           </Field>
 
-          <Field label="New Password" hint="Minimum 8 characters — leave blank to keep current">
-            <input
-              type="password"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              className={inputCls}
-            />
-          </Field>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">Current Password</span>
+              <a href="/reset-password" className="text-[#6B6570] hover:text-[#C41E3A] text-xs transition-colors">Forgot password?</a>
+            </div>
+            <span className="text-[#4a4a4a] text-xs -mt-0.5">Required to set a new password</span>
+            <div className="relative">
+              <input
+                type={showCurrentPass ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={e => setCurrentPassword(e.target.value)}
+                placeholder="Your current password"
+                autoComplete="current-password"
+                className={`${inputCls} pr-11`}
+              />
+              <button type="button" onClick={() => setShowCurrentPass(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4a4a4a] hover:text-[#9a9098] transition-colors p-1">
+                <EyeIcon open={showCurrentPass} />
+              </button>
+            </div>
+          </div>
 
-          <Field label="Confirm Password">
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              className={inputCls}
-            />
-          </Field>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">New Password</span>
+            <span className="text-[#4a4a4a] text-xs -mt-0.5">Minimum 8 characters — leave blank to keep current</span>
+            <div className="relative">
+              <input
+                type={showNewPass ? 'text' : 'password'}
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                className={`${inputCls} pr-11`}
+              />
+              <button type="button" onClick={() => setShowNewPass(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4a4a4a] hover:text-[#9a9098] transition-colors p-1">
+                <EyeIcon open={showNewPass} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">Confirm New Password</span>
+            <div className="relative">
+              <input
+                type={showConfirmPass ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                className={`${inputCls} pr-11`}
+              />
+              <button type="button" onClick={() => setShowConfirmPass(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4a4a4a] hover:text-[#9a9098] transition-colors p-1">
+                <EyeIcon open={showConfirmPass} />
+              </button>
+            </div>
+          </div>
 
           {accountMsg && (
             <p className={`text-sm px-4 py-3 rounded-xl border ${

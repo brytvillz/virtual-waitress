@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRestaurant } from '@/components/DashboardShell';
 import CopyButton from '@/components/CopyButton';
 
-const WAITER_LOGIN_URL = 'https://app.virtualwaitress.com/waiter.html';
+const APP_ORIGIN = 'https://app.virtualwaitress.com';
 
 type StaffMember = {
   id: string;
@@ -174,18 +174,23 @@ export default function StaffPage() {
       </div>
 
       {/* Waiter login link bar */}
-      <div className="bg-[#161616] border border-white/[0.06] rounded-xl px-4 py-3 flex items-center gap-3 mb-8 flex-wrap">
-        <span className="text-[#6B6570] text-xs font-medium shrink-0">Waiter login link:</span>
-        <a
-          href={WAITER_LOGIN_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[#9a9098] text-xs hover:text-[#F0EDE8] transition-colors flex-1 truncate"
-        >
-          {WAITER_LOGIN_URL}
-        </a>
-        <CopyButton text={WAITER_LOGIN_URL} />
-      </div>
+      {restaurant.slug && (() => {
+        const waiterUrl = `${APP_ORIGIN}/${restaurant.slug}/waiter`;
+        return (
+          <div className="bg-[#161616] border border-white/[0.06] rounded-xl px-4 py-3 flex items-center gap-3 mb-8 flex-wrap">
+            <span className="text-[#6B6570] text-xs font-medium shrink-0">Waiter login link:</span>
+            <a
+              href={waiterUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#9a9098] text-xs hover:text-[#F0EDE8] transition-colors flex-1 truncate"
+            >
+              {waiterUrl}
+            </a>
+            <CopyButton text={waiterUrl} />
+          </div>
+        );
+      })()}
 
       {/* New waiter success banner */}
       {newWaiter && (

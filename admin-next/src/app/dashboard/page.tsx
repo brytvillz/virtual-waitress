@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRestaurant } from '@/components/DashboardShell';
 import RevenueChart from '@/components/RevenueChart';
 import OrdersChart from '@/components/OrdersChart';
+import CopyButton from '@/components/CopyButton';
 
 type Order = {
   id: string;
@@ -137,12 +138,31 @@ export default function AnalyticsPage() {
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
 
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-[#F0EDE8] text-2xl font-bold tracking-tight">{restaurant.name}</h1>
         <p className="text-[#6B6570] text-sm mt-1">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
+
+      {/* Menu link bar */}
+      {restaurant.slug && (() => {
+        const menuUrl = `https://app.virtualwaitress.com/${restaurant.slug}/1`;
+        return (
+          <div className="bg-[#161616] border border-white/[0.06] rounded-xl px-4 py-3 flex items-center gap-3 mb-8 flex-wrap">
+            <span className="text-[#6B6570] text-xs font-medium shrink-0">Your menu link:</span>
+            <a
+              href={menuUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#9a9098] text-xs hover:text-[#F0EDE8] transition-colors flex-1 truncate"
+            >
+              {menuUrl}
+            </a>
+            <CopyButton text={menuUrl} />
+          </div>
+        );
+      })()}
 
       {loading ? (
         <div className="flex items-center gap-2 text-[#6B6570] text-sm">
