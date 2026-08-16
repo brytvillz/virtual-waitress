@@ -6,6 +6,7 @@ import { useRestaurant } from '@/components/DashboardShell';
 import RevenueChart from '@/components/RevenueChart';
 import OrdersChart from '@/components/OrdersChart';
 import CopyButton from '@/components/CopyButton';
+import GettingStarted from '@/components/GettingStarted';
 
 type Order = {
   id: string;
@@ -163,6 +164,8 @@ export default function AnalyticsPage() {
           </div>
         );
       })()}
+
+      <GettingStarted restaurantId={restaurant.id} />
 
       {loading ? (
         <div className="flex items-center gap-2 text-[#6B6570] text-sm">
