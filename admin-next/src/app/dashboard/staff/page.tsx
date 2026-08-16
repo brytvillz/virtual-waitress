@@ -173,41 +173,60 @@ export default function StaffPage() {
         </button>
       </div>
 
-      {/* Waiter login link bar */}
+      {/* Waiter login instructions */}
       {restaurant.slug && (() => {
         const waiterUrl = `${APP_ORIGIN}/${restaurant.slug}/waiter`;
         return (
-          <div className="bg-[#161616] border border-white/[0.06] rounded-xl px-4 py-3 flex items-center gap-3 mb-8 flex-wrap">
-            <span className="text-[#6B6570] text-xs font-medium shrink-0">Waiter login link:</span>
-            <a
-              href={waiterUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#9a9098] text-xs hover:text-[#F0EDE8] transition-colors flex-1 truncate"
-            >
-              {waiterUrl}
-            </a>
-            <CopyButton text={waiterUrl} />
+          <div className="bg-[#161616] border border-white/[0.06] rounded-2xl p-5 mb-6">
+            <p className="text-[#F0EDE8] text-sm font-semibold mb-1">How waiters log in</p>
+            <p className="text-[#6B6570] text-xs mb-4 leading-relaxed">
+              Share the link below with your waiter. They open it on their phone and enter the code you give them — that&apos;s it.
+            </p>
+            <div className="flex items-center gap-3 bg-[#111] border border-white/[0.06] rounded-xl px-4 py-2.5 flex-wrap">
+              <span className="text-[#4a4a4a] text-xs shrink-0">Waiter link:</span>
+              <a
+                href={waiterUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#9a9098] text-xs hover:text-[#F0EDE8] transition-colors flex-1 truncate"
+              >
+                {waiterUrl}
+              </a>
+              <CopyButton text={waiterUrl} />
+            </div>
           </div>
         );
       })()}
 
       {/* New waiter success banner */}
-      {newWaiter && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-4 mb-6 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-emerald-400 text-sm font-semibold mb-1">Waiter created — {newWaiter.name}</p>
-            <p className="text-[#9a9098] text-xs">
-              Share this code with them:{' '}
-              <span className="text-[#F0EDE8] font-mono font-bold">{newWaiter.access_code}</span>
-            </p>
+      {newWaiter && restaurant.slug && (() => {
+        const waiterUrl = `${APP_ORIGIN}/${restaurant.slug}/waiter`;
+        const shareMsg = `Hi ${newWaiter.name}! Here are your login details for ${restaurant.name}:\n\n🔗 Link: ${waiterUrl}\n🔑 Code: ${newWaiter.access_code}\n\nOpen the link on your phone and enter the code to start receiving orders.`;
+        return (
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5 mb-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <p className="text-emerald-400 text-sm font-semibold">Waiter created — {newWaiter.name}</p>
+              <button onClick={() => setNewWaiter(null)} className="text-[#4a4a4a] hover:text-[#9a9098] transition-colors shrink-0 p-1">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="flex flex-col gap-2 mb-4">
+              <div className="flex items-center gap-3 bg-black/20 rounded-xl px-4 py-2.5">
+                <span className="text-[#6B6570] text-xs shrink-0">Login link:</span>
+                <span className="text-[#9a9098] text-xs flex-1 truncate">{waiterUrl}</span>
+              </div>
+              <div className="flex items-center gap-3 bg-black/20 rounded-xl px-4 py-2.5">
+                <span className="text-[#6B6570] text-xs shrink-0">Code:</span>
+                <span className="text-[#F0EDE8] font-mono font-bold text-sm flex-1">{newWaiter.access_code}</span>
+                <CopyButton text={newWaiter.access_code} />
+              </div>
+            </div>
+            <CopyButton text={shareMsg} label="Copy message to send waiter" />
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <CopyButton text={newWaiter.access_code} />
-            <button onClick={() => setNewWaiter(null)} className="text-[#4a4a4a] hover:text-[#9a9098] text-lg leading-none">×</button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {loading ? (
         <div className="flex items-center gap-2 text-[#6B6570] text-sm">

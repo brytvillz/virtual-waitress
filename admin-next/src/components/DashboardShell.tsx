@@ -36,7 +36,17 @@ export default function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const emailUnconfirmed = !user.email_confirmed_at;
+
+  async function resendConfirmation() {
+    const supabase = createClient();
+    await supabase.auth.resend({ type: 'signup', email: user.email! });
+    setResendSent(true);
+  }
 
   async function signOut() {
     const supabase = createClient();
@@ -171,6 +181,28 @@ export default function DashboardShell({
               </svg>
             </button>
           </header>
+
+          {/* Email confirmation banner */}
+          {emailUnconfirmed && !emailBannerDismissed && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 text-amber-400 text-xs flex-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span className="flex-1">Please confirm your email address — check your inbox for a verification link.</span>
+              {resendSent ? (
+                <span className="text-emerald-400 font-medium shrink-0">Sent!</span>
+              ) : (
+                <button onClick={resendConfirmation} className="underline hover:no-underline shrink-0 font-medium">
+                  Resend email
+                </button>
+              )}
+              <button onClick={() => setEmailBannerDismissed(true)} aria-label="Dismiss" className="text-amber-400/60 hover:text-amber-400 transition-colors shrink-0">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          )}
 
           {/* Page content */}
           <main className="flex-1 overflow-auto">
