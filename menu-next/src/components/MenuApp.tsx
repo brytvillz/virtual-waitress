@@ -7,7 +7,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL      = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const SPLASH_MIN_MS = 5000;
 
 const CAT_IMAGES: Record<string, string> = {
   soups: '/images/cat-soups.jpg',
@@ -30,17 +29,6 @@ const CATEGORY_CHARACTER: Record<string, string> = {
   soups: 'ada', swallows: 'ada', rice: 'emeka',
   grills: 'cheftunde', 'small-chops': 'chisom', drinks: 'chisom',
 };
-
-const COVER_MSGS = [
-  { l1: 'No menu to wait for.',        l2: 'Browse everything from your table.' },
-  { l1: 'Order at your own pace —',    l2: 'your waiter is notified instantly.' },
-  { l1: 'No need to flag anyone down.', l2: 'Track your order in real time.'   },
-];
-
-const SPLASH_CHARS = [
-  '/images/splash-waitress.png', '/images/splash-waitress.png',
-  '/images/splash-waitress.png', '/images/splash-chef.png',
-];
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -89,25 +77,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
   const [restaurantId, setRestaurantId]   = useState<string | null>(null);
   const [dataError, setDataError]         = useState<string | null>(null);
 
-  // ── App visibility ────────────────────────────────────────────────────────────
-  const [appVisible, setAppVisible]       = useState(false);
-  const [headerVisible, setHeaderVisible] = useState(false);
-  const [navVisible, setNavVisible]       = useState(false);
-
-  // ── Splash ────────────────────────────────────────────────────────────────────
-  const [splashHiding, setSplashHiding]   = useState(false);
-  const [splashGone, setSplashGone]       = useState(false);
-  const [splashChar, setSplashChar]       = useState('/images/splash-waitress.png');
-  const splashStartRef                    = useRef<number>(0);
-
-  // ── Cover ─────────────────────────────────────────────────────────────────────
-  const [coverExiting, setCoverExiting]   = useState(false);
-  const [coverGone, setCoverGone]         = useState(false);
-  const [coverMsgIdx, setCoverMsgIdx]     = useState(0);
-  const [coverMsgFading, setCoverMsgFading] = useState(false);
-
   // ── Character ─────────────────────────────────────────────────────────────────
-  const [selectedChar, setSelectedChar]   = useState('ada');
   const [charImg, setCharImg]             = useState('/images/ada.png');
 
   // ── Ada ───────────────────────────────────────────────────────────────────────
@@ -248,26 +218,10 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     return data;
   }, [db, cacheKey]);
 
-  // ── Splash hide ────────────────────────────────────────────────────────────────
-
-  const hideSplash = useCallback(async () => {
-    const elapsed   = Date.now() - splashStartRef.current;
-    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
-    await new Promise(r => setTimeout(r, remaining));
-    setSplashHiding(true);
-    await new Promise(r => setTimeout(r, 600));
-    setSplashGone(true);
-  }, []);
-
   // ── Boot ───────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    splashStartRef.current = Date.now();
-    const randIdx = Math.floor(Math.random() * SPLASH_CHARS.length);
-    setSplashChar(SPLASH_CHARS[randIdx]);
-
     const savedChar = (typeof localStorage !== 'undefined' && localStorage.getItem('vw_selected_char')) || 'ada';
-    setSelectedChar(savedChar);
     setCharImg(CHARACTERS[savedChar]?.src || '/images/ada.png');
 
     (async () => {
@@ -275,16 +229,12 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         .from('restaurants').select('id').eq('slug', slug).single();
 
       if (slugError || !restaurantRow) {
-        setSplashHiding(true);
-        setTimeout(() => setSplashGone(true), 600);
         setDataError('Restaurant not found. Please scan the QR code again.');
-        setAppVisible(true);
         return;
       }
 
       const rid = restaurantRow.id as string;
       setRestaurantId(rid);
-      setAppVisible(true);
 
       let cachedRaw: string | null = null;
       try { cachedRaw = localStorage.getItem(cacheKey); } catch (_) { /* ignore */ }
@@ -303,11 +253,9 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
             document.documentElement.style.setProperty('--accent', fresh.restaurant.accentColor || '#C41E3A');
           }
         }).catch(() => {});
-
-        await hideSplash();
       } else {
         try {
-          const [data] = await Promise.all([loadMenuData(rid), hideSplash()]);
+          const data = await loadMenuData(rid);
           menuDataRef.current = data;
           setMenuData(data);
           document.documentElement.style.setProperty('--accent', data.restaurant.accentColor || '#C41E3A');
@@ -315,6 +263,15 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
           setDataError('Unable to load menu — please reload the page.');
         }
       }
+
+      // Ada welcome message after menu is ready
+      const charKey  = (typeof localStorage !== 'undefined' && localStorage.getItem('vw_selected_char')) || 'ada';
+      const charName = CHARACTERS[charKey]?.name || 'Ada';
+      const welcome  = menuDataRef.current?.ada?.welcome || 'Browse our menu and tap + to order.';
+      setTimeout(() => {
+        adaSpeak(`Hi! I'm ${charName}. ${welcome}`, 7000);
+        resetIdleTimer();
+      }, 800);
     })();
 
     return () => {
@@ -323,20 +280,6 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // ── Cover carousel ─────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (coverGone) return;
-    const interval = setInterval(() => {
-      setCoverMsgFading(true);
-      setTimeout(() => {
-        setCoverMsgIdx(prev => (prev + 1) % COVER_MSGS.length);
-        setCoverMsgFading(false);
-      }, 380);
-    }, 3500);
-    return () => clearInterval(interval);
-  }, [coverGone]);
 
   // ── Scroll spy + category nav ──────────────────────────────────────────────────
 
@@ -381,33 +324,6 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     window.addEventListener('scroll', handler, { passive: true });
     return () => window.removeEventListener('scroll', handler);
   }, [adaHide]);
-
-  // ── Cover hide ─────────────────────────────────────────────────────────────────
-
-  const handleCoverCta = useCallback(() => {
-    setCoverExiting(true);
-    setTimeout(() => {
-      setCoverGone(true);
-      setHeaderVisible(true);
-      setNavVisible(true);
-    }, 740);
-
-    setTimeout(() => {
-      const charKey  = (typeof localStorage !== 'undefined' && localStorage.getItem('vw_selected_char')) || 'ada';
-      const charName = CHARACTERS[charKey]?.name || 'Ada';
-      setCharImg(CHARACTERS[charKey]?.src || '/images/ada.png');
-      const base = menuDataRef.current?.ada?.welcome || 'Browse our menu and tap + to order.';
-      adaSpeak(`Hi! I'm ${charName}. ${base}`, 7000);
-      resetIdleTimer();
-    }, 800);
-  }, [adaSpeak, resetIdleTimer]);
-
-  // ── Character selection ────────────────────────────────────────────────────────
-
-  const handleCharSelect = useCallback((key: string) => {
-    setSelectedChar(key);
-    try { localStorage.setItem('vw_selected_char', key); } catch (_) { /* ignore */ }
-  }, []);
 
   // ── Qty change ─────────────────────────────────────────────────────────────────
 
@@ -690,33 +606,8 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
 
   return (
     <>
-      {/* ── Splash Screen ─────────────────────────────────────────────── */}
-      {!splashGone && (
-        <div
-          id="splashScreen"
-          className={`splash-screen${splashHiding ? ' splash-hiding' : ''}`}
-          aria-label="Loading menu"
-        >
-          <div className="splash-content">
-            <div className="splash-header">
-              <p className="splash-restaurant">{restaurant?.name ?? ''}</p>
-              <p className="splash-tagline-text">{restaurant?.tagline ?? ''}</p>
-            </div>
-            <div className="splash-character-wrap">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="splash-character-img" src={splashChar} alt="" aria-hidden="true" />
-            </div>
-            <div className="splash-dots" aria-hidden="true">
-              <span className="splash-dot" />
-              <span className="splash-dot" />
-              <span className="splash-dot" />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Main App ──────────────────────────────────────────────────── */}
-      <div id="app" className={appVisible ? 'visible' : ''}>
+      <div id="app" className="visible">
 
         {/* Error state */}
         {dataError && (
@@ -725,66 +616,8 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
           </div>
         )}
 
-        {/* ── Cover Page ─────────────────────────────────────────────── */}
-        {!coverGone && !dataError && (
-          <div className={`cover-page${coverExiting ? ' cover-exit' : ''}`}>
-            <div
-              className="cover-bg"
-              style={restaurant?.cover_image ? { backgroundImage: `url('${restaurant.cover_image}')` } : undefined}
-            />
-            <div className="cover-vignette" />
-
-            {/* Pain-point carousel */}
-            <div className="cover-hero-msg">
-              <p className={`cover-msg-line1${coverMsgFading ? ' fading' : ''}`}>
-                {COVER_MSGS[coverMsgIdx].l1}
-              </p>
-              <p className={`cover-msg-line2${coverMsgFading ? ' fading' : ''}`}>
-                {COVER_MSGS[coverMsgIdx].l2}
-              </p>
-              <div className="cover-msg-dots">
-                {COVER_MSGS.map((_, i) => (
-                  <span key={i} className={`cover-msg-dot${i === coverMsgIdx ? ' active' : ''}`} />
-                ))}
-              </div>
-            </div>
-
-            <div className="cover-content">
-              <p className="cover-table-badge">Table {table}</p>
-              <div className="cover-text">
-                <h1 className="cover-restaurant-name">{restaurant?.name ?? '—'}</h1>
-                <p className="cover-tagline">{restaurant?.tagline ?? ''}</p>
-              </div>
-
-              {/* Character selection */}
-              <div className="cover-char-section">
-                <p className="cover-char-label">Your waiter tonight</p>
-                <div className="cover-char-row">
-                  {Object.entries(CHARACTERS).map(([key, char]) => (
-                    <button
-                      key={key}
-                      className={`cover-char-btn${selectedChar === key ? ' selected' : ''}`}
-                      onClick={() => handleCharSelect(key)}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={char.src} alt={char.name} className="cover-char-btn-img" />
-                      <span className="cover-char-btn-name">{char.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button className="cover-cta" onClick={handleCoverCta}>
-                <span>🍽️</span>
-                <span>Open Menu</span>
-              </button>
-              <p className="cover-hint">Scroll to browse · Tap + to order</p>
-            </div>
-          </div>
-        )}
-
         {/* ── Compact sticky header ──────────────────────────────────── */}
-        <header className={`mag-header${headerVisible ? '' : ' mag-header-hidden'}`}>
+        <header className="mag-header">
           <div className="mag-header-left">
             <span className="mag-header-name">{restaurant?.name ?? '—'}</span>
             <span className="mag-header-table">Table {table}</span>
@@ -796,7 +629,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         </header>
 
         {/* ── Category pill nav ──────────────────────────────────────── */}
-        <nav className={`mag-nav${navVisible ? '' : ' mag-nav-hidden'}`} aria-label="Menu categories">
+        <nav className="mag-nav" aria-label="Menu categories">
           <div className="mag-nav-inner" ref={navInnerRef}>
             {menuData?.categories.filter(c => c.items.length).map(c => (
               <button
