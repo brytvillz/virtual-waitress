@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import type { MenuItem } from '@/types/menu';
 
 type SavePayload = {
@@ -15,11 +16,13 @@ type SavePayload = {
 type Props = {
   item: MenuItem | null;
   categoryId: string;
+  categoryName: string;
+  restaurantName: string;
   onSave: (data: SavePayload) => Promise<void>;
   onClose: () => void;
 };
 
-export default function ItemModal({ item, categoryId: _categoryId, onSave, onClose }: Props) {
+export default function ItemModal({ item, categoryId: _categoryId, categoryName, restaurantName, onSave, onClose }: Props) {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
@@ -29,6 +32,8 @@ export default function ItemModal({ item, categoryId: _categoryId, onSave, onClo
   const [removeImage, setRemoveImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,6 +45,7 @@ export default function ItemModal({ item, categoryId: _categoryId, onSave, onClo
     setFile(null);
     setRemoveImage(false);
     setError('');
+    setGenError('');
   }, [item]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -57,6 +63,30 @@ export default function ItemModal({ item, categoryId: _categoryId, onSave, onClo
     setRemoveImage(true);
     setPreview(null);
     if (fileRef.current) fileRef.current.value = '';
+  }
+
+  async function handleGenerate() {
+    const itemName = name.trim();
+    if (!itemName) {
+      setGenError('Enter the item name first, then generate.');
+      return;
+    }
+    setGenerating(true);
+    setGenError('');
+    try {
+      const supabase = createClient();
+      const { data, error: fnError } = await supabase.functions.invoke('claude-ai', {
+        body: { action: 'item-copy', item_name: itemName, category_name: categoryName, restaurant_name: restaurantName },
+      });
+      if (fnError || !data) throw new Error(fnError?.message || 'AI request failed');
+      if (data.error) throw new Error(data.error);
+      if (data.description) setDescription(data.description);
+      if (data.ada_message) setAdaMessage(data.ada_message);
+    } catch (err) {
+      setGenError((err as Error).message || 'Could not generate copy. Try again.');
+    } finally {
+      setGenerating(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -151,6 +181,35 @@ export default function ItemModal({ item, categoryId: _categoryId, onSave, onClo
               className="bg-[#111] border border-white/[0.08] rounded-xl px-4 py-3 text-[#F0EDE8] text-sm placeholder-[#4a4a4a] outline-none focus:border-[#C41E3A]/50 transition-colors"
             />
           </label>
+
+          {/* AI generate button */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={generating}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#C41E3A]/30 bg-[#C41E3A]/5 text-[#C41E3A] text-xs font-medium hover:bg-[#C41E3A]/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {generating ? (
+                <>
+                  <span className="w-3 h-3 border border-[#C41E3A] border-t-transparent rounded-full animate-spin" />
+                  Writing…
+                </>
+              ) : (
+                <>
+                  <span>✨</span>
+                  Write with AI
+                </>
+              )}
+            </button>
+            <span className="text-[#4a4a4a] text-xs">Fills description + Ada message</span>
+          </div>
+
+          {genError && (
+            <p className="text-amber-400 text-xs bg-amber-400/10 border border-amber-400/20 rounded-xl px-3 py-2">
+              {genError}
+            </p>
+          )}
 
           <label className="flex flex-col gap-1.5">
             <span className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">Description</span>

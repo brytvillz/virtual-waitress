@@ -16,7 +16,7 @@ function slugify(name: string) {
 }
 
 type CategoryModalState = { open: true; category: Category | null } | { open: false };
-type ItemModalState = { open: true; item: MenuItem | null; categoryId: string } | { open: false };
+type ItemModalState = { open: true; item: MenuItem | null; categoryId: string; categoryName: string } | { open: false };
 
 export default function MenuPage() {
   const restaurant = useRestaurant();
@@ -277,7 +277,7 @@ export default function MenuPage() {
                           <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${item.available ? 'translate-x-4' : 'translate-x-0.5'}`} />
                         </button>
                         <button
-                          onClick={() => setItemModal({ open: true, item, categoryId: cat.id })}
+                          onClick={() => setItemModal({ open: true, item, categoryId: cat.id, categoryName: cat.name })}
                           className="px-3 py-1.5 rounded-lg border border-white/[0.08] text-[#9a9098] text-xs font-medium hover:bg-white/[0.04] transition-colors"
                         >
                           Edit
@@ -295,7 +295,7 @@ export default function MenuPage() {
 
                 <div className="px-5 py-3 border-t border-white/[0.05]">
                   <button
-                    onClick={() => setItemModal({ open: true, item: null, categoryId: cat.id })}
+                    onClick={() => setItemModal({ open: true, item: null, categoryId: cat.id, categoryName: cat.name })}
                     className="text-[#6B6570] hover:text-[#9a9098] text-sm transition-colors"
                   >
                     + Add item to {cat.name}
@@ -310,6 +310,7 @@ export default function MenuPage() {
       {categoryModal.open && (
         <CategoryModal
           category={categoryModal.category}
+          restaurantName={restaurant.name}
           onSave={saveCategory}
           onClose={() => setCategoryModal({ open: false })}
         />
@@ -318,6 +319,8 @@ export default function MenuPage() {
         <ItemModal
           item={itemModal.item}
           categoryId={itemModal.categoryId}
+          categoryName={itemModal.categoryName}
+          restaurantName={restaurant.name}
           onSave={saveItem}
           onClose={() => setItemModal({ open: false })}
         />
