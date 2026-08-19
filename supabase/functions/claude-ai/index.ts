@@ -5,54 +5,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-async function anthropic(prompt: string, apiKey: string, maxTokens = 512): Promise<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error?.message || 'Anthropic request failed');
-  return data?.content?.[0]?.text?.trim() ?? '';
-}
+const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_BASE  = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-async function anthropicVision(
-  prompt: string,
-  imageBase64: string,
-  mediaType: string,
-  apiKey: string,
-  maxTokens = 1024,
-): Promise<string> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+async function gemini(model: string, parts: unknown[], apiKey: string, maxTokens = 256): Promise<string> {
+  const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: maxTokens,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-          { type: 'text', text: prompt },
-        ],
-      }],
+      contents: [{ parts }],
+      generationConfig: { maxOutputTokens: maxTokens },
     }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error?.message || 'Anthropic vision request failed');
-  return data?.content?.[0]?.text?.trim() ?? '';
+  if (!res.ok) throw new Error(data?.error?.message || 'Gemini request failed');
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
 }
 
 serve(async (req) => {
@@ -62,20 +29,15 @@ serve(async (req) => {
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   try {
-    const API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!API_KEY) return json({ error: 'AI not configured — add ANTHROPIC_API_KEY to Supabase secrets.' }, 500);
+    const API_KEY = Deno.env.get('GOOGLE_AI_KEY');
+    if (!API_KEY) return json({ error: 'AI not configured — add GOOGLE_AI_KEY to Supabase secrets.' }, 500);
 
     const body = await req.json();
     const { action } = body;
 
     // ── Item copy: description + Ada message in one call ──────────────────────
     if (action === 'item-copy') {
-      const {
-        item_name,
-        category_name = '',
-        restaurant_name = 'our restaurant',
-      } = body;
-
+      const { item_name, category_name = '', restaurant_name = 'our restaurant' } = body;
       if (!item_name) return json({ error: 'item_name is required' }, 400);
 
       const catHint = category_name ? ` in the "${category_name}" category` : '';
@@ -87,7 +49,7 @@ serve(async (req) => {
         `\n2. "ada_message": A warm, friendly 1-sentence message that a virtual waitress named Ada would say to a customer who taps this dish. Include one emoji at the end.` +
         `\n\nReturn ONLY valid JSON with exactly these two keys: {"description": "...", "ada_message": "..."}`;
 
-      const raw = await anthropic(prompt, API_KEY);
+      const raw = await gemini(GEMINI_MODEL, [{ text: prompt }], API_KEY, 256);
       let result: { description: string; ada_message: string };
       try {
         const clean = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
@@ -109,17 +71,7 @@ serve(async (req) => {
         (itemList ? ` This section includes: ${itemList}.` : '') +
         ` Be warm, conversational, and appetising. No emojis. No quotation marks. Write only the message.`;
 
-      const message = await anthropic(prompt, API_KEY, 128);
-      return json({ message });
-    }
-
-    // ── Single item description (legacy) ──────────────────────────────────────
-    if (action === 'item-description') {
-      const { item_name, restaurant_name = 'a restaurant' } = body;
-      const prompt =
-        `Write a short appetising description (1 sentence, max 15 words) for a menu item called "${item_name}" at ${restaurant_name}.` +
-        ` Be specific and mouth-watering. No emojis. No quotation marks. Write only the description.`;
-      const message = await anthropic(prompt, API_KEY, 128);
+      const message = await gemini(GEMINI_MODEL, [{ text: prompt }], API_KEY, 128);
       return json({ message });
     }
 
@@ -135,7 +87,11 @@ serve(async (req) => {
         ' "description" (string, empty if none), "category" (string, your best guess).' +
         ' Example: [{"name":"Egusi Soup","price":2500,"description":"","category":"Soups"}]';
 
-      const raw = await anthropicVision(prompt, image_base64, media_type, API_KEY);
+      const raw = await gemini(GEMINI_MODEL, [
+        { inline_data: { mime_type: media_type, data: image_base64 } },
+        { text: prompt },
+      ], API_KEY, 1024);
+
       let items = [];
       try {
         const clean = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '');
