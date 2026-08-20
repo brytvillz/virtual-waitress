@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-3.6-flash';
 const GEMINI_BASE  = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 async function gemini(model: string, parts: unknown[], apiKey: string, maxTokens = 256): Promise<string> {
@@ -47,9 +47,9 @@ serve(async (req) => {
         `\n\nGenerate two things:` +
         `\n1. "description": A mouth-watering 1-sentence menu description (max 15 words). Specific and appetising.` +
         `\n2. "ada_message": A warm, friendly 1-sentence message that a virtual waitress named Ada would say to a customer who taps this dish. Include one emoji at the end.` +
-        `\n\nReturn ONLY valid JSON with exactly these two keys: {"description": "...", "ada_message": "..."}`;
+        `\n\nReturn ONLY a single-line JSON object with no formatting or newlines: {"description":"...","ada_message":"..."}`;
 
-      const raw = await gemini(GEMINI_MODEL, [{ text: prompt }], API_KEY, 256);
+      const raw = await gemini(GEMINI_MODEL, [{ text: prompt }], API_KEY, 2048);
       let result: { description: string; ada_message: string };
       try {
         const clean = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
@@ -100,6 +100,13 @@ serve(async (req) => {
         return json({ error: 'Could not parse menu', raw }, 422);
       }
       return json({ items });
+    }
+
+    // ── Debug: list available models ──────────────────────────────────────────
+    if (action === 'list-models') {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`);
+      const data = await res.json();
+      return json(data);
     }
 
     return json({ error: 'Unknown action' }, 400);
