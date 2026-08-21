@@ -105,8 +105,10 @@ export default function TablesPage() {
     if (!restaurant) return;
     const num = parseInt(tableNumber);
     if (!num || num < 1) { setAddError('Enter a valid table number.'); return; }
-    if (restaurant.plan === 'free' && tables.length >= 5) {
-      setAddError('Free plan is limited to 5 tables. Upgrade to Pro for unlimited tables.');
+    const trialActive = restaurant.trial_ends_at && new Date(restaurant.trial_ends_at) > new Date();
+    const isPro = restaurant.plan === 'pro' && restaurant.plan_status === 'active';
+    if (!isPro && !trialActive && tables.length >= 5) {
+      setAddError('Upgrade to Pro for unlimited tables — ₦3,900/month.');
       return;
     }
     setSaving(true);

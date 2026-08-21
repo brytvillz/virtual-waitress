@@ -153,11 +153,14 @@ Deno.serve(async (req) => {
       ? new Date(Date.now() + promoRow.duration_days * 86400000).toISOString()
       : null;
 
+    const trialEndsAt = new Date(Date.now() + 14 * 86400000).toISOString();
+
     const restaurantRow: Record<string, unknown> = {
       name: restaurant_name.trim(),
       slug,
       accent_color: '#C41E3A',
       owner_id: userId,
+      trial_ends_at: trialEndsAt,
     };
 
     if (promoRow) {

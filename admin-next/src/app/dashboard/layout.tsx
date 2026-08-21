@@ -12,18 +12,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!user) redirect('/login');
 
   // Load restaurant for this manager
-  let restaurant: { id: string; name: string; slug: string; plan: string } | null = null;
+  const RESTAURANT_FIELDS = 'id, name, slug, plan, plan_status, plan_expires_at, trial_ends_at';
+  type Restaurant = {
+    id: string; name: string; slug: string; plan: string;
+    plan_status: string | null; plan_expires_at: string | null; trial_ends_at: string | null;
+  };
+  let restaurant: Restaurant | null = null;
 
   const { data: owned } = await supabase
     .from('restaurants')
-    .select('id, name, slug, plan')
+    .select(RESTAURANT_FIELDS)
     .eq('owner_id', user.id)
     .order('created_at')
     .limit(1)
     .single();
 
   if (owned) {
-    restaurant = owned;
+    restaurant = owned as Restaurant;
   } else {
     const { data: staffRow } = await supabase
       .from('staff')
@@ -34,10 +39,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     if (staffRow) {
       const { data: rest } = await supabase
         .from('restaurants')
-        .select('id, name, slug, plan')
+        .select(RESTAURANT_FIELDS)
         .eq('id', staffRow.restaurant_id)
         .single();
-      if (rest) restaurant = rest;
+      if (rest) restaurant = rest as Restaurant;
     }
   }
 

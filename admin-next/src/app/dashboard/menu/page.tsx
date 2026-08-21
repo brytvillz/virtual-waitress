@@ -138,8 +138,10 @@ export default function MenuPage() {
       const { error } = await supabase.from('menu_items').update(payload).eq('id', itemModal.item.id);
       if (error) throw new Error(error.message);
     } else {
-      if (restaurant.plan === 'free' && items.length >= 20) {
-        throw new Error('Free plan is limited to 20 menu items. Upgrade to Pro for unlimited items.');
+      const trialActive = restaurant.trial_ends_at && new Date(restaurant.trial_ends_at) > new Date();
+      const isPro = restaurant.plan === 'pro' && restaurant.plan_status === 'active';
+      if (!isPro && !trialActive && items.length >= 20) {
+        throw new Error('Upgrade to Pro for unlimited menu items — ₦3,900/month.');
       }
       const catItems = items.filter(i => i.category_id === itemModal.categoryId);
       const { error } = await supabase.from('menu_items').insert({

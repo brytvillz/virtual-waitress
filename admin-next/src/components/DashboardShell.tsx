@@ -9,7 +9,21 @@ import type { User } from '@supabase/supabase-js';
 
 const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000; // 8 hours
 
-type Restaurant = { id: string; name: string; slug: string; plan: string } | null;
+type Restaurant = {
+  id: string; name: string; slug: string; plan: string;
+  plan_status: string | null; plan_expires_at: string | null; trial_ends_at: string | null;
+} | null;
+
+function getTrialStatus(r: NonNullable<Restaurant>) {
+  const now = new Date();
+  const planExpiry = r.plan_expires_at ? new Date(r.plan_expires_at) : null;
+  const isPro = r.plan === 'pro' && r.plan_status === 'active' && (!planExpiry || planExpiry > now);
+  if (isPro) return { type: 'pro' as const, daysLeft: 0 };
+  const trialEnd = r.trial_ends_at ? new Date(r.trial_ends_at) : null;
+  if (!trialEnd || trialEnd <= now) return { type: 'expired' as const, daysLeft: 0 };
+  const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return { type: 'trial' as const, daysLeft };
+}
 
 const RestaurantContext = createContext<Restaurant>(null);
 export function useRestaurant() { return useContext(RestaurantContext); }
@@ -41,6 +55,7 @@ export default function DashboardShell({
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const emailUnconfirmed = !user.email_confirmed_at;
+  const trialStatus = restaurant ? getTrialStatus(restaurant) : null;
 
   async function resendConfirmation() {
     const supabase = createClient();
@@ -88,7 +103,7 @@ export default function DashboardShell({
               {restaurant?.name ?? 'Virtual Waitress'}
             </p>
             <p className="text-[#4a4a4a] text-[10px] uppercase tracking-wider font-medium capitalize">
-              {restaurant?.plan ?? 'free'} plan
+              {trialStatus?.type === 'pro' ? 'Pro plan' : trialStatus?.type === 'trial' ? `Trial — ${trialStatus.daysLeft}d left` : trialStatus?.type === 'expired' ? 'Trial ended' : 'Trial'}
             </p>
           </div>
         </div>
@@ -142,6 +157,45 @@ export default function DashboardShell({
     </aside>
   );
 
+  if (trialStatus?.type === 'expired') {
+    return (
+      <RestaurantContext.Provider value={restaurant}>
+        <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center p-6">
+          <div className="bg-[#161616] border border-white/[0.08] rounded-2xl max-w-md w-full p-8 text-center">
+            <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-[#C41E3A]/10 flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C41E3A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <h1 className="text-[#F0EDE8] text-xl font-bold mb-2">Your trial has ended</h1>
+            <p className="text-[#6B6570] text-sm mb-1">
+              Your 14-day free trial of Virtual Waitress has expired.
+            </p>
+            <p className="text-[#6B6570] text-sm mb-6">
+              Upgrade to Pro to restore full access to your dashboard, menu, orders, and everything else.
+            </p>
+            <div className="bg-[#1f1f1f] rounded-xl p-4 mb-6">
+              <p className="text-[#F0EDE8] text-2xl font-bold">₦3,900<span className="text-[#6B6570] text-sm font-normal">/month</span></p>
+              <p className="text-[#6B6570] text-xs mt-1">Unlimited tables · Unlimited menu items · Live orders · QR codes</p>
+            </div>
+            <a
+              href="mailto:support@virtualwaitress.com?subject=Upgrade to Pro — Virtual Waitress"
+              className="block w-full py-3 rounded-xl bg-[#C41E3A] hover:bg-[#a01830] text-white text-sm font-semibold transition-colors mb-3"
+            >
+              Upgrade to Pro — ₦3,900/month
+            </a>
+            <button
+              onClick={signOut}
+              className="w-full py-3 rounded-xl border border-white/[0.08] text-[#6B6570] text-sm font-medium hover:bg-white/[0.04] transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </RestaurantContext.Provider>
+    );
+  }
+
   return (
     <RestaurantContext.Provider value={restaurant}>
       <div className="flex min-h-screen bg-[#0f0f0f]">
@@ -181,6 +235,30 @@ export default function DashboardShell({
               </svg>
             </button>
           </header>
+
+          {/* Trial countdown banner */}
+          {trialStatus?.type === 'trial' && (
+            <div className={`flex items-center gap-3 px-4 py-3 border-b text-xs flex-wrap ${
+              trialStatus.daysLeft <= 3
+                ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                : trialStatus.daysLeft <= 7
+                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                : 'bg-[#C41E3A]/10 border-[#C41E3A]/20 text-[#e87a8a]'
+            }`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <span className="flex-1">
+                Your free trial ends in <strong>{trialStatus.daysLeft} day{trialStatus.daysLeft !== 1 ? 's' : ''}</strong>. Upgrade to Pro to keep full access — ₦3,900/month.
+              </span>
+              <a
+                href="mailto:support@virtualwaitress.com?subject=Upgrade to Pro"
+                className="underline hover:no-underline shrink-0 font-medium"
+              >
+                Upgrade now
+              </a>
+            </div>
+          )}
 
           {/* Email confirmation banner */}
           {emailUnconfirmed && !emailBannerDismissed && (
