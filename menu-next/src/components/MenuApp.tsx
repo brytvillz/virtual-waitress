@@ -30,6 +30,20 @@ const CATEGORY_CHARACTER: Record<string, string> = {
   grills: 'cheftunde', 'small-chops': 'chisom', drinks: 'chisom',
 };
 
+const THEME_ADA: Record<string, string> = {
+  'nightlife-dark':   '/images/ada.png',
+  'cafe-light':       '/images/chisom.png',
+  'street-energy':    '/images/emeka.png',
+  'heritage-gold':    '/images/mamachef.png',
+  'pure-luxury':      '/images/cheftunde.png',
+  'tropical-bright':  '/images/ada.png',
+  'custom':           '/images/ada.png',
+};
+
+// Themes where the restaurant's own accent_color should override the CSS variable.
+// Predefined themes have their own designed accent — let the CSS define it.
+const ACCENT_OVERRIDE_THEMES = new Set(['nightlife-dark', 'custom']);
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface MenuItem {
@@ -40,7 +54,7 @@ interface MenuCategory { id: string; name: string; emoji: string; items: MenuIte
 interface RestaurantData {
   name: string; tagline: string; whatsapp: string; accentColor: string;
   cover_image: string | null; plan: string; plan_status: string;
-  plan_expires_at: string | null; menu_layout: string;
+  plan_expires_at: string | null; menu_layout: string; menu_theme: string;
 }
 interface AdaData {
   name: string; emoji: string; welcome: string; idle: string;
@@ -191,6 +205,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         plan_status:     (restaurant!.plan_status as string)     || 'inactive',
         plan_expires_at: (restaurant!.plan_expires_at as string) || null,
         menu_layout:     (restaurant!.menu_layout as string)     || 'magazine',
+        menu_theme:      (restaurant!.menu_theme as string)      || 'nightlife-dark',
       },
       ada: {
         name:    restaurant!.ada_name as string,
@@ -220,10 +235,18 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
 
   // ── Boot ───────────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    const savedChar = (typeof localStorage !== 'undefined' && localStorage.getItem('vw_selected_char')) || 'ada';
-    setCharImg(CHARACTERS[savedChar]?.src || '/images/ada.png');
+  function applyTheme(r: RestaurantData) {
+    const theme = r.menu_theme || 'nightlife-dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    if (ACCENT_OVERRIDE_THEMES.has(theme)) {
+      document.documentElement.style.setProperty('--accent', r.accentColor || '#C41E3A');
+    } else {
+      document.documentElement.style.removeProperty('--accent');
+    }
+    setCharImg(THEME_ADA[theme] || '/images/ada.png');
+  }
 
+  useEffect(() => {
     (async () => {
       const { data: restaurantRow, error: slugError } = await db
         .from('restaurants').select('id').eq('slug', slug).single();
@@ -243,14 +266,14 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
       if (cached) {
         menuDataRef.current = cached;
         setMenuData(cached);
-        document.documentElement.style.setProperty('--accent', cached.restaurant.accentColor || '#C41E3A');
+        applyTheme(cached.restaurant);
 
         // Background refresh
         loadMenuData(rid).then(fresh => {
           if (JSON.stringify(fresh) !== JSON.stringify(cached)) {
             menuDataRef.current = fresh;
             setMenuData(fresh);
-            document.documentElement.style.setProperty('--accent', fresh.restaurant.accentColor || '#C41E3A');
+            applyTheme(fresh.restaurant);
           }
         }).catch(() => {});
       } else {
@@ -258,18 +281,17 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
           const data = await loadMenuData(rid);
           menuDataRef.current = data;
           setMenuData(data);
-          document.documentElement.style.setProperty('--accent', data.restaurant.accentColor || '#C41E3A');
+          applyTheme(data.restaurant);
         } catch {
           setDataError('Unable to load menu — please reload the page.');
         }
       }
 
       // Ada welcome message after menu is ready
-      const charKey  = (typeof localStorage !== 'undefined' && localStorage.getItem('vw_selected_char')) || 'ada';
-      const charName = CHARACTERS[charKey]?.name || 'Ada';
-      const welcome  = menuDataRef.current?.ada?.welcome || 'Browse our menu and tap + to order.';
+      const adaName = menuDataRef.current?.ada?.name || 'Ada';
+      const welcome = menuDataRef.current?.ada?.welcome || 'Browse our menu and tap + to order.';
       setTimeout(() => {
-        adaSpeak(`Hi! I'm ${charName}. ${welcome}`, 7000);
+        adaSpeak(`Hi! I'm ${adaName}. ${welcome}`, 7000);
         resetIdleTimer();
       }, 800);
     })();

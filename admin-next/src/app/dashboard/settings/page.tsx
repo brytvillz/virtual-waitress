@@ -27,7 +27,18 @@ type RestaurantSettings = {
   accent_color: string;
   max_tables_per_waiter: number;
   menu_layout: string;
+  menu_theme: string;
 };
+
+const THEMES = [
+  { id: 'nightlife-dark',   name: 'Nightlife Dark',   desc: 'Default',           bg: '#0A0208', accent: '#C41E3A', text: '#F0EDE8' },
+  { id: 'cafe-light',       name: 'Café Light',        desc: 'Warm & cozy',       bg: '#F5F0E8', accent: '#2D6A4F', text: '#2C1A0E' },
+  { id: 'street-energy',    name: 'Street Energy',     desc: 'Urban & bold',      bg: '#070D1A', accent: '#FF6B1A', text: '#F0F4FF' },
+  { id: 'heritage-gold',    name: 'Heritage Gold',     desc: 'Nigerian heritage',  bg: '#0B1508', accent: '#C9920A', text: '#F5E6C8' },
+  { id: 'pure-luxury',      name: 'Pure Luxury',       desc: 'Fine dining',       bg: '#080808', accent: '#C9A84C', text: '#F0E8D8' },
+  { id: 'tropical-bright',  name: 'Tropical Bright',   desc: 'Fresh & joyful',    bg: '#F0FDF4', accent: '#16A34A', text: '#14532D' },
+  { id: 'custom',           name: 'Custom',            desc: 'Your brand colour',  bg: '#0A0208', accent: 'custom',  text: '#F0EDE8' },
+] as const;
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -45,7 +56,7 @@ export default function SettingsPage() {
   // Restaurant settings state
   const [settings, setSettings] = useState<RestaurantSettings>({
     name: '', tagline: '', whatsapp: '',
-    accent_color: '#C41E3A', max_tables_per_waiter: 3, menu_layout: 'magazine',
+    accent_color: '#C41E3A', max_tables_per_waiter: 3, menu_layout: 'magazine', menu_theme: 'nightlife-dark',
   });
   const [restStatus, setRestStatus] = useState<SaveStatus>('idle');
   const [restError, setRestError] = useState('');
@@ -74,7 +85,7 @@ export default function SettingsPage() {
     const [{ data }, { data: { user } }] = await Promise.all([
       supabase
         .from('restaurants')
-        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout')
+        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme')
         .eq('id', restaurantId)
         .single(),
       supabase.auth.getUser(),
@@ -88,6 +99,7 @@ export default function SettingsPage() {
         accent_color: data.accent_color ?? '#C41E3A',
         max_tables_per_waiter: data.max_tables_per_waiter ?? 3,
         menu_layout: data.menu_layout ?? 'magazine',
+        menu_theme: data.menu_theme ?? 'nightlife-dark',
       });
     }
     if (user) setUserEmail(user.email ?? '');
@@ -112,6 +124,7 @@ export default function SettingsPage() {
       accent_color: settings.accent_color,
       max_tables_per_waiter: settings.max_tables_per_waiter,
       menu_layout: settings.menu_layout,
+      menu_theme: settings.menu_theme,
     }).eq('id', restaurant.id);
 
     if (error) {
@@ -309,6 +322,59 @@ export default function SettingsPage() {
               ))}
             </div>
           </Field>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">Menu Theme</span>
+            <span className="text-[#4a4a4a] text-xs -mt-0.5">Controls colours and style on your customer-facing menu</span>
+            <div className="grid grid-cols-3 gap-3 mt-1">
+              {THEMES.map(theme => {
+                const active = settings.menu_theme === theme.id;
+                const accentDisplay = theme.accent === 'custom' ? settings.accent_color : theme.accent;
+                return (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    onClick={() => setSettings(s => ({ ...s, menu_theme: theme.id }))}
+                    className={`relative flex flex-col rounded-xl overflow-hidden border-2 transition-all text-left ${
+                      active
+                        ? 'border-[#C41E3A] ring-2 ring-[#C41E3A]/25 scale-[1.03]'
+                        : 'border-white/[0.06] hover:border-white/20'
+                    }`}
+                  >
+                    {/* colour preview */}
+                    <div style={{ background: theme.bg }} className="h-14 w-full relative flex items-center justify-center">
+                      <div
+                        style={{ background: accentDisplay }}
+                        className="absolute bottom-0 left-0 right-0 h-[6px]"
+                      />
+                      <span style={{ color: theme.text }} className="text-sm font-black opacity-70 select-none">Aa</span>
+                      {theme.id === 'custom' && (
+                        <div
+                          style={{ background: accentDisplay }}
+                          className="absolute top-2 left-2 w-4 h-4 rounded-full border border-white/20"
+                        />
+                      )}
+                    </div>
+                    {/* label */}
+                    <div className="bg-[#111] px-2.5 py-2">
+                      <div className="text-[#F0EDE8] text-[11px] font-semibold leading-tight">{theme.name}</div>
+                      <div className="text-[#4a4a4a] text-[10px] mt-0.5">
+                        {theme.id === 'custom' ? 'Uses your accent colour' : theme.desc}
+                      </div>
+                    </div>
+                    {/* check badge */}
+                    {active && (
+                      <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#C41E3A] flex items-center justify-center shadow-lg">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M2 5l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <div className="flex items-center gap-4 pt-1">
             <button
