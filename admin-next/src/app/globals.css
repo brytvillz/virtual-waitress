@@ -17,3 +17,17 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Locked dashboard — admin view-only mode after grace period */
+main[data-locked] button,
+main[data-locked] input,
+main[data-locked] select,
+main[data-locked] textarea,
+main[data-locked] [role="button"] {
+  pointer-events: none !important;
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+main[data-locked] form {
+  pointer-events: none !important;
+}

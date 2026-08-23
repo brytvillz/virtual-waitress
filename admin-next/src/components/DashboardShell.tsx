@@ -19,10 +19,18 @@ function getTrialStatus(r: NonNullable<Restaurant>) {
   const planExpiry = r.plan_expires_at ? new Date(r.plan_expires_at) : null;
   const isPro = r.plan === 'pro' && r.plan_status === 'active' && (!planExpiry || planExpiry > now);
   if (isPro) return { type: 'pro' as const, daysLeft: 0 };
+
   const trialEnd = r.trial_ends_at ? new Date(r.trial_ends_at) : null;
-  if (!trialEnd || trialEnd <= now) return { type: 'expired' as const, daysLeft: 0 };
-  const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  return { type: 'trial' as const, daysLeft };
+  if (trialEnd && trialEnd > now) {
+    const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysLeft > 7) return { type: 'trial-early' as const, daysLeft };
+    return { type: 'trial-warning' as const, daysLeft };
+  }
+
+  // 2-day grace period after trial ends before admin buttons are locked
+  const graceEnd = trialEnd ? new Date(trialEnd.getTime() + 2 * 86_400_000) : null;
+  if (!graceEnd || graceEnd > now) return { type: 'expired-grace' as const, daysLeft: 0 };
+  return { type: 'locked' as const, daysLeft: 0 };
 }
 
 const RestaurantContext = createContext<Restaurant>(null);
@@ -41,16 +49,19 @@ const NAV = [
 export default function DashboardShell({
   user,
   restaurant,
+  isOwner,
   children,
 }: {
   user: User;
   restaurant: Restaurant;
+  isOwner: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
+  const [graceBannerDismissed, setGraceBannerDismissed] = useState(false);
   const [resendSent, setResendSent] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -103,7 +114,13 @@ export default function DashboardShell({
               {restaurant?.name ?? 'Virtual Waitress'}
             </p>
             <p className="text-[#4a4a4a] text-[10px] uppercase tracking-wider font-medium capitalize">
-              {trialStatus?.type === 'pro' ? 'Pro plan' : trialStatus?.type === 'trial' ? `Trial — ${trialStatus.daysLeft}d left` : trialStatus?.type === 'expired' ? 'Trial ended' : 'Trial'}
+              {trialStatus?.type === 'pro'
+                ? 'Pro plan'
+                : (trialStatus?.type === 'trial-early' || trialStatus?.type === 'trial-warning')
+                ? `Trial — ${trialStatus.daysLeft}d left`
+                : (trialStatus?.type === 'expired-grace' || trialStatus?.type === 'locked')
+                ? 'Trial ended'
+                : 'Trial'}
             </p>
           </div>
         </div>
@@ -157,45 +174,6 @@ export default function DashboardShell({
     </aside>
   );
 
-  if (trialStatus?.type === 'expired') {
-    return (
-      <RestaurantContext.Provider value={restaurant}>
-        <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center p-6">
-          <div className="bg-[#161616] border border-white/[0.08] rounded-2xl max-w-md w-full p-8 text-center">
-            <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-[#C41E3A]/10 flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C41E3A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-            <h1 className="text-[#F0EDE8] text-xl font-bold mb-2">Your trial has ended</h1>
-            <p className="text-[#6B6570] text-sm mb-1">
-              Your 14-day free trial of Virtual Waitress has expired.
-            </p>
-            <p className="text-[#6B6570] text-sm mb-6">
-              Upgrade to Pro to restore full access to your dashboard, menu, orders, and everything else.
-            </p>
-            <div className="bg-[#1f1f1f] rounded-xl p-4 mb-6">
-              <p className="text-[#F0EDE8] text-2xl font-bold">₦3,900<span className="text-[#6B6570] text-sm font-normal">/month</span></p>
-              <p className="text-[#6B6570] text-xs mt-1">Unlimited tables · Unlimited menu items · Live orders · QR codes</p>
-            </div>
-            <a
-              href="mailto:support@virtualwaitress.com?subject=Upgrade to Pro — Virtual Waitress"
-              className="block w-full py-3 rounded-xl bg-[#C41E3A] hover:bg-[#a01830] text-white text-sm font-semibold transition-colors mb-3"
-            >
-              Upgrade to Pro — ₦3,900/month
-            </a>
-            <button
-              onClick={signOut}
-              className="w-full py-3 rounded-xl border border-white/[0.08] text-[#6B6570] text-sm font-medium hover:bg-white/[0.04] transition-colors"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </RestaurantContext.Provider>
-    );
-  }
-
   return (
     <RestaurantContext.Provider value={restaurant}>
       <div className="flex min-h-screen bg-[#0f0f0f]">
@@ -236,14 +214,12 @@ export default function DashboardShell({
             </button>
           </header>
 
-          {/* Trial countdown banner */}
-          {trialStatus?.type === 'trial' && (
+          {/* Trial warning banner — admin only, days 7–14 */}
+          {isOwner && trialStatus?.type === 'trial-warning' && (
             <div className={`flex items-center gap-3 px-4 py-3 border-b text-xs flex-wrap ${
               trialStatus.daysLeft <= 3
                 ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                : trialStatus.daysLeft <= 7
-                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                : 'bg-[#C41E3A]/10 border-[#C41E3A]/20 text-[#e87a8a]'
+                : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
             }`}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -257,6 +233,37 @@ export default function DashboardShell({
               >
                 Upgrade now
               </a>
+            </div>
+          )}
+
+          {/* Grace period banner — admin only, 2 days after trial ends */}
+          {isOwner && trialStatus?.type === 'expired-grace' && !graceBannerDismissed && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-red-500/10 border-b border-red-500/20 text-red-400 text-xs flex-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span className="flex-1">
+                Your 14-day trial has ended. Your dashboard locks in <strong>2 days</strong> — upgrade now to keep all features.{' '}
+                <a href="mailto:support@virtualwaitress.com?subject=Upgrade to Pro" className="underline hover:no-underline font-medium">Upgrade to Pro — ₦3,900/month</a>
+              </span>
+              <button onClick={() => setGraceBannerDismissed(true)} aria-label="Dismiss" className="text-red-400/60 hover:text-red-400 transition-colors shrink-0">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          )}
+
+          {/* Locked banner — admin only, persistent after grace period */}
+          {isOwner && trialStatus?.type === 'locked' && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-[#C41E3A]/10 border-b border-[#C41E3A]/25 text-[#e87a8a] text-xs flex-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span className="flex-1">
+                Dashboard is <strong>view-only</strong>. Upgrade to Pro to unlock menus, orders, and all actions — ₦3,900/month.{' '}
+                <a href="mailto:support@virtualwaitress.com?subject=Upgrade to Pro" className="underline hover:no-underline font-medium">Upgrade now</a>
+              </span>
             </div>
           )}
 
@@ -283,7 +290,10 @@ export default function DashboardShell({
           )}
 
           {/* Page content */}
-          <main className="flex-1 overflow-auto">
+          <main
+            className="flex-1 overflow-auto"
+            {...(isOwner && trialStatus?.type === 'locked' ? { 'data-locked': 'true' } : {})}
+          >
             {children}
           </main>
         </div>

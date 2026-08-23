@@ -47,7 +47,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <DashboardShell user={user} restaurant={restaurant}>
+    <DashboardShell user={user} restaurant={restaurant} isOwner={!!owned}>
       {children}
     </DashboardShell>
   );

@@ -74,7 +74,6 @@ export default function SignupPage() {
   const [email,          setEmail]          = useState('');
   const [password,       setPassword]       = useState('');
   const [confirmPass,    setConfirmPass]     = useState('');
-  const [promoCode,      setPromoCode]       = useState('');
   const [agreed,         setAgreed]          = useState(false);
   const [showPass,       setShowPass]        = useState(false);
   const [showConfirm,    setShowConfirm]     = useState(false);
@@ -123,7 +122,6 @@ export default function SignupPage() {
           restaurant_name: restaurantName.trim(),
           email: email.trim(),
           password,
-          promo_code: promoCode.trim() || null,
         }),
       });
       const result = await res.json();
@@ -254,7 +252,7 @@ export default function SignupPage() {
           <FeatureItem>Works on any phone — no app download needed</FeatureItem>
           <FeatureItem>Orders go live to your waiter dashboard instantly</FeatureItem>
           <FeatureItem>Setup takes less than an hour</FeatureItem>
-          <FeatureItem>Free to start, no credit card required</FeatureItem>
+          <FeatureItem>14-day free trial — no credit card required</FeatureItem>
         </div>
       </div>
 
@@ -374,22 +372,6 @@ export default function SignupPage() {
                       <EyeIcon open={showConfirm} />
                     </button>
                   </div>
-                </div>
-
-                {/* Promo code */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">
-                    Promo code <span className="normal-case font-normal opacity-50">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={e => setPromoCode(e.target.value.toUpperCase())}
-                    placeholder="e.g. VWPRO30"
-                    autoComplete="off"
-                    maxLength={32}
-                    className="bg-[#1f1f1f] border border-white/[0.08] rounded-xl px-4 py-3 text-[#F0EDE8] text-sm placeholder-[#4a4a4a] outline-none focus:border-[#C41E3A]/50 transition-colors tracking-widest font-semibold"
-                  />
                 </div>
 
                 {/* Error */}
