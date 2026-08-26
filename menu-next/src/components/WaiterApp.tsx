@@ -164,6 +164,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const [activeTab,  setActiveTab]  = useState<'live' | 'shift'>('live');
   const [toasts,     setToasts]     = useState<Toast[]>([]);
   const [tick,       setTick]       = useState(0);
+  const [pushStatus, setPushStatus] = useState<'granted' | 'denied' | 'default' | 'unsupported'>('default');
+  const [pushBannerDismissed, setPushBannerDismissed] = useState(false);
 
   const ridRef     = useRef<string | null>(null);
   const othersRef  = useRef<Set<number>>(new Set());
@@ -274,10 +276,14 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   }
 
   async function initPushSubscription() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      setPushStatus('unsupported');
+      return;
+    }
     try {
       const reg = await navigator.serviceWorker.register('/sw.js');
       const perm = await Notification.requestPermission();
+      setPushStatus(perm as 'granted' | 'denied' | 'default');
       if (perm !== 'granted') return;
       let sub = await reg.pushManager.getSubscription();
       if (!sub) sub = await reg.pushManager.subscribe({
@@ -462,6 +468,24 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
           </div>
         ))}
       </div>
+
+      {/* Push notification warning */}
+      {(pushStatus === 'denied' || pushStatus === 'unsupported') && !pushBannerDismissed && (
+        <div className="w-push-warn">
+          <div className="w-push-warn-body">
+            <span className="w-push-warn-icon">🔕</span>
+            <div>
+              <strong>Notifications are off.</strong>
+              {pushStatus === 'denied' ? (
+                <span> You may miss order alerts. To fix: open your browser settings, find this site, and set Notifications to Allow.</span>
+              ) : (
+                <span> Your browser does not support push notifications. Audio alerts will still play for new orders.</span>
+              )}
+            </div>
+          </div>
+          <button className="w-push-warn-close" onClick={() => setPushBannerDismissed(true)} aria-label="Dismiss">&#x2715;</button>
+        </div>
+      )}
 
       {/* Top bar */}
       <header className="w-topbar">

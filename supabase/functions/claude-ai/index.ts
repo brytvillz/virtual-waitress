@@ -18,8 +18,13 @@ async function gemini(model: string, parts: unknown[], apiKey: string, maxTokens
     }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error?.message || 'Gemini request failed');
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+  if (!res.ok) {
+    const msg = data?.error?.message || `Gemini returned ${res.status}`;
+    throw new Error(`AI error: ${msg}`);
+  }
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!text) throw new Error('AI returned an empty response. Please try again.');
+  return text;
 }
 
 serve(async (req) => {

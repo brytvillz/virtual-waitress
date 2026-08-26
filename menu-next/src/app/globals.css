@@ -3200,6 +3200,53 @@ body {
   to   { opacity: 1; transform: translateX(0); }
 }
 
+.w-push-warn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #3a2000;
+  border-bottom: 1px solid rgba(255, 160, 0, 0.25);
+  padding: 10px 16px;
+  font-size: 0.82rem;
+  color: #ffd580;
+  line-height: 1.5;
+}
+
+.w-push-warn-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.w-push-warn-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.w-push-warn strong {
+  color: #ffb830;
+}
+
+.w-push-warn span {
+  color: rgba(255, 213, 128, 0.8);
+}
+
+.w-push-warn-close {
+  background: none;
+  border: none;
+  color: rgba(255, 213, 128, 0.6);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.w-push-warn-close:hover {
+  color: #ffd580;
+}
+
 /* ── Street Energy ──────────────────────────
    Deep navy / vibrant orange — urban market vibe
    Ada wears orange streetwear, night market bg
