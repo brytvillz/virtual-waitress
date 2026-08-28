@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -429,6 +430,112 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
       setTimeout(() => setOrderConfirm(null), 400);
     }, 4000);
   }, [orderState, db, restaurantId, table, adaSpeak, resetIdleTimer]);
+
+  // ── Demo auto-navigation (activated via ?demo=1) ──────────────────────────────
+
+  const searchParams = useSearchParams();
+  const isDemo = searchParams.get('demo') === '1';
+
+  useEffect(() => {
+    if (!isDemo || !menuData) return;
+
+    const categories = menuData.categories.filter(c => c.items.some(i => i.available !== false));
+    if (categories.length === 0) return;
+
+    // Ghost cursor element
+    const cursor = document.createElement('div');
+    cursor.style.cssText = [
+      'position:fixed', 'width:22px', 'height:22px', 'border-radius:50%',
+      'background:rgba(74,124,30,0.55)', 'border:2px solid rgba(74,124,30,0.9)',
+      'pointer-events:none', 'z-index:99999',
+      'transform:translate(-50%,-50%)',
+      'transition:left 0.55s cubic-bezier(0.4,0,0.2,1),top 0.55s cubic-bezier(0.4,0,0.2,1),opacity 0.3s,transform 0.15s',
+      'opacity:0', 'left:50%', 'top:50%',
+    ].join(';');
+    document.body.appendChild(cursor);
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let alive = true;
+
+    function at(el: Element | null) {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      cursor.style.opacity = '1';
+      cursor.style.left = (r.left + r.width / 2) + 'px';
+      cursor.style.top  = (r.top  + r.height / 2) + 'px';
+    }
+
+    function tap(el: Element | null, cb?: () => void) {
+      if (!el) { cb?.(); return; }
+      at(el);
+      timers.push(setTimeout(() => {
+        cursor.style.transform = 'translate(-50%,-50%) scale(0.68)';
+        timers.push(setTimeout(() => {
+          cursor.style.transform = 'translate(-50%,-50%) scale(1)';
+          (el as HTMLElement).click();
+          cb?.();
+        }, 180));
+      }, 600));
+    }
+
+    function step(ms: number, fn: () => void) {
+      const t = setTimeout(fn, ms);
+      timers.push(t);
+    }
+
+    function run() {
+      if (!alive) return;
+
+      const cat1    = categories[0];
+      const cat2    = categories[1] ?? categories[0];
+      const sec1    = () => document.getElementById('cat-' + cat1.id);
+      const sec2    = () => document.getElementById('cat-' + cat2.id);
+      const plusIn  = (sec: Element | null) => sec?.querySelector('.qty-btn.qty-plus') as Element | null;
+      const waiter  = () => document.querySelector('.call-waiter-btn') as Element | null;
+
+      // Scroll to first category
+      step(0, () => sec1()?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      // Move to first + button
+      step(1000, () => at(plusIn(sec1())));
+      // Tap it
+      step(1700, () => tap(plusIn(sec1())));
+      // Tap it again
+      step(3000, () => tap(plusIn(sec1())));
+      // Scroll to second category
+      step(4500, () => sec2()?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      // Move to second cat's first + button
+      step(5500, () => at(plusIn(sec2())));
+      // Tap it
+      step(6200, () => tap(plusIn(sec2())));
+      // Move to call waiter — visual only, no DB write
+      step(7800, () => at(waiter()));
+      step(8500, () => {
+        const btn = waiter();
+        if (btn) at(btn);
+        cursor.style.transform = 'translate(-50%,-50%) scale(0.68)';
+        timers.push(setTimeout(() => {
+          cursor.style.transform = 'translate(-50%,-50%) scale(1)';
+          adaSpeak(`I've called your waiter! 😊 Someone will be at Table ${table} shortly.`, 4500);
+        }, 220));
+      });
+      // Hide cursor, reset, loop
+      step(13000, () => {
+        cursor.style.opacity = '0';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setOrderState({});
+      });
+      step(14500, () => { if (alive) run(); });
+    }
+
+    timers.push(setTimeout(run, 1200));
+
+    return () => {
+      alive = false;
+      timers.forEach(clearTimeout);
+      if (cursor.parentNode) cursor.parentNode.removeChild(cursor);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menuData, isDemo]);
 
   // ── My orders ──────────────────────────────────────────────────────────────────
 
