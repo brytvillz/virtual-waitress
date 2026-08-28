@@ -456,12 +456,12 @@ export default function MenuPage() {
                           {/* Toggle */}
                           <button
                             onClick={() => toggleAvailable(item, !item.available)}
-                            className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${item.available ? 'bg-[#C41E3A]' : 'bg-[#2a2a2a]'}`}
+                            className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${item.available ? 'bg-[#C41E3A]' : 'bg-[#333]'}`}
                             title={item.available ? 'Mark as sold out' : 'Mark as available'}
                             aria-label={item.available ? 'Mark as sold out' : 'Mark as available'}
                           >
                             <span
-                              className={`absolute top-0.5 bottom-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${item.available ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
+                              className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${item.available ? 'translate-x-5' : 'translate-x-0'}`}
                             />
                           </button>
                         </div>
