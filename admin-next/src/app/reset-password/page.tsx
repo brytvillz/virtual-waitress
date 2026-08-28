@@ -129,11 +129,9 @@ export default function ResetPasswordPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f] px-4">
         <div className="w-full max-w-sm">
-          <div className="flex items-center justify-center gap-3 mb-10">
-            <div className="w-9 h-9 rounded-[10px] bg-[#C41E3A] flex items-center justify-center">
-              <span className="text-white text-[10px] font-black tracking-wide">VW</span>
-            </div>
-            <span className="text-[#F0EDE8] text-base font-semibold tracking-tight">Virtual Waitress</span>
+          <div className="flex items-center justify-center mb-10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-white.svg" alt="Virtual Waitress" className="h-9 w-auto" />
           </div>
           <div className="bg-[#161616] border border-white/[0.07] rounded-2xl p-8">
             <h1 className="text-[#F0EDE8] text-xl font-bold mb-1">Reset password</h1>

@@ -246,11 +246,9 @@ export default function SignupPage() {
         <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full"
           style={{ background: 'radial-gradient(circle, rgba(196,30,58,0.08) 0%, transparent 65%)' }} />
 
-        <a href="https://virtualwaitress.com" className="flex items-center gap-3 mb-16 relative">
-          <div className="w-9 h-9 rounded-[10px] bg-[#C41E3A] flex items-center justify-center shrink-0">
-            <span className="text-white text-[10px] font-black tracking-wide">VW</span>
-          </div>
-          <span className="text-[#F0EDE8] text-base font-semibold">Virtual Waitress</span>
+        <a href="https://virtualwaitress.com" className="flex mb-16 relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-white.svg" alt="Virtual Waitress" className="h-8 w-auto" />
         </a>
 
         <blockquote className="relative mb-12">
@@ -272,11 +270,9 @@ export default function SignupPage() {
         <div className="w-full max-w-[400px]">
 
           {/* Mobile logo */}
-          <div className="flex items-center gap-3 mb-10 lg:hidden">
-            <div className="w-8 h-8 rounded-[9px] bg-[#C41E3A] flex items-center justify-center">
-              <span className="text-white text-[9px] font-black tracking-wide">VW</span>
-            </div>
-            <span className="text-[#F0EDE8] text-sm font-semibold">Virtual Waitress</span>
+          <div className="flex mb-10 lg:hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-white.svg" alt="Virtual Waitress" className="h-7 w-auto" />
           </div>
 
           {/* ── Step 1: Account form ── */}

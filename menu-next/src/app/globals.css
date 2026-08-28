@@ -2447,33 +2447,16 @@ body {
 
 .w-login-logo {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   margin-bottom: 32px;
 }
 
-.w-login-mark {
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  background: var(--w-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.w-login-mark span {
-  color: #fff;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.05em;
-}
-
-.w-login-name {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--w-text);
+.w-login-logo-img {
+  height: 26px;
+  width: auto;
+  display: block;
 }
 
 .w-login-sub {
@@ -2598,22 +2581,11 @@ body {
   min-width: 0;
 }
 
-.w-topbar-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
-  background: var(--w-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.w-topbar-logo {
+  height: 18px;
+  width: auto;
+  display: block;
   flex-shrink: 0;
-}
-
-.w-topbar-mark span {
-  color: #fff;
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.05em;
 }
 
 .w-topbar-name {

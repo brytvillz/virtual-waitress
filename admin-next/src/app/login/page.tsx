@@ -36,11 +36,9 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
 
         {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-10">
-          <div className="w-9 h-9 rounded-[10px] bg-[#C41E3A] flex items-center justify-center">
-            <span className="text-white text-[10px] font-black tracking-wide">VW</span>
-          </div>
-          <span className="text-[#F0EDE8] text-base font-semibold tracking-tight">Virtual Waitress</span>
+        <div className="flex items-center justify-center mb-10">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-white.svg" alt="Virtual Waitress" className="h-9 w-auto" />
         </div>
 
         {/* Card */}

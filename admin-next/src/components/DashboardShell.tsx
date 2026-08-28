@@ -106,9 +106,8 @@ export default function DashboardShell({
       {/* Logo + close */}
       <div className="flex items-center justify-between px-5 py-5 border-b border-white/[0.06]">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-[8px] bg-[#C41E3A] flex items-center justify-center shrink-0">
-            <span className="text-white text-[9px] font-black tracking-wide">VW</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-white.svg" alt="Virtual Waitress" className="h-5 w-auto shrink-0" />
           <div className="min-w-0">
             <p className="text-[#F0EDE8] text-sm font-semibold truncate leading-tight">
               {restaurant?.name ?? 'Virtual Waitress'}
@@ -194,11 +193,10 @@ export default function DashboardShell({
           {/* Mobile top bar */}
           <header className="md:hidden flex items-center justify-between px-4 py-3 bg-[#111111] border-b border-white/[0.06] sticky top-0 z-20">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-[7px] bg-[#C41E3A] flex items-center justify-center">
-                <span className="text-white text-[8px] font-black tracking-wide">VW</span>
-              </div>
-              <span className="text-[#F0EDE8] text-sm font-semibold truncate max-w-[160px]">
-                {restaurant?.name ?? 'Virtual Waitress'}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-white.svg" alt="Virtual Waitress" className="h-5 w-auto shrink-0" />
+              <span className="text-[#F0EDE8] text-sm font-semibold truncate max-w-[140px]">
+                {restaurant?.name}
               </span>
             </div>
             <button

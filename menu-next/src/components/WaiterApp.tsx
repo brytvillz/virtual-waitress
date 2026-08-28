@@ -422,11 +422,9 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       <div className="waiter-root w-login-wrap">
         <form className="w-login-card" onSubmit={handleLogin}>
           <div className="w-login-logo">
-            <div className="w-login-mark"><span>VW</span></div>
-            <div>
-              <div className="w-login-name">Virtual Waitress</div>
-              <div className="w-login-sub">Staff Portal</div>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-white.svg" alt="Virtual Waitress" className="w-login-logo-img" />
+            <div className="w-login-sub">Staff Portal</div>
           </div>
           <h1 className="w-login-title">Sign in</h1>
           <p className="w-login-desc">Enter your access code to view your live dashboard.</p>
@@ -490,7 +488,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       {/* Top bar */}
       <header className="w-topbar">
         <div className="w-topbar-left">
-          <div className="w-topbar-mark"><span>VW</span></div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-white.svg" alt="Virtual Waitress" className="w-topbar-logo" />
           <span className="w-topbar-name">{staffName || 'Staff Dashboard'}</span>
           <span className="w-topbar-table">{tableBadge}</span>
         </div>
