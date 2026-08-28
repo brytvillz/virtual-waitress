@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
 
   const { pathname } = request.nextUrl;
   const isPublic = pathname.startsWith('/login')
@@ -30,11 +30,11 @@ export async function middleware(request: NextRequest) {
     || pathname.startsWith('/auth')
     || pathname.startsWith('/super-admin');
 
-  if (!user && !isPublic) {
+  if (!session && !isPublic) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (user && pathname === '/login') {
+  if (session && pathname === '/login') {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
