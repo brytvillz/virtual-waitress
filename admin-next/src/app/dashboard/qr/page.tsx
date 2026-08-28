@@ -93,6 +93,10 @@ export default function QrPage() {
   const [deliveryPhone, setDeliveryPhone] = useState('');
   const [orderSubmitted, setOrderSubmitted] = useState(false);
 
+  function toSlug(str: string) {
+    return str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
   const load = useCallback(async (restaurantId: string) => {
     const supabase = createClient();
     const [{ data: rest }, { data: tbls }] = await Promise.all([
@@ -100,9 +104,28 @@ export default function QrPage() {
       supabase.from('tables').select('table_number').eq('restaurant_id', restaurantId).order('table_number'),
     ]);
     if (rest) {
-      setSlug(rest.slug ?? '');
       setName(rest.name ?? 'Restaurant');
       setTagline(rest.tagline ?? '');
+
+      if (rest.slug) {
+        setSlug(rest.slug);
+      } else {
+        // Auto-generate a unique slug if missing
+        const base = toSlug(rest.name ?? 'restaurant') || 'restaurant';
+        let candidate = base;
+        let counter = 2;
+        while (true) {
+          const { data: existing } = await supabase
+            .from('restaurants')
+            .select('id')
+            .eq('slug', candidate)
+            .maybeSingle();
+          if (!existing) break;
+          candidate = `${base}-${counter++}`;
+        }
+        await supabase.from('restaurants').update({ slug: candidate }).eq('id', restaurantId);
+        setSlug(candidate);
+      }
     }
     setTables((tbls ?? []) as Table[]);
     setLoading(false);
