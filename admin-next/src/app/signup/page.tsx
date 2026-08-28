@@ -137,7 +137,7 @@ export default function SignupPage() {
         options: { shouldCreateUser: false },
       });
       if (otpErr) {
-        setStep1Error(`Account created but OTP failed: ${otpErr.message}`);
+        setStep1Error('Account created but could not send verification code. Go to login to sign in.');
         return;
       }
 
@@ -213,6 +213,17 @@ export default function SignupPage() {
         otpRefs.current[idx - 1]?.focus();
       }
     }
+  }
+
+  async function handlePaste() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const digits = text.replace(/\D/g, '').slice(0, 8);
+      if (digits.length === 8) {
+        setOtp(digits.split(''));
+        setTimeout(submitOtp, 80);
+      }
+    } catch { /* clipboard denied — user pastes manually */ }
   }
 
   async function handleResend() {
@@ -435,7 +446,7 @@ export default function SignupPage() {
               <p className="text-[#F0EDE8] text-sm font-semibold mb-8 break-all">{email}</p>
 
               {/* OTP boxes */}
-              <div className="flex gap-2 justify-center mb-2">
+              <div className="flex gap-1.5 sm:gap-2 justify-center mb-2">
                 {otp.map((digit, i) => (
                   <input
                     key={i}
@@ -447,10 +458,18 @@ export default function SignupPage() {
                     onChange={e => handleOtpInput(i, e.target.value)}
                     onKeyDown={e => handleOtpKey(i, e)}
                     onFocus={e => e.target.select()}
-                    className="w-10 h-12 bg-[#1f1f1f] border border-white/[0.08] rounded-xl text-center text-[#F0EDE8] text-lg font-bold outline-none focus:border-[#C41E3A]/60 transition-colors caret-transparent"
+                    className="w-8 h-11 sm:w-10 sm:h-12 bg-[#1f1f1f] border border-white/[0.08] rounded-xl text-center text-[#F0EDE8] text-base sm:text-lg font-bold outline-none focus:border-[#C41E3A]/60 transition-colors caret-transparent"
                   />
                 ))}
               </div>
+
+              <button
+                type="button"
+                onClick={handlePaste}
+                className="w-full text-[#C41E3A] text-sm font-medium py-1 mb-1 hover:underline transition-colors"
+              >
+                Paste code
+              </button>
 
               {otpError && (
                 <p className="text-[#ff6b6b] text-sm text-center mt-2 mb-1">{otpError}</p>
