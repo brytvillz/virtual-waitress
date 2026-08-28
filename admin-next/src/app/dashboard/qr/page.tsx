@@ -201,7 +201,7 @@ export default function QrPage() {
         </div>
       )}
 
-      {loading ? (
+      {loading || !slug ? (
         <div className="flex items-center gap-2 text-[#6B6570] text-sm">
           <span className="w-4 h-4 border-2 border-[#6B6570] border-t-transparent rounded-full animate-spin" />
           Loading…
