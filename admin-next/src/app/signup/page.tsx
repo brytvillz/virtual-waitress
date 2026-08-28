@@ -137,7 +137,7 @@ export default function SignupPage() {
         options: { shouldCreateUser: false },
       });
       if (otpErr) {
-        setStep1Error('Account created but could not send verification code. Go to login to sign in.');
+        setStep1Error(`Account created but OTP failed: ${otpErr.message}`);
         return;
       }
 
