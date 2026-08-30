@@ -493,8 +493,12 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
       const plusIn  = (sec: Element | null) => sec?.querySelector('.qty-btn.qty-plus') as Element | null;
       const waiter  = () => document.querySelector('.call-waiter-btn') as Element | null;
 
-      // Scroll to first category
-      step(0, () => sec1()?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      // Scroll to first category — use window.scrollTo to stay inside the iframe
+      const scrollTo = (el: Element | null) => {
+        if (!el) return;
+        window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 72, behavior: 'smooth' });
+      };
+      step(0, () => scrollTo(sec1()));
       // Move to first + button
       step(1000, () => at(plusIn(sec1())));
       // Tap it
@@ -502,7 +506,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
       // Tap it again
       step(3000, () => tap(plusIn(sec1())));
       // Scroll to second category
-      step(4500, () => sec2()?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+      step(4500, () => scrollTo(sec2()));
       // Move to second cat's first + button
       step(5500, () => at(plusIn(sec2())));
       // Tap it
