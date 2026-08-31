@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Admin client (service role) for deletions that bypass RLS
     const admin = createClient(
       Deno.env.get("SB_URL")!,
       Deno.env.get("SB_SERVICE_ROLE_KEY")!,
@@ -33,7 +32,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get all restaurants owned by this user
+    // Refuse if the caller is a device. A device calling delete-account would
+    // delete its own auth user, cascade-deleting the devices row and erasing
+    // the revocation audit trail that exists specifically to track stolen screens.
+    const { data: deviceRow } = await admin
+      .from("devices")
+      .select("id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+    if (deviceRow) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Get restaurants owned by this user. Only owners may proceed.
+    // This also refuses waiters and managers (staff users own no restaurants).
+    // A waiter deleting their own auth user would cascade-delete their staff row
+    // and potentially null out every order attribution and shift assignment in
+    // history — silent, permanent data loss.
     const { data: restaurants } = await admin
       .from("restaurants")
       .select("id")
@@ -41,9 +58,14 @@ Deno.serve(async (req) => {
 
     const restaurantIds = (restaurants ?? []).map((r: { id: string }) => r.id);
 
+    if (restaurantIds.length === 0) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Delete everything per restaurant (explicit order to respect FK constraints)
     for (const restaurantId of restaurantIds) {
-      // Get order IDs for this restaurant first (needed for order_items)
       const { data: orderRows } = await admin
         .from("orders")
         .select("id")
@@ -66,7 +88,7 @@ Deno.serve(async (req) => {
       await admin.from("restaurants").delete().eq("id", restaurantId);
     }
 
-    // Finally delete the auth user — this also removes their session
+    // Delete the auth user only after all restaurant data is gone
     const { error: deleteErr } = await admin.auth.admin.deleteUser(user.id);
     if (deleteErr) {
       console.error("delete-account: auth user deletion failed:", deleteErr);
