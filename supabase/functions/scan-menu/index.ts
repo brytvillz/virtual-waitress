@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +32,19 @@ serve(async (req) => {
     });
 
   try {
+    // Require a valid authenticated session. This function calls a paid Gemini
+    // API on the platform key — an unauthenticated endpoint is a billing attack
+    // surface for anyone who discovers the URL.
+    const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim();
+    if (!token) return json({ error: 'Unauthorized' }, 401);
+
+    const supabase = createClient(
+      Deno.env.get('SB_URL')!,
+      Deno.env.get('SB_SERVICE_ROLE_KEY')!,
+    );
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) return json({ error: 'Unauthorized' }, 401);
+
     const API_KEY = Deno.env.get('GOOGLE_AI_KEY');
     if (!API_KEY) return json({ error: 'AI not configured — add GOOGLE_AI_KEY to Supabase secrets.' }, 500);
 
@@ -71,7 +85,6 @@ serve(async (req) => {
     const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
     if (!raw) return json({ error: 'AI returned an empty response. Please try a clearer photo.' }, 500);
 
-    // Strip markdown code fences if present
     const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
 
     let result: { categories: unknown[] };

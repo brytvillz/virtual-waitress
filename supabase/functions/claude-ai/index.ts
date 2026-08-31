@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,6 +35,19 @@ serve(async (req) => {
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   try {
+    // Require a valid authenticated session. This function calls a paid Gemini
+    // API on the platform key — an unauthenticated endpoint is a billing attack
+    // surface for anyone who discovers the URL.
+    const token = req.headers.get('Authorization')?.replace('Bearer ', '').trim();
+    if (!token) return json({ error: 'Unauthorized' }, 401);
+
+    const supabase = createClient(
+      Deno.env.get('SB_URL')!,
+      Deno.env.get('SB_SERVICE_ROLE_KEY')!,
+    );
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) return json({ error: 'Unauthorized' }, 401);
+
     const API_KEY = Deno.env.get('GOOGLE_AI_KEY');
     if (!API_KEY) return json({ error: 'AI not configured — add GOOGLE_AI_KEY to Supabase secrets.' }, 500);
 
@@ -105,13 +119,6 @@ serve(async (req) => {
         return json({ error: 'Could not parse menu', raw }, 422);
       }
       return json({ items });
-    }
-
-    // ── Debug: list available models ──────────────────────────────────────────
-    if (action === 'list-models') {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`);
-      const data = await res.json();
-      return json(data);
     }
 
     return json({ error: 'Unknown action' }, 400);
