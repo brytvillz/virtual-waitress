@@ -136,7 +136,12 @@ export default function OrdersPage() {
     if (!next || updating) return;
     setUpdating(order.id);
     const supabase = createClient();
-    await supabase.from('orders').update({ status: next }).eq('id', order.id);
+    const { error } = await supabase.from('orders').update({ status: next }).eq('id', order.id);
+    if (!error) {
+      setOrders(prev =>
+        prev.map(o => o.id === order.id ? { ...o, status: next as Order['status'] } : o)
+      );
+    }
     setUpdating(null);
   }
 
