@@ -6,8 +6,8 @@ const corsHeaders = {
 };
 
 function buildWelcomeEmail(restaurantName: string, slug: string): string {
-  const dashboardUrl = 'https://app.virtualwaitress.com/admin.html';
-  const menuUrl = `https://app.virtualwaitress.com/menu.html?r=${slug}`;
+  const dashboardUrl = 'https://dashboard.virtualwaitress.com/dashboard';
+  const menuUrl = `https://app.virtualwaitress.com/${slug}/1`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -103,7 +103,7 @@ function buildWelcomeEmail(restaurantName: string, slug: string): string {
               <!-- Footer note -->
               <p style="color:#4a4a4a;font-size:12px;text-align:center;margin:0;line-height:1.6;">
                 Questions? Reply to this email or reach us on
-                <a href="https://wa.me/2349023049395" style="color:#4a4a4a;text-decoration:underline;">WhatsApp</a>.
+                <a href="https://wa.me/2347018814381" style="color:#4a4a4a;text-decoration:underline;">WhatsApp</a>.
               </p>
 
             </td>
@@ -116,9 +116,9 @@ function buildWelcomeEmail(restaurantName: string, slug: string): string {
                 &copy; 2026 Virtual Waitress &mdash; Built for African restaurants
               </p>
               <p style="margin:0;">
-                <a href="https://app.virtualwaitress.com" style="color:#4a4a4a;font-size:12px;text-decoration:none;">virtualwaitress.com</a>
+                <a href="https://virtualwaitress.com" style="color:#4a4a4a;font-size:12px;text-decoration:none;">virtualwaitress.com</a>
                 &nbsp;&middot;&nbsp;
-                <a href="https://app.virtualwaitress.com/privacy.html" style="color:#4a4a4a;font-size:12px;text-decoration:none;">Privacy Policy</a>
+                <a href="https://virtualwaitress.com/privacy" style="color:#4a4a4a;font-size:12px;text-decoration:none;">Privacy Policy</a>
               </p>
             </td>
           </tr>
@@ -154,7 +154,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Virtual Waitress <hello@virtualwaitress.com>',
+        from: 'Virtual Waitress <noreply@virtualwaitress.com>',
         to: [email],
         subject: `Welcome to Virtual Waitress — ${restaurant_name} is ready!`,
         html,
