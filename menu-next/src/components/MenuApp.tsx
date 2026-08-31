@@ -65,9 +65,10 @@ interface MenuData { restaurant: RestaurantData; ada: AdaData; categories: MenuC
 interface OrderItem { qty: number; price: number }
 type OrderState = Record<string, OrderItem>;
 interface MyOrder {
-  id: string; status: string; total: number; created_at: string;
+  id: string; status: string; total: number; created_at: string; table_number: number;
   order_items: { item_name: string; quantity: number; price: number }[];
 }
+interface StoredOrder { id: string; table: string; placedAt: number }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -415,6 +416,22 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
       return;
     }
 
+    // Persist the placed order ID so "My orders" survives a page refresh.
+    // Key is per-restaurant so a device visiting multiple restaurants keeps
+    // separate histories. Each entry stores the table for display; entries
+    // older than 24 hours are pruned on the next read.
+    if (restaurantId) {
+      try {
+        const lsKey = `vw_orders_${restaurantId}`;
+        const raw = localStorage.getItem(lsKey);
+        const entries: StoredOrder[] = raw ? JSON.parse(raw) : [];
+        const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+        const fresh = entries.filter(e => e.placedAt > cutoff);
+        fresh.push({ id: orderId, table, placedAt: Date.now() });
+        localStorage.setItem(lsKey, JSON.stringify(fresh));
+      } catch (_) { /* storage unavailable or quota full */ }
+    }
+
     const count = items.reduce((s, [, i]) => s + i.qty, 0);
     setOrderConfirm({ table, itemCount: count, total });
     setOrderConfirmVisible(false);
@@ -544,15 +561,38 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
   // ── My orders ──────────────────────────────────────────────────────────────────
 
   const loadMyOrders = useCallback(async () => {
+    if (!restaurantId) return;
     setMyOrdersLoading(true);
     try {
+      // Read placed order IDs from localStorage. Prune entries older than 24 hours.
+      // The list is per-restaurant so histories from different restaurants don't mix.
+      const lsKey = `vw_orders_${restaurantId}`;
+      let orderIds: string[] = [];
+      try {
+        const raw = localStorage.getItem(lsKey);
+        if (raw) {
+          const entries: StoredOrder[] = JSON.parse(raw);
+          const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+          const fresh = entries.filter(e => e.placedAt > cutoff);
+          if (fresh.length !== entries.length) {
+            try { localStorage.setItem(lsKey, JSON.stringify(fresh)); } catch (_) {}
+          }
+          orderIds = fresh.map(e => e.id);
+        }
+      } catch (_) { /* storage unavailable */ }
+
+      if (orderIds.length === 0) {
+        setMyOrders([]);
+        return;
+      }
+
       const res = await fetch(`${SUPABASE_URL}/functions/v1/table-orders`, {
         method: 'POST',
         headers: {
           'Content-Type':  'application/json',
           'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ restaurant_id: restaurantId, table_number: Number(table) }),
+        body: JSON.stringify({ order_ids: orderIds }),
       });
       const { orders, error } = await res.json();
       if (error || !res.ok) throw new Error(error || 'Failed');
@@ -562,7 +602,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     } finally {
       setMyOrdersLoading(false);
     }
-  }, [restaurantId, table]);
+  }, [restaurantId]);
 
   const openMyOrders = useCallback(() => {
     setMyOrderOpen(true);
