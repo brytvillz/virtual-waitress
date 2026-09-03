@@ -42,6 +42,21 @@ Deno.serve(async (req) => {
     return new Response("Ignored — unrecognised table", { status: 200 });
   }
 
+  // Respect the per-venue alert_staff_phones preference
+  const { data: restRow, error: restErr } = await supabase
+    .from("restaurants")
+    .select("alert_staff_phones")
+    .eq("id", record.restaurant_id)
+    .maybeSingle();
+
+  if (restErr) {
+    // Log but continue — a lookup failure should not silently drop push
+    console.error("send-push: failed to read alert_staff_phones:", restErr);
+  } else if (!restRow?.alert_staff_phones) {
+    console.log(`send-push: skipping push — alert_staff_phones is off for restaurant ${record.restaurant_id}`);
+    return new Response(JSON.stringify({ sent: 0, skipped: true }), { status: 200 });
+  }
+
   const { data: subs, error } = await supabase
     .from("push_subscriptions")
     .select("*")

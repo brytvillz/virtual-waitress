@@ -30,6 +30,18 @@ type RestaurantSettings = {
   menu_theme: string;
 };
 
+type AlertSettings = {
+  station_screen: boolean;
+  staff_phones: boolean;
+  sound: boolean;
+};
+
+const ALERT_DB_KEY: Record<keyof AlertSettings, string> = {
+  station_screen: 'alert_station_screen',
+  staff_phones:   'alert_staff_phones',
+  sound:          'alert_sound',
+};
+
 const THEMES = [
   { id: 'nightlife-dark',   name: 'Nightlife Dark',   desc: 'Default',           bg: '#0A0208', accent: '#C41E3A', text: '#F0EDE8' },
   { id: 'cafe-light',       name: 'Café Light',        desc: 'Warm & cozy',       bg: '#F5F0E8', accent: '#2D6A4F', text: '#2C1A0E' },
@@ -61,6 +73,13 @@ export default function SettingsPage() {
   const [restStatus, setRestStatus] = useState<SaveStatus>('idle');
   const [restError, setRestError] = useState('');
 
+  // Alert settings state
+  const [alerts, setAlerts] = useState<AlertSettings>({ station_screen: true, staff_phones: false, sound: true });
+  const [canManageAlerts, setCanManageAlerts] = useState(false);
+  const [alertStatus, setAlertStatus] = useState<SaveStatus>('idle');
+  const [alertError, setAlertError] = useState('');
+  const [bothOffWarning, setBothOffWarning] = useState(false);
+
   // Account state
   const [userEmail, setUserEmail] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -82,14 +101,17 @@ export default function SettingsPage() {
 
   const load = useCallback(async (restaurantId: string) => {
     const supabase = createClient();
-    const [{ data }, { data: { user } }] = await Promise.all([
+    const [{ data }, authResult] = await Promise.all([
       supabase
         .from('restaurants')
-        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme')
+        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme, alert_station_screen, alert_staff_phones, alert_sound, owner_id')
         .eq('id', restaurantId)
         .single(),
       supabase.auth.getUser(),
     ]);
+
+    const user = authResult.data.user;
+    if (user) setUserEmail(user.email ?? '');
 
     if (data) {
       setSettings({
@@ -101,8 +123,28 @@ export default function SettingsPage() {
         menu_layout: data.menu_layout ?? 'magazine',
         menu_theme: data.menu_theme ?? 'nightlife-dark',
       });
+
+      const loaded: AlertSettings = {
+        station_screen: data.alert_station_screen ?? true,
+        staff_phones:   data.alert_staff_phones ?? false,
+        sound:          data.alert_sound ?? true,
+      };
+      setAlerts(loaded);
+      setBothOffWarning(!loaded.station_screen && !loaded.staff_phones);
+
+      if (user) {
+        if ((data as { owner_id?: string }).owner_id === user.id) {
+          setCanManageAlerts(true);
+        } else {
+          const { data: staffRow } = await supabase
+            .from('staff')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle();
+          setCanManageAlerts(staffRow?.role === 'manager');
+        }
+      }
     }
-    if (user) setUserEmail(user.email ?? '');
   }, []);
 
   useEffect(() => {
@@ -133,6 +175,27 @@ export default function SettingsPage() {
     } else {
       setRestStatus('saved');
       setTimeout(() => setRestStatus('idle'), 3000);
+    }
+  }
+
+  async function handleAlertToggle(key: keyof AlertSettings, value: boolean) {
+    if (!restaurant) return;
+    const next = { ...alerts, [key]: value };
+    setAlerts(next);
+    setBothOffWarning(!next.station_screen && !next.staff_phones);
+    setAlertStatus('saving');
+    setAlertError('');
+    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await supabase.from('restaurants').update({ [ALERT_DB_KEY[key]]: value } as any).eq('id', restaurant.id);
+    if (error) {
+      setAlerts(prev => ({ ...prev, [key]: !value }));
+      setBothOffWarning(!alerts.station_screen && !alerts.staff_phones);
+      setAlertError('Failed to save — try again.');
+      setAlertStatus('error');
+    } else {
+      setAlertStatus('saved');
+      setTimeout(() => setAlertStatus('idle'), 2000);
     }
   }
 
@@ -389,6 +452,46 @@ export default function SettingsPage() {
         </form>
       </section>
 
+      {/* ── Alerts ── */}
+      {canManageAlerts && (
+        <section className="bg-[#161616] border border-white/[0.06] rounded-2xl p-6 mb-6">
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <h2 className="text-[#F0EDE8] text-sm font-semibold">Alerts</h2>
+              <p className="text-[#4a4a4a] text-xs mt-0.5">How staff are notified of new orders and waiter calls</p>
+            </div>
+            <StatusMsg status={alertStatus} errorText={alertError} />
+          </div>
+
+          <div className="flex flex-col gap-5">
+            <AlertToggle
+              label="Station Screen"
+              hint="Highlights new orders on the kitchen or bar display"
+              checked={alerts.station_screen}
+              onChange={v => handleAlertToggle('station_screen', v)}
+            />
+            <AlertToggle
+              label="Staff Phones"
+              hint="Sends a push notification to all logged-in staff browsers"
+              checked={alerts.staff_phones}
+              onChange={v => handleAlertToggle('staff_phones', v)}
+            />
+            <AlertToggle
+              label="Sound Alert"
+              hint="Plays a chime in the admin dashboard when a new order arrives"
+              checked={alerts.sound}
+              onChange={v => handleAlertToggle('sound', v)}
+            />
+          </div>
+
+          {bothOffWarning && (
+            <div className="mt-5 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs leading-relaxed">
+              Station Screen and Staff Phones are both off — new orders and waiter calls will arrive silently. Turn at least one on so staff are notified.
+            </div>
+          )}
+        </section>
+      )}
+
       {/* ── My Account ── */}
       <section className="bg-[#161616] border border-white/[0.06] rounded-2xl p-6">
         <h2 className="text-[#F0EDE8] text-sm font-semibold mb-1">My Account</h2>
@@ -569,5 +672,31 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       {hint && <span className="text-[#4a4a4a] text-xs -mt-0.5">{hint}</span>}
       {children}
     </label>
+  );
+}
+
+function AlertToggle({ label, hint, checked, onChange }: {
+  label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-[#c4bec9] text-sm font-medium">{label}</p>
+        {hint && <p className="text-[#4a4a4a] text-xs mt-0.5 leading-relaxed">{hint}</p>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative shrink-0 w-11 h-6 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C41E3A]/50 ${
+          checked ? 'bg-[#C41E3A]' : 'bg-white/[0.12]'
+        }`}
+      >
+        <span className={`block w-5 h-5 rounded-full bg-white shadow-sm transition-transform absolute top-0.5 ${
+          checked ? 'translate-x-5' : 'translate-x-0.5'
+        }`} />
+      </button>
+    </div>
   );
 }
