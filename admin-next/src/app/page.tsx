@@ -70,7 +70,7 @@ export default async function Home() {
             </Link>
           </div>
 
-          <p className="text-[#4a4a4a] text-sm mt-4">14 days free · Then ₦3,900/month · Cancel anytime</p>
+          <p className="text-[#4a4a4a] text-sm mt-4">14 days free · Then ₦9,900/month · Cancel anytime</p>
         </div>
       </section>
 
@@ -237,7 +237,7 @@ export default async function Home() {
             <div className="p-8">
               <p className="text-[#6B6570] text-sm mb-4">Pro plan</p>
               <div className="flex items-baseline justify-center gap-1 mb-2">
-                <span className="text-[#F0EDE8] text-5xl font-black">₦3,900</span>
+                <span className="text-[#F0EDE8] text-5xl font-black">₦9,900</span>
                 <span className="text-[#6B6570] text-base">/month</span>
               </div>
               <p className="text-[#6B6570] text-sm mb-8">Billed monthly · Cancel anytime</p>

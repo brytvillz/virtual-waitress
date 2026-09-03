@@ -223,7 +223,7 @@ export default function DashboardShell({
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
               <span className="flex-1">
-                Your free trial ends in <strong>{trialStatus.daysLeft} day{trialStatus.daysLeft !== 1 ? 's' : ''}</strong>. Upgrade to Pro to keep full access — ₦3,900/month.
+                Your free trial ends in <strong>{trialStatus.daysLeft} day{trialStatus.daysLeft !== 1 ? 's' : ''}</strong>. Upgrade to Pro to keep full access — ₦9,900/month.
               </span>
               <a
                 href="mailto:support@virtualwaitress.com?subject=Upgrade to Pro"
@@ -242,7 +242,7 @@ export default function DashboardShell({
               </svg>
               <span className="flex-1">
                 Your 14-day trial has ended. Your dashboard locks in <strong>2 days</strong> — upgrade now to keep all features.{' '}
-                <a href="mailto:support@virtualwaitress.com?subject=Upgrade to Pro" className="underline hover:no-underline font-medium">Upgrade to Pro — ₦3,900/month</a>
+                <a href="mailto:support@virtualwaitress.com?subject=Upgrade to Pro" className="underline hover:no-underline font-medium">Upgrade to Pro — ₦9,900/month</a>
               </span>
               <button onClick={() => setGraceBannerDismissed(true)} aria-label="Dismiss" className="text-red-400/60 hover:text-red-400 transition-colors shrink-0">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -259,7 +259,7 @@ export default function DashboardShell({
                 <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
               <span className="flex-1">
-                Dashboard is <strong>view-only</strong>. Upgrade to Pro to unlock menus, orders, and all actions — ₦3,900/month.{' '}
+                Dashboard is <strong>view-only</strong>. Upgrade to Pro to unlock menus, orders, and all actions — ₦9,900/month.{' '}
                 <a href="mailto:support@virtualwaitress.com?subject=Upgrade to Pro" className="underline hover:no-underline font-medium">Upgrade now</a>
               </span>
             </div>

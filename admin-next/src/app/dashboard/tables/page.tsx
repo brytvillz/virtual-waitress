@@ -108,7 +108,7 @@ export default function TablesPage() {
     const trialActive = restaurant.trial_ends_at && new Date(restaurant.trial_ends_at) > new Date();
     const isPro = restaurant.plan === 'pro' && restaurant.plan_status === 'active';
     if (!isPro && !trialActive && tables.length >= 5) {
-      setAddError('Upgrade to Pro for unlimited tables — ₦3,900/month.');
+      setAddError('Upgrade to Pro for unlimited tables — ₦9,900/month.');
       return;
     }
     setSaving(true);
