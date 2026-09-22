@@ -19,4 +19,5 @@ export type MenuItem = {
   category_id: string;
   restaurant_id: string;
   sort_order: number;
+  station: 'bar' | 'kitchen' | null;
 };

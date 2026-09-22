@@ -6,10 +6,7 @@ import { useRestaurant } from '@/components/DashboardShell';
 import CategoryModal from '@/components/menu/CategoryModal';
 import ItemModal from '@/components/menu/ItemModal';
 import type { Category, MenuItem } from '@/types/menu';
-
-function fmt(price: number) {
-  return '₦' + price.toLocaleString('en-NG');
-}
+import { fmtNaira } from '@/lib/fmt';
 
 function slugify(name: string) {
   return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -159,7 +156,7 @@ export default function MenuPage() {
 
   async function saveItem(data: {
     name: string; price: number; description: string; ada_message: string;
-    file: File | null; removeImage: boolean;
+    station: 'bar' | 'kitchen' | null; file: File | null; removeImage: boolean;
   }) {
     if (!restaurant || !itemModal.open) return;
     const supabase = createClient();
@@ -169,6 +166,7 @@ export default function MenuPage() {
       price: data.price,
       description: data.description,
       ada_message: data.ada_message,
+      station: data.station,
     };
 
     if (data.file) {
@@ -447,6 +445,15 @@ export default function MenuPage() {
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-[#F0EDE8] text-sm font-medium leading-snug flex-1">
                             {item.name}
+                            {item.station && (
+                              <span className={`ml-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold align-middle ${
+                                item.station === 'bar'
+                                  ? 'bg-blue-500/10 text-blue-400'
+                                  : 'bg-amber-500/10 text-amber-400'
+                              }`}>
+                                {item.station}
+                              </span>
+                            )}
                             {!item.available && (
                               <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#ff6b6b]/10 text-[#ff6b6b] align-middle">
                                 Sold out
@@ -467,7 +474,7 @@ export default function MenuPage() {
                         </div>
 
                         {/* Price */}
-                        <p className="text-[#6B6570] text-xs mt-1">{fmt(item.price)}</p>
+                        <p className="text-[#6B6570] text-xs mt-1">{fmtNaira(item.price)}</p>
 
                         {/* Actions */}
                         <div className="flex gap-2 mt-2.5">
@@ -614,7 +621,7 @@ export default function MenuPage() {
                           {cat.items.map((item, ii) => (
                             <div key={ii} className="flex items-center justify-between gap-2">
                               <span className="text-[#9a9098] text-xs">{item.name}</span>
-                              <span className="text-[#6B6570] text-xs shrink-0">{item.price ? fmt(item.price) : '—'}</span>
+                              <span className="text-[#6B6570] text-xs shrink-0">{item.price ? fmtNaira(item.price) : '—'}</span>
                             </div>
                           ))}
                         </div>
