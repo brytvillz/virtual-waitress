@@ -42,8 +42,12 @@ function trend(current: number, previous: number) {
 export default function AnalyticsPage() {
   const restaurant = useRestaurant();
   const [loading, setLoading] = useState(true);
-  const [todayRevenue, setTodayRevenue] = useState(0);
-  const [todayOrders, setTodayOrders] = useState(0);
+  // Paid today and unpaid today — both exclude cancelled orders (migration 021 columns)
+  const [paidTodayRevenue, setPaidTodayRevenue]   = useState(0);
+  const [paidTodayCount, setPaidTodayCount]       = useState(0);
+  const [unpaidTodayRevenue, setUnpaidTodayRevenue] = useState(0);
+  const [unpaidTodayCount, setUnpaidTodayCount]   = useState(0);
+  const [todayOrders, setTodayOrders] = useState(0); // excludes cancelled
   const [yesterdayRevenue, setYesterdayRevenue] = useState(0);
   const [yesterdayOrders, setYesterdayOrders] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
@@ -75,8 +79,9 @@ export default function AnalyticsPage() {
       { data: staffList },
       { data: sevenDayOrders },
     ] = await Promise.all([
-      supabase.from('orders').select('total, handled_by').eq('restaurant_id', restaurantId).gte('created_at', todayStr),
-      supabase.from('orders').select('total').eq('restaurant_id', restaurantId).gte('created_at', yesterdayStart).lt('created_at', todayStr),
+      // is_paid and status fetched to split paid/unpaid tiles and exclude cancelled (migration 021)
+      supabase.from('orders').select('total, handled_by, is_paid, status').eq('restaurant_id', restaurantId).gte('created_at', todayStr),
+      supabase.from('orders').select('total, status').eq('restaurant_id', restaurantId).gte('created_at', yesterdayStart).lt('created_at', todayStr),
       supabase.from('orders').select('total', { count: 'exact' }).eq('restaurant_id', restaurantId),
       supabase.from('order_items').select('item_name, quantity, price, orders!inner(restaurant_id)').eq('orders.restaurant_id', restaurantId),
       supabase.from('orders').select('id, total, status, table_number, created_at, handled_by, order_items(item_name, quantity, price)').eq('restaurant_id', restaurantId).order('created_at', { ascending: false }).limit(10),
@@ -84,12 +89,26 @@ export default function AnalyticsPage() {
       supabase.from('orders').select('total, created_at, handled_by').eq('restaurant_id', restaurantId).gte('created_at', sevenDaysAgo),
     ]);
 
-    const todayRev = (todayData ?? []).reduce((s: number, o: { total: number }) => s + (o.total || 0), 0);
-    const yestRev  = (yesterdayData ?? []).reduce((s: number, o: { total: number }) => s + (o.total || 0), 0);
-    setTodayRevenue(todayRev);
-    setTodayOrders((todayData ?? []).length);
+    // Split today's orders into paid / unpaid, both excluding cancelled.
+    // "Today's orders" count also excludes cancelled for the tile subtitles.
+    type TodayRow = { total: number; is_paid: boolean; status: string };
+    const todayRows = (todayData ?? []) as TodayRow[];
+    const todayActive = todayRows.filter(o => o.status !== 'cancelled');
+    const todayPaidRows   = todayActive.filter(o => o.is_paid);
+    const todayUnpaidRows = todayActive.filter(o => !o.is_paid);
+
+    setPaidTodayRevenue(todayPaidRows.reduce((s, o) => s + (o.total || 0), 0));
+    setPaidTodayCount(todayPaidRows.length);
+    setUnpaidTodayRevenue(todayUnpaidRows.reduce((s, o) => s + (o.total || 0), 0));
+    setUnpaidTodayCount(todayUnpaidRows.length);
+    setTodayOrders(todayActive.length);
+
+    type YestRow = { total: number; status: string };
+    const yestRows  = (yesterdayData ?? []) as YestRow[];
+    const yestActive = yestRows.filter(o => o.status !== 'cancelled');
+    const yestRev   = yestActive.reduce((s, o) => s + (o.total || 0), 0);
     setYesterdayRevenue(yestRev);
-    setYesterdayOrders((yesterdayData ?? []).length);
+    setYesterdayOrders(yestActive.length);
 
     const allRev = (allOrders ?? []).reduce((s: number, o: { total: number }) => s + (o.total || 0), 0);
     setTotalRevenue(allRev);
@@ -130,8 +149,8 @@ export default function AnalyticsPage() {
     return <div className="flex items-center justify-center h-96 text-[#6B6570] text-sm">No restaurant found.</div>;
   }
 
-  const revTrend  = trend(todayRevenue, yesterdayRevenue);
   const ordTrend  = trend(todayOrders, yesterdayOrders);
+  // revTrend not used: paid/unpaid tiles do not show a vs-yesterday trend
   const totalOrdersLast7 = chartData.reduce((s, d) => s + d.orders, 0);
   const totalRevLast7    = chartData.reduce((s, d) => s + d.revenue, 0);
 
@@ -176,18 +195,18 @@ export default function AnalyticsPage() {
         <>
           {/* KPI cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+            {/* Paid today — sum of is_paid=true, status != cancelled */}
             <KpiCard
-              label="Today's Revenue"
-              value={fmt(todayRevenue)}
-              sub="vs yesterday"
-              trend={revTrend}
+              label="Paid Today"
+              value={fmt(paidTodayRevenue)}
+              sub={`${paidTodayCount} order${paidTodayCount !== 1 ? 's' : ''}`}
               accent
             />
+            {/* Unpaid today — sum of is_paid=false, status != cancelled */}
             <KpiCard
-              label="Today's Orders"
-              value={String(todayOrders)}
-              sub="vs yesterday"
-              trend={ordTrend}
+              label="Unpaid"
+              value={fmt(unpaidTodayRevenue)}
+              sub={`${unpaidTodayCount} order${unpaidTodayCount !== 1 ? 's' : ''}`}
             />
             <KpiCard
               label="7-Day Revenue"
