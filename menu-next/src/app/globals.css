@@ -3112,6 +3112,154 @@ body {
   letter-spacing: 0.02em;
 }
 
+/* ── Cancellation request section ───────────────────────────── */
+
+.w-cancel-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--w-border);
+}
+
+.w-cancel-req-btn {
+  background: none;
+  border: none;
+  color: var(--w-faint);
+  font-family: var(--w-font);
+  font-size: 0.74rem;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.w-cancel-req-btn:hover { color: var(--w-muted); }
+
+.w-cancel-picker {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--w-border-hi);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.w-cancel-picker-prompt {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--w-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin: 0 0 10px;
+}
+
+.w-cancel-reason-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--w-border);
+  border-radius: 8px;
+  color: var(--w-text);
+  font-family: var(--w-font);
+  font-size: 0.85rem;
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.w-cancel-reason-btn:last-of-type { margin-bottom: 0; }
+
+.w-cancel-reason-btn:hover,
+.w-cancel-reason-btn:active {
+  background: rgba(255,107,107,0.1);
+  border-color: rgba(255,107,107,0.3);
+  color: #ff6b6b;
+}
+
+.w-cancel-reason-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.w-cancel-other-input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--w-border-hi);
+  border-radius: 8px;
+  color: var(--w-text);
+  font-family: var(--w-font);
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+.w-cancel-other-input:focus { border-color: rgba(255,107,107,0.4); }
+
+.w-cancel-submit-btn {
+  background: rgba(255,107,107,0.15);
+  border: 1px solid rgba(255,107,107,0.3);
+  border-radius: 10px;
+  color: #ff6b6b;
+  font-family: var(--w-font);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 12px;
+  width: 100%;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background 0.12s;
+}
+
+.w-cancel-submit-btn:hover  { background: rgba(255,107,107,0.22); }
+.w-cancel-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.w-cancel-back-btn {
+  display: block;
+  margin-top: 8px;
+  background: none;
+  border: none;
+  color: var(--w-faint);
+  font-family: var(--w-font);
+  font-size: 0.74rem;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.w-cancel-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.w-cancel-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.w-cancel-status-text {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.w-cancel-ok-btn {
+  margin-left: 4px;
+  background: none;
+  border: 1px solid rgba(255,107,107,0.3);
+  border-radius: 6px;
+  color: #ff6b6b;
+  font-family: var(--w-font);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.w-cancel-ok-btn:hover { background: rgba(255,107,107,0.12); }
+
 /* Hourly chart */
 .w-chart-wrap {
   background: var(--w-surface);

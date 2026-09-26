@@ -63,6 +63,7 @@ export default function DashboardShell({
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(false);
   const [graceBannerDismissed, setGraceBannerDismissed] = useState(false);
   const [resendSent, setResendSent] = useState(false);
+  const [pendingCancelCount, setPendingCancelCount] = useState(0);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const emailUnconfirmed = !user.email_confirmed_at;
@@ -95,6 +96,32 @@ export default function DashboardShell({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!restaurant) return;
+    const supabase = createClient();
+
+    async function loadCount() {
+      const { count } = await supabase
+        .from('cancellation_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('restaurant_id', restaurant!.id)
+        .eq('status', 'pending');
+      setPendingCancelCount(count ?? 0);
+    }
+
+    loadCount();
+
+    const channel = supabase
+      .channel(`cancel-count-${restaurant.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'cancellation_requests',
+        filter: `restaurant_id=eq.${restaurant.id}`,
+      }, loadCount)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [restaurant]);
 
   const sidebar = (
     <aside className={`
@@ -139,6 +166,7 @@ export default function DashboardShell({
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
+          const showBadge = href === '/dashboard/orders' && pendingCancelCount > 0;
           return (
             <Link
               key={href}
@@ -152,6 +180,11 @@ export default function DashboardShell({
             >
               <Icon active={active} />
               {label}
+              {showBadge && (
+                <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none">
+                  {pendingCancelCount}
+                </span>
+              )}
             </Link>
           );
         })}

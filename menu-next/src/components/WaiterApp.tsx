@@ -34,9 +34,22 @@ interface MenuItem {
   menu_categories?: { name: string } | null;
 }
 interface Toast { id: string; type: 'call' | 'order'; label: string; body: string; }
+interface CancellationRequest {
+  id: string;
+  order_id: string;
+  status: 'pending' | 'approved' | 'declined';
+  reason: string;
+}
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
 const PAYMENT_LABELS: Record<string, string> = { cash: 'Cash', transfer: 'Transfer', pos: 'POS' };
+
+const CANCEL_REASONS = [
+  'Customer changed their mind',
+  'Wrong order taken',
+  'Item finished',
+  'Other',
+];
 
 function fmt(n: number) { return '₦' + n.toLocaleString(); }
 
@@ -166,6 +179,72 @@ function PaymentPicker({
   );
 }
 
+// ── Cancellation reason picker ─────────────────────────────────────────────────
+function CancelPicker({
+  step,
+  otherText,
+  submitting,
+  error,
+  onPickReason,
+  onOtherChange,
+  onSubmitOther,
+  onBack,
+  onClose,
+}: {
+  step: 'pick' | 'other';
+  otherText: string;
+  submitting: boolean;
+  error: string | null;
+  onPickReason: (reason: string) => void;
+  onOtherChange: (v: string) => void;
+  onSubmitOther: () => void;
+  onBack: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="w-cancel-picker">
+      {step === 'pick' ? (
+        <>
+          <p className="w-cancel-picker-prompt">Why cancel?</p>
+          {CANCEL_REASONS.map(r => (
+            <button
+              key={r}
+              className="w-cancel-reason-btn"
+              onClick={() => r === 'Other' ? onPickReason('__other__') : onPickReason(r)}
+              disabled={submitting}
+            >
+              {r}
+            </button>
+          ))}
+          {error && <p className="w-pay-error" style={{ marginTop: 6 }}>{error}</p>}
+          <button className="w-cancel-back-btn" onClick={onClose}>Cancel</button>
+        </>
+      ) : (
+        <>
+          <p className="w-cancel-picker-prompt">Describe the reason</p>
+          <textarea
+            className="w-cancel-other-input"
+            rows={3}
+            placeholder="e.g. Customer asked us to remove it"
+            value={otherText}
+            onChange={e => onOtherChange(e.target.value)}
+            autoFocus
+          />
+          {error && <p className="w-pay-error" style={{ marginTop: 4 }}>{error}</p>}
+          <button
+            className="w-cancel-submit-btn"
+            onClick={onSubmitOther}
+            disabled={submitting || !otherText.trim()}
+          >
+            {submitting ? 'Sending…' : 'Send request'}
+          </button>
+          <button className="w-cancel-back-btn" onClick={onBack}>← Back</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Hourly bar chart (pure SVG) ────────────────────────────────────────────────
 function HourlyChart({ orders }: { orders: Order[] }) {
   const buckets = Array.from({ length: 24 }, (_, h) => ({ h, count: 0 }));
@@ -228,6 +307,14 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   // Payment state
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [payErrors, setPayErrors] = useState<Record<string, string>>({});
+
+  // Cancellation request state (keyed by order_id — latest request per order)
+  const [cancelReqs, setCancelReqs] = useState<Record<string, CancellationRequest>>({});
+  const [requestingFor, setRequestingFor] = useState<string | null>(null);
+  const [cancelStep, setCancelStep] = useState<'pick' | 'other'>('pick');
+  const [cancelOther, setCancelOther] = useState('');
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [cancelErr, setCancelErr] = useState<string | null>(null);
 
   const ridRef     = useRef<string | null>(null);
   const othersRef  = useRef<Set<number>>(new Set());
@@ -304,6 +391,20 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     setShiftHistory(data || []);
   }
 
+  async function fetchCancelReqs(rid: string) {
+    const { data } = await db.from('cancellation_requests')
+      .select('id, order_id, status, reason')
+      .eq('restaurant_id', rid)
+      .in('status', ['pending', 'declined'])
+      .order('created_at', { ascending: false });
+    // Keep only the latest request per order_id
+    const map: Record<string, CancellationRequest> = {};
+    (data || []).forEach((r: any) => {
+      if (!map[r.order_id]) map[r.order_id] = r as CancellationRequest;
+    });
+    setCancelReqs(map);
+  }
+
   async function loadProfile(rid: string) {
     const { data: { user } } = await db.auth.getUser();
     if (!user) return;
@@ -336,6 +437,16 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'waiter_calls',
           filter: `restaurant_id=eq.${rid}` }, () => fetchCalls(rid))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cancellation_requests',
+          filter: `restaurant_id=eq.${rid}` }, (payload) => {
+        const r = payload.new as CancellationRequest;
+        setCancelReqs(prev => ({ ...prev, [r.order_id]: r }));
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cancellation_requests',
+          filter: `restaurant_id=eq.${rid}` }, (payload) => {
+        const r = payload.new as CancellationRequest;
+        setCancelReqs(prev => ({ ...prev, [r.order_id]: r }));
+      })
       .subscribe();
   }
 
@@ -366,7 +477,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   async function startDashboard(rid: string) {
     ridRef.current = rid;
     await loadAssignments(rid);
-    await Promise.all([loadProfile(rid), fetchOrders(rid), fetchCalls(rid), fetchMenuItems(rid)]);
+    await Promise.all([loadProfile(rid), fetchOrders(rid), fetchCalls(rid), fetchMenuItems(rid), fetchCancelReqs(rid)]);
     startRealtime(rid);
     initPushSubscription();
   }
@@ -427,6 +538,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     setIsLoggedIn(false); setStaffName(''); setIsManager(false);
     setOrders([]); setCalls([]); setMenuItems([]); setShiftHistory([]); setMyTables(new Set());
     setPayingOrderId(null); setPayErrors({});
+    setCancelReqs({}); setRequestingFor(null); setCancelStep('pick'); setCancelOther(''); setCancelErr(null);
   }
 
   async function updateOrderStatus(orderId: string, status: string) {
@@ -455,6 +567,60 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     setShiftHistory(prev => prev.map(patch));
   }
 
+  async function submitCancelReq(orderId: string, reason: string) {
+    setCancelSubmitting(true);
+    setCancelErr(null);
+    const { error } = await db.from('cancellation_requests').insert({
+      restaurant_id: ridRef.current!,
+      order_id: orderId,
+      reason,
+    });
+    setCancelSubmitting(false);
+    if (error) {
+      // Surface uniqueness violation as a friendly message
+      const msg = error.message.includes('unique') || error.message.includes('duplicate')
+        ? 'A cancellation request is already pending for this order.'
+        : error.message;
+      setCancelErr(msg);
+      return;
+    }
+    setRequestingFor(null);
+    setCancelStep('pick');
+    setCancelOther('');
+  }
+
+  function openCancelPicker(orderId: string) {
+    setRequestingFor(orderId);
+    setCancelStep('pick');
+    setCancelOther('');
+    setCancelErr(null);
+    // Close payment picker if open
+    if (payingOrderId === orderId) setPayingOrderId(null);
+  }
+
+  function closeCancelPicker() {
+    setRequestingFor(null);
+    setCancelStep('pick');
+    setCancelOther('');
+    setCancelErr(null);
+  }
+
+  function handlePickReason(orderId: string, reason: string) {
+    if (reason === '__other__') {
+      setCancelStep('other');
+      return;
+    }
+    submitCancelReq(orderId, reason);
+  }
+
+  function dismissDeclined(orderId: string) {
+    setCancelReqs(prev => {
+      const next = { ...prev };
+      delete next[orderId];
+      return next;
+    });
+  }
+
   async function acknowledgeCall(callId: string) {
     await db.from('waiter_calls').update({ status: 'acknowledged' }).eq('id', callId);
     const rid = ridRef.current; if (rid) fetchCalls(rid);
@@ -474,7 +640,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   async function handleRefresh() {
     const rid = ridRef.current; if (!rid) return;
     await loadAssignments(rid);
-    fetchOrders(rid); fetchCalls(rid); fetchMenuItems(rid);
+    fetchOrders(rid); fetchCalls(rid); fetchMenuItems(rid); fetchCancelReqs(rid);
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────────
@@ -660,6 +826,11 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                 const isPreparing = order.status === 'preparing';
                 const u = urgency(order.created_at, nowMs);
                 const isPicking = payingOrderId === order.id;
+                const cancelReq = cancelReqs[order.id];
+                const isRequestingThis = requestingFor === order.id;
+                const hasPending  = cancelReq?.status === 'pending';
+                const hasDeclined = cancelReq?.status === 'declined';
+
                 return (
                   <div key={order.id} className={`w-card ${u}`}>
                     <div className="w-card-row" style={{ marginBottom: 6 }}>
@@ -708,6 +879,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                           <button
                             className="w-action-btn pay"
                             onClick={() => setPayingOrderId(order.id)}
+                            disabled={hasPending}
                           >
                             Mark Paid
                           </button>
@@ -720,6 +892,48 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                         </button>
                       </div>
                     )}
+
+                    {/* ── Cancellation request section ── */}
+                    <div className="w-cancel-section">
+                      {hasPending ? (
+                        <div className="w-cancel-status">
+                          <span className="w-cancel-status-dot" style={{ background: 'var(--w-amber)' }} />
+                          <span className="w-cancel-status-text" style={{ color: 'var(--w-amber)' }}>
+                            Cancellation requested — waiting for manager
+                          </span>
+                        </div>
+                      ) : hasDeclined && !isRequestingThis ? (
+                        <div className="w-cancel-status">
+                          <span className="w-cancel-status-dot" style={{ background: '#ff6b6b' }} />
+                          <span className="w-cancel-status-text" style={{ color: '#ff6b6b' }}>
+                            Cancellation declined
+                          </span>
+                          <button className="w-cancel-ok-btn" onClick={() => dismissDeclined(order.id)}>
+                            OK
+                          </button>
+                        </div>
+                      ) : isRequestingThis ? (
+                        <CancelPicker
+                          step={cancelStep}
+                          otherText={cancelOther}
+                          submitting={cancelSubmitting}
+                          error={cancelErr}
+                          onPickReason={r => handlePickReason(order.id, r)}
+                          onOtherChange={setCancelOther}
+                          onSubmitOther={() => submitCancelReq(order.id, cancelOther.trim())}
+                          onBack={() => { setCancelStep('pick'); setCancelErr(null); }}
+                          onClose={closeCancelPicker}
+                        />
+                      ) : (
+                        <button
+                          className="w-cancel-req-btn"
+                          onClick={() => openCancelPicker(order.id)}
+                        >
+                          Request cancellation
+                        </button>
+                      )}
+                    </div>
+
                   </div>
                 );
               })}

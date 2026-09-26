@@ -23,6 +23,16 @@ type Order = {
 
 type Staff = { id: string; name: string };
 
+type CancellationRequest = {
+  id: string;
+  order_id: string;
+  restaurant_id: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'declined';
+  requested_by: string | null;
+  created_at: string;
+};
+
 const PAYMENT_LABELS: Record<string, string> = {
   cash: 'Cash',
   transfer: 'Transfer',
@@ -49,6 +59,13 @@ const NEXT_LABEL: Partial<Record<string, string>> = {
   served:    'Mark complete',
 };
 
+const CANCEL_REASONS = [
+  'Customer changed their mind',
+  'Wrong order taken',
+  'Item unavailable / out of stock',
+  'Other',
+];
+
 function fmt(n: number) {
   return '₦' + n.toLocaleString('en-NG');
 }
@@ -70,6 +87,20 @@ function startOfToday() {
   return d.toISOString();
 }
 
+function playBeep() {
+  try {
+    const ctx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = 660;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.18);
+  } catch { /* audio unavailable */ }
+}
+
 const ORDER_SELECT = 'id, status, total, table_number, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(item_name, quantity, price)';
 
 export default function OrdersPage() {
@@ -78,15 +109,24 @@ export default function OrdersPage() {
   const [staff, setStaff]                     = useState<Staff[]>([]);
   const [loading, setLoading]                 = useState(true);
   const [updating, setUpdating]               = useState<string | null>(null);
-  // true when the current user is owner or manager (may record/reverse payment)
   const [canManagePayments, setCanManage]     = useState(false);
-  // id of the order whose "Record payment" panel is open
   const [payingOrderId, setPayingOrderId]     = useState<string | null>(null);
   const [payingError, setPayingError]         = useState<string | null>(null);
-  // id of the order showing the "Mark unpaid?" confirmation
   const [confirmUnpaidId, setConfirmUnpaidId] = useState<string | null>(null);
   const [markUnpaidError, setMarkUnpaidError] = useState<string | null>(null);
   const [tick, setTick]                       = useState(0);
+
+  // Cancellation request state
+  const [cancelReqs, setCancelReqs]           = useState<CancellationRequest[]>([]);
+  const [decidingId, setDecidingId]           = useState<string | null>(null);
+  const [decisionError, setDecisionError]     = useState<Record<string, string>>({});
+  // Cancel-order state (manager/owner direct cancel on a card)
+  const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
+  const [cancelStep, setCancelStep]           = useState<'pick' | 'other'>('pick');
+  const [cancelOther, setCancelOther]         = useState('');
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [cancelRpcError, setCancelRpcError]   = useState<string | null>(null);
+
   const channelRef = useRef<ReturnType<typeof createClient>['channel'] | null>(null);
 
   useEffect(() => {
@@ -99,6 +139,7 @@ export default function OrdersPage() {
     const [
       { data: orderData },
       { data: staffData },
+      { data: cancelData },
       { data: { user } },
     ] = await Promise.all([
       supabase
@@ -111,14 +152,19 @@ export default function OrdersPage() {
         .from('staff')
         .select('id, name')
         .eq('restaurant_id', restaurantId),
+      supabase
+        .from('cancellation_requests')
+        .select('id, order_id, restaurant_id, reason, status, requested_by, created_at')
+        .eq('restaurant_id', restaurantId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true }),
       supabase.auth.getUser(),
     ]);
 
     setOrders((orderData ?? []) as Order[]);
     setStaff((staffData ?? []) as Staff[]);
+    setCancelReqs((cancelData ?? []) as CancellationRequest[]);
 
-    // Determine whether the logged-in user is owner or manager.
-    // Owners are not in the staff table; querying restaurants confirms ownership.
     if (user) {
       const { data: ownerRow } = await supabase
         .from('restaurants')
@@ -146,7 +192,7 @@ export default function OrdersPage() {
   const setupRealtime = useCallback((restaurantId: string) => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`orders-${restaurantId}`)
+      .channel(`orders-cancel-${restaurantId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` },
@@ -167,6 +213,30 @@ export default function OrdersPage() {
           } else if (payload.eventType === 'DELETE') {
             setOrders(prev => prev.filter(o => o.id !== (payload.old as { id: string }).id));
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'cancellation_requests', filter: `restaurant_id=eq.${restaurantId}` },
+        (payload) => {
+          const r = payload.new as CancellationRequest;
+          if (r.status === 'pending') {
+            playBeep();
+            setCancelReqs(prev => [...prev, r]);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'cancellation_requests', filter: `restaurant_id=eq.${restaurantId}` },
+        (payload) => {
+          const r = payload.new as CancellationRequest;
+          // Remove from pending list if no longer pending
+          setCancelReqs(prev =>
+            r.status === 'pending'
+              ? prev.map(x => x.id === r.id ? r : x)
+              : prev.filter(x => x.id !== r.id)
+          );
         }
       )
       .subscribe();
@@ -199,7 +269,6 @@ export default function OrdersPage() {
   async function recordPayment(orderId: string, method: string) {
     setPayingError(null);
     const supabase = createClient();
-    // Trigger enforce_payment_update sets paid_at and paid_by server-side.
     const { error } = await supabase
       .from('orders')
       .update({ payment_method: method, is_paid: true })
@@ -209,7 +278,6 @@ export default function OrdersPage() {
       return;
     }
     setPayingOrderId(null);
-    // Optimistic update; real-time subscription will correct paid_at/paid_by from server.
     setOrders(prev =>
       prev.map(o => o.id === orderId
         ? { ...o, payment_method: method as Order['payment_method'], is_paid: true }
@@ -221,7 +289,6 @@ export default function OrdersPage() {
   async function markUnpaid(orderId: string) {
     setMarkUnpaidError(null);
     const supabase = createClient();
-    // Trigger enforce_payment_update clears payment_method, paid_at, paid_by server-side.
     const { error } = await supabase
       .from('orders')
       .update({ is_paid: false })
@@ -239,9 +306,68 @@ export default function OrdersPage() {
     );
   }
 
+  async function approveRequest(requestId: string) {
+    setDecidingId(requestId);
+    setDecisionError(prev => ({ ...prev, [requestId]: '' }));
+    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).rpc('approve_cancellation_request', { p_request_id: requestId });
+    setDecidingId(null);
+    if (error) {
+      setDecisionError(prev => ({ ...prev, [requestId]: error.message }));
+    }
+    // On success, realtime UPDATE on cancellation_requests removes it from state.
+    // Realtime UPDATE on orders changes status to 'cancelled'.
+  }
+
+  async function declineRequest(requestId: string) {
+    setDecidingId(requestId);
+    setDecisionError(prev => ({ ...prev, [requestId]: '' }));
+    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).rpc('decline_cancellation_request', { p_request_id: requestId });
+    setDecidingId(null);
+    if (error) {
+      setDecisionError(prev => ({ ...prev, [requestId]: error.message }));
+    }
+  }
+
+  async function cancelOrder(orderId: string, reason: string) {
+    setCancelSubmitting(true);
+    setCancelRpcError(null);
+    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).rpc('cancel_order', { p_order_id: orderId, p_reason: reason });
+    setCancelSubmitting(false);
+    if (error) {
+      setCancelRpcError(error.message);
+      return;
+    }
+    setCancelingOrderId(null);
+    setCancelStep('pick');
+    setCancelOther('');
+  }
+
+  function openCancelOrder(orderId: string) {
+    setCancelingOrderId(orderId);
+    setCancelStep('pick');
+    setCancelOther('');
+    setCancelRpcError(null);
+    // Close payment UI if open
+    if (payingOrderId === orderId) setPayingOrderId(null);
+  }
+
+  function closeCancelOrder() {
+    setCancelingOrderId(null);
+    setCancelStep('pick');
+    setCancelOther('');
+    setCancelRpcError(null);
+  }
+
   if (!restaurant) return null;
 
   const staffMap = Object.fromEntries(staff.map(s => [s.id, s.name]));
+  const orderMap = Object.fromEntries(orders.map(o => [o.id, o]));
 
   const active    = orders.filter(o => o.status === 'pending' || o.status === 'preparing');
   const completed = orders.filter(o => o.status === 'served' || o.status === 'completed' || o.status === 'cancelled');
@@ -251,16 +377,30 @@ export default function OrdersPage() {
     staffMap,
     tick,
     canManagePayments,
-    isPayingThis:       payingOrderId === order.id,
-    payingError:        payingOrderId === order.id ? payingError : null,
-    isConfirmingUnpaid: confirmUnpaidId === order.id,
-    markUnpaidError:    confirmUnpaidId === order.id ? markUnpaidError : null,
-    onStartPayment:     () => { setPayingOrderId(order.id); setPayingError(null); },
-    onCancelPayment:    () => { setPayingOrderId(null); setPayingError(null); },
-    onRecordPayment:    (method: string) => recordPayment(order.id, method),
-    onStartMarkUnpaid:  () => { setConfirmUnpaidId(order.id); setMarkUnpaidError(null); },
-    onCancelMarkUnpaid: () => { setConfirmUnpaidId(null); setMarkUnpaidError(null); },
-    onConfirmMarkUnpaid:() => markUnpaid(order.id),
+    isPayingThis:        payingOrderId === order.id,
+    payingError:         payingOrderId === order.id ? payingError : null,
+    isConfirmingUnpaid:  confirmUnpaidId === order.id,
+    markUnpaidError:     confirmUnpaidId === order.id ? markUnpaidError : null,
+    isCancelingThis:     cancelingOrderId === order.id,
+    cancelStep,
+    cancelOther,
+    cancelSubmitting,
+    cancelRpcError:      cancelingOrderId === order.id ? cancelRpcError : null,
+    onStartPayment:      () => { setPayingOrderId(order.id); setPayingError(null); },
+    onCancelPayment:     () => { setPayingOrderId(null); setPayingError(null); },
+    onRecordPayment:     (method: string) => recordPayment(order.id, method),
+    onStartMarkUnpaid:   () => { setConfirmUnpaidId(order.id); setMarkUnpaidError(null); },
+    onCancelMarkUnpaid:  () => { setConfirmUnpaidId(null); setMarkUnpaidError(null); },
+    onConfirmMarkUnpaid: () => markUnpaid(order.id),
+    onStartCancel:       () => openCancelOrder(order.id),
+    onCloseCancel:       closeCancelOrder,
+    onCancelReasonPick:  (r: string) => {
+      if (r === '__other__') { setCancelStep('other'); return; }
+      cancelOrder(order.id, r);
+    },
+    onCancelOtherChange: setCancelOther,
+    onCancelOtherSubmit: () => cancelOrder(order.id, cancelOther.trim()),
+    onCancelBackStep:    () => { setCancelStep('pick'); setCancelRpcError(null); },
   });
 
   return (
@@ -291,6 +431,32 @@ export default function OrdersPage() {
         </div>
       ) : (
         <>
+          {/* ── Pending Cancellation Requests ──────────────────────────────── */}
+          {cancelReqs.length > 0 && (
+            <div className="mb-6 rounded-2xl border border-orange-500/30 bg-orange-500/[0.04] overflow-hidden">
+              <div className="flex items-center gap-3 px-5 py-3 border-b border-orange-500/20">
+                <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse shrink-0" />
+                <span className="text-orange-400 text-sm font-semibold">
+                  {cancelReqs.length} cancellation {cancelReqs.length === 1 ? 'request' : 'requests'} waiting
+                </span>
+              </div>
+              <div className="flex flex-col divide-y divide-white/[0.04]">
+                {cancelReqs.map(req => (
+                  <CancellationRequestCard
+                    key={req.id}
+                    req={req}
+                    order={orderMap[req.order_id]}
+                    staffMap={staffMap}
+                    isDeciding={decidingId === req.id}
+                    error={decisionError[req.id] || null}
+                    onApprove={() => approveRequest(req.id)}
+                    onDecline={() => declineRequest(req.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ── Active Orders ─────────────────────────────────────────────── */}
           {active.length === 0 ? (
             <div className="bg-[#161616] border border-white/[0.06] rounded-2xl p-10 text-center mb-6">
@@ -344,13 +510,78 @@ export default function OrdersPage() {
   );
 }
 
+// ── Cancellation request card ────────────────────────────────────────────────
+
+function CancellationRequestCard({
+  req,
+  order,
+  staffMap,
+  isDeciding,
+  error,
+  onApprove,
+  onDecline,
+}: {
+  req: CancellationRequest;
+  order: Order | undefined;
+  staffMap: Record<string, string>;
+  isDeciding: boolean;
+  error: string | null;
+  onApprove: () => void;
+  onDecline: () => void;
+}) {
+  const waiterName = req.requested_by ? (staffMap[req.requested_by] ?? 'Unknown') : '—';
+  const totalStr   = order ? fmt(order.total) : '';
+  const itemsStr   = order
+    ? (order.order_items ?? []).map(i => `${i.item_name} ×${i.quantity}`).join(', ')
+    : '';
+
+  return (
+    <div className="px-5 py-4">
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <div>
+          <p className="text-[#F0EDE8] text-sm font-semibold">
+            Table {order?.table_number ?? '—'} — cancellation requested
+          </p>
+          <p className="text-[#6B6570] text-xs mt-0.5">{timeAgo(req.created_at)} · by {waiterName}</p>
+        </div>
+        {totalStr && (
+          <span className="text-[#9a9098] text-sm font-semibold shrink-0">{totalStr}</span>
+        )}
+      </div>
+      {itemsStr && (
+        <p className="text-[#6B6570] text-xs mb-2 truncate">{itemsStr}</p>
+      )}
+      <div className="flex items-center gap-2 rounded-lg bg-orange-500/[0.06] border border-orange-500/15 px-3 py-2 mb-3">
+        <span className="text-orange-400 text-xs font-semibold shrink-0">Reason:</span>
+        <span className="text-[#c4bec9] text-xs">{req.reason}</span>
+      </div>
+      {error && <p className="text-[#ff6b6b] text-xs mb-2">{error}</p>}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onApprove}
+          disabled={isDeciding}
+          className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[#ff6b6b]/15 hover:bg-[#ff6b6b]/25 text-[#ff6b6b] border border-[#ff6b6b]/25 hover:border-[#ff6b6b]/40 transition-colors disabled:opacity-50"
+        >
+          {isDeciding ? 'Processing…' : 'Approve — cancel order'}
+        </button>
+        <button
+          onClick={onDecline}
+          disabled={isDeciding}
+          className="px-4 py-2.5 rounded-xl text-sm font-medium border border-white/10 text-[#6B6570] hover:text-[#c4bec9] hover:border-white/20 transition-colors disabled:opacity-50"
+        >
+          Decline
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Payment badge ────────────────────────────────────────────────────────────
 
 function PaymentBadge({ order, staffMap }: { order: Order; staffMap: Record<string, string> }) {
   if (order.status === 'cancelled') return null;
 
   if (order.is_paid) {
-    // paid_by is a staff UID; if not in staffMap the payer is the owner
     const payerName  = order.paid_by ? (staffMap[order.paid_by] ?? 'Owner') : '—';
     const methodStr  = order.payment_method ? PAYMENT_LABELS[order.payment_method] : '';
     const timeStr    = order.paid_at ? fmtTime(order.paid_at) : '';
@@ -386,12 +617,23 @@ type CardProps = {
   payingError: string | null;
   isConfirmingUnpaid: boolean;
   markUnpaidError: string | null;
+  isCancelingThis: boolean;
+  cancelStep: 'pick' | 'other';
+  cancelOther: string;
+  cancelSubmitting: boolean;
+  cancelRpcError: string | null;
   onStartPayment: () => void;
   onCancelPayment: () => void;
   onRecordPayment: (method: string) => void;
   onStartMarkUnpaid: () => void;
   onCancelMarkUnpaid: () => void;
   onConfirmMarkUnpaid: () => void;
+  onStartCancel: () => void;
+  onCloseCancel: () => void;
+  onCancelReasonPick: (r: string) => void;
+  onCancelOtherChange: (v: string) => void;
+  onCancelOtherSubmit: () => void;
+  onCancelBackStep: () => void;
 };
 
 function OrderCard({
@@ -406,23 +648,34 @@ function OrderCard({
   payingError,
   isConfirmingUnpaid,
   markUnpaidError,
+  isCancelingThis,
+  cancelStep,
+  cancelOther,
+  cancelSubmitting,
+  cancelRpcError,
   onStartPayment,
   onCancelPayment,
   onRecordPayment,
   onStartMarkUnpaid,
   onCancelMarkUnpaid,
   onConfirmMarkUnpaid,
+  onStartCancel,
+  onCloseCancel,
+  onCancelReasonPick,
+  onCancelOtherChange,
+  onCancelOtherSubmit,
+  onCancelBackStep,
 }: CardProps) {
   const meta       = STATUS_META[order.status] ?? STATUS_META.pending;
   const next       = NEXT_STATUS[order.status];
   const waiter     = order.handled_by ? (staffMap[order.handled_by] ?? 'Unknown') : '—';
   const isCancelled = order.status === 'cancelled';
+  const isActive   = order.status === 'pending' || order.status === 'preparing';
 
   const paymentRow = !isCancelled && (
     <div className="flex items-center justify-between gap-3 flex-wrap">
       <PaymentBadge order={order} staffMap={staffMap} />
       <div className="flex items-center gap-2 shrink-0">
-        {/* Record payment — available to any authenticated user who can see the order */}
         {!order.is_paid && !isPayingThis && (
           <button
             onClick={onStartPayment}
@@ -431,7 +684,6 @@ function OrderCard({
             Record payment
           </button>
         )}
-        {/* Mark unpaid — owner and manager only, behind confirmation */}
         {order.is_paid && canManagePayments && !isConfirmingUnpaid && (
           <button
             onClick={onStartMarkUnpaid}
@@ -474,7 +726,6 @@ function OrderCard({
           <span className="text-[#6B6570] text-xs shrink-0">{timeAgo(order.created_at)}</span>
           <span className="text-[#9a9098] text-sm font-semibold shrink-0">{fmt(order.total)}</span>
         </div>
-        {/* Payment row: hidden for cancelled, always shown otherwise */}
         {!isCancelled && (
           <div className="px-4 pb-3 border-t border-white/[0.04] pt-2.5 space-y-2">
             {paymentRow}
@@ -555,6 +806,112 @@ function OrderCard({
           {markUnpaidError && (
             <p className="text-[#ff6b6b] text-xs">{markUnpaidError}</p>
           )}
+        </div>
+      )}
+
+      {/* Cancel order section — manager/owner only, active orders only */}
+      {canManagePayments && isActive && (
+        <div className="mt-3 pt-3 border-t border-white/[0.04]">
+          {isCancelingThis ? (
+            <CancelOrderPicker
+              step={cancelStep}
+              otherText={cancelOther}
+              submitting={cancelSubmitting}
+              error={cancelRpcError}
+              onPickReason={onCancelReasonPick}
+              onOtherChange={onCancelOtherChange}
+              onSubmitOther={onCancelOtherSubmit}
+              onBack={onCancelBackStep}
+              onClose={onCloseCancel}
+            />
+          ) : (
+            <button
+              onClick={onStartCancel}
+              className="text-xs text-[#4a4a4a] hover:text-[#ff6b6b] transition-colors"
+            >
+              Cancel this order
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Cancel order picker (manager/owner direct cancel) ───────────────────────
+
+function CancelOrderPicker({
+  step,
+  otherText,
+  submitting,
+  error,
+  onPickReason,
+  onOtherChange,
+  onSubmitOther,
+  onBack,
+  onClose,
+}: {
+  step: 'pick' | 'other';
+  otherText: string;
+  submitting: boolean;
+  error: string | null;
+  onPickReason: (r: string) => void;
+  onOtherChange: (v: string) => void;
+  onSubmitOther: () => void;
+  onBack: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div>
+      <p className="text-[#9a9098] text-xs mb-2 font-medium">
+        {step === 'pick' ? 'Reason for cancellation:' : 'Describe the reason:'}
+      </p>
+      {step === 'pick' ? (
+        <div className="flex flex-col gap-1.5">
+          {CANCEL_REASONS.map(r => (
+            <button
+              key={r}
+              disabled={submitting}
+              onClick={() => onPickReason(r === 'Other' ? '__other__' : r)}
+              className="text-left text-sm text-[#c4bec9] hover:text-[#F0EDE8] bg-white/[0.03] hover:bg-[#ff6b6b]/[0.08] border border-white/[0.06] hover:border-[#ff6b6b]/20 rounded-xl px-4 py-3 transition-colors disabled:opacity-50"
+            >
+              {r}
+            </button>
+          ))}
+          {error && <p className="text-[#ff6b6b] text-xs mt-1">{error}</p>}
+          <button
+            onClick={onClose}
+            className="text-xs text-[#4a4a4a] hover:text-[#6B6570] mt-1 transition-colors"
+          >
+            Never mind
+          </button>
+        </div>
+      ) : (
+        <div>
+          <textarea
+            rows={2}
+            className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-[#F0EDE8] placeholder:text-[#4a4a4a] outline-none focus:border-[#ff6b6b]/40 resize-none mb-2"
+            placeholder="e.g. Customer left before order was ready"
+            value={otherText}
+            onChange={e => onOtherChange(e.target.value)}
+            autoFocus
+          />
+          {error && <p className="text-[#ff6b6b] text-xs mb-2">{error}</p>}
+          <div className="flex items-center gap-2">
+            <button
+              disabled={submitting || !otherText.trim()}
+              onClick={onSubmitOther}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[#ff6b6b]/15 hover:bg-[#ff6b6b]/25 text-[#ff6b6b] border border-[#ff6b6b]/25 transition-colors disabled:opacity-50"
+            >
+              {submitting ? 'Cancelling…' : 'Cancel order'}
+            </button>
+            <button
+              onClick={onBack}
+              className="text-xs text-[#4a4a4a] hover:text-[#6B6570] transition-colors px-2"
+            >
+              Back
+            </button>
+          </div>
         </div>
       )}
     </div>
