@@ -2899,6 +2899,112 @@ body {
 
 .w-action-btn:hover { opacity: 0.85; }
 
+.w-action-btn.pay {
+  background: rgba(16,185,129,0.14);
+  color: var(--w-green);
+  border: 1px solid rgba(16,185,129,0.28);
+  font-size: 0.9rem;
+  min-height: 48px;
+}
+
+.w-action-btn.pay:hover {
+  opacity: 1;
+  background: rgba(16,185,129,0.24);
+  border-color: rgba(16,185,129,0.5);
+}
+
+/* ── Payment badge ────────────────────────── */
+
+.w-pay-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.w-pay-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.w-pay-dot.paid   { background: var(--w-green); }
+.w-pay-dot.unpaid { background: var(--w-amber); }
+
+.w-pay-text {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.w-pay-text.paid   { color: var(--w-green); }
+.w-pay-text.unpaid { color: var(--w-amber); }
+
+/* ── Payment method picker ────────────────── */
+
+.w-pay-picker {
+  margin-top: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--w-border-hi);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.w-pay-picker-prompt {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--w-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin: 0 0 10px;
+}
+
+.w-pay-pick-row {
+  display: flex;
+  gap: 8px;
+}
+
+.w-pay-pick-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--w-border-hi);
+  border-radius: 10px;
+  color: var(--w-text);
+  font-family: var(--w-font);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0 8px;
+  min-height: 52px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.w-pay-pick-btn:hover,
+.w-pay-pick-btn:active {
+  background: rgba(16,185,129,0.18);
+  border-color: rgba(16,185,129,0.45);
+  color: var(--w-green);
+}
+
+.w-pay-cancel {
+  display: block;
+  margin-top: 10px;
+  background: none;
+  border: none;
+  color: var(--w-faint);
+  font-family: var(--w-font);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.w-pay-error {
+  font-size: 0.75rem;
+  color: #ff6b6b;
+  margin: 6px 0 0;
+}
+
 /* ── Menu toggle cards ────────────────────── */
 
 .w-toggle-card {
@@ -2997,6 +3103,14 @@ body {
 }
 
 .w-stat-value.accent { color: var(--w-accent); }
+.w-stat-value.amber  { color: var(--w-amber); }
+
+.w-stat-sub {
+  font-size: 0.68rem;
+  color: var(--w-faint);
+  margin-top: 3px;
+  letter-spacing: 0.02em;
+}
 
 /* Hourly chart */
 .w-chart-wrap {

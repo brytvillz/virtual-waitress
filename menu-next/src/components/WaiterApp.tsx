@@ -20,6 +20,10 @@ interface Order {
   total: number;
   created_at: string;
   handled_by?: string | null;
+  is_paid: boolean;
+  paid_at: string | null;
+  paid_by: string | null;
+  payment_method: 'cash' | 'transfer' | 'pos' | null;
   order_items: OrderItem[];
 }
 interface Call   { id: string; table_number: number; created_at: string; }
@@ -32,7 +36,13 @@ interface MenuItem {
 interface Toast { id: string; type: 'call' | 'order'; label: string; body: string; }
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
+const PAYMENT_LABELS: Record<string, string> = { cash: 'Cash', transfer: 'Transfer', pos: 'POS' };
+
 function fmt(n: number) { return '₦' + n.toLocaleString(); }
+
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+}
 
 function elapsedStr(iso: string, now: number) {
   const secs = Math.floor((now - new Date(iso).getTime()) / 1000);
@@ -107,12 +117,60 @@ function IcoSignOut() {
   );
 }
 
+// ── Payment badge ──────────────────────────────────────────────────────────────
+function PaymentBadge({ order }: { order: Order }) {
+  if (order.status === 'cancelled') return null;
+  if (order.is_paid) {
+    const method = order.payment_method ? PAYMENT_LABELS[order.payment_method] : '';
+    const time   = order.paid_at ? fmtTime(order.paid_at) : '';
+    return (
+      <div className="w-pay-badge">
+        <span className="w-pay-dot paid" />
+        <span className="w-pay-text paid">
+          PAID{method ? ` · ${method}` : ''}{time ? ` · ${time}` : ''}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="w-pay-badge">
+      <span className="w-pay-dot unpaid" />
+      <span className="w-pay-text unpaid">UNPAID</span>
+    </div>
+  );
+}
+
+// ── Payment method picker ──────────────────────────────────────────────────────
+function PaymentPicker({
+  onSelect,
+  onCancel,
+  error,
+}: {
+  onSelect: (method: string) => void;
+  onCancel: () => void;
+  error?: string;
+}) {
+  return (
+    <div className="w-pay-picker">
+      <p className="w-pay-picker-prompt">How did they pay?</p>
+      <div className="w-pay-pick-row">
+        {(['cash', 'transfer', 'pos'] as const).map(m => (
+          <button key={m} className="w-pay-pick-btn" onClick={() => onSelect(m)}>
+            {PAYMENT_LABELS[m]}
+          </button>
+        ))}
+      </div>
+      {error && <p className="w-pay-error">{error}</p>}
+      <button className="w-pay-cancel" onClick={onCancel}>Cancel</button>
+    </div>
+  );
+}
+
 // ── Hourly bar chart (pure SVG) ────────────────────────────────────────────────
 function HourlyChart({ orders }: { orders: Order[] }) {
   const buckets = Array.from({ length: 24 }, (_, h) => ({ h, count: 0 }));
   orders.forEach(o => { buckets[new Date(o.created_at).getHours()].count++; });
 
-  // Only show hours that have activity, plus 1 either side
   const active = buckets.filter(b => b.count > 0);
   if (active.length === 0) return null;
 
@@ -167,6 +225,10 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const [pushStatus, setPushStatus] = useState<'granted' | 'denied' | 'default' | 'unsupported'>('default');
   const [pushBannerDismissed, setPushBannerDismissed] = useState(false);
 
+  // Payment state
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+  const [payErrors, setPayErrors] = useState<Record<string, string>>({});
+
   const ridRef     = useRef<string | null>(null);
   const othersRef  = useRef<Set<number>>(new Set());
   const rtRef      = useRef<ReturnType<typeof db.channel> | null>(null);
@@ -204,7 +266,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   }
 
   async function fetchOrders(rid: string) {
-    let q = db.from('orders').select('*, order_items(*)')
+    let q = db.from('orders')
+      .select('id, table_number, status, total, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(*)')
       .eq('restaurant_id', rid).in('status', ['pending', 'preparing'])
       .order('created_at', { ascending: true });
     if (othersRef.current.size > 0)
@@ -234,7 +297,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     const { data: { user } } = await db.auth.getUser();
     if (!user) return;
     const ago = new Date(); ago.setDate(ago.getDate() - 7);
-    const { data } = await db.from('orders').select('*, order_items(*)')
+    const { data } = await db.from('orders')
+      .select('id, table_number, status, total, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(*)')
       .eq('restaurant_id', rid).eq('handled_by', user.id)
       .gte('created_at', ago.toISOString()).order('created_at', { ascending: false });
     setShiftHistory(data || []);
@@ -362,6 +426,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     ridRef.current = null; othersRef.current = new Set();
     setIsLoggedIn(false); setStaffName(''); setIsManager(false);
     setOrders([]); setCalls([]); setMenuItems([]); setShiftHistory([]); setMyTables(new Set());
+    setPayingOrderId(null); setPayErrors({});
   }
 
   async function updateOrderStatus(orderId: string, status: string) {
@@ -372,6 +437,22 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     }
     await db.from('orders').update(payload).eq('id', orderId);
     const rid = ridRef.current; if (rid) fetchOrders(rid);
+  }
+
+  async function recordPayment(orderId: string, method: string) {
+    setPayErrors(prev => ({ ...prev, [orderId]: '' }));
+    const { error } = await db.from('orders')
+      .update({ payment_method: method, is_paid: true })
+      .eq('id', orderId);
+    if (error) {
+      setPayErrors(prev => ({ ...prev, [orderId]: error.message }));
+      return;
+    }
+    setPayingOrderId(null);
+    const patch = (o: Order): Order =>
+      o.id === orderId ? { ...o, is_paid: true, payment_method: method as Order['payment_method'] } : o;
+    setOrders(prev => prev.map(patch));
+    setShiftHistory(prev => prev.map(patch));
   }
 
   async function acknowledgeCall(callId: string) {
@@ -407,6 +488,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const todayStr = new Date().toLocaleDateString('en-NG');
   const todayOrders = shiftHistory.filter(o => new Date(o.created_at).toLocaleDateString('en-NG') === todayStr);
   const todayRevenue = todayOrders.reduce((s, o) => s + o.total, 0);
+  const todayUnpaidOrders = todayOrders.filter(o => o.status !== 'cancelled' && !o.is_paid);
+  const todayUnpaidRevenue = todayUnpaidOrders.reduce((s, o) => s + o.total, 0);
 
   const groupedHistory = shiftHistory.reduce<Record<string, Order[]>>((acc, order) => {
     const key = new Date(order.created_at).toLocaleDateString('en-NG', {
@@ -575,6 +658,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
               ) : orders.map(order => {
                 const isPreparing = order.status === 'preparing';
                 const u = urgency(order.created_at, nowMs);
+                const isPicking = payingOrderId === order.id;
                 return (
                   <div key={order.id} className={`w-card ${u}`}>
                     <div className="w-card-row" style={{ marginBottom: 6 }}>
@@ -604,14 +688,37 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                         {elapsedStr(order.created_at, nowMs)}
                       </span>
                     </div>
-                    <div className="w-actions">
-                      <button
-                        className="w-action-btn primary"
-                        onClick={() => updateOrderStatus(order.id, isPreparing ? 'served' : 'preparing')}
-                      >
-                        {isPreparing ? 'Mark Served' : 'Start Preparing'}
-                      </button>
-                    </div>
+
+                    <PaymentBadge order={order} />
+
+                    {payErrors[order.id] && (
+                      <p className="w-pay-error">{payErrors[order.id]}</p>
+                    )}
+
+                    {isPicking ? (
+                      <PaymentPicker
+                        onSelect={m => recordPayment(order.id, m)}
+                        onCancel={() => setPayingOrderId(null)}
+                        error={payErrors[order.id]}
+                      />
+                    ) : (
+                      <div className="w-actions">
+                        {!order.is_paid && (
+                          <button
+                            className="w-action-btn pay"
+                            onClick={() => setPayingOrderId(order.id)}
+                          >
+                            Mark Paid
+                          </button>
+                        )}
+                        <button
+                          className={`w-action-btn ${order.is_paid ? 'primary' : 'secondary'}`}
+                          onClick={() => updateOrderStatus(order.id, isPreparing ? 'served' : 'preparing')}
+                        >
+                          {isPreparing ? 'Mark Served' : 'Start Preparing'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -663,6 +770,15 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
               <div className="w-stat-label">Today&apos;s Revenue</div>
               <div className="w-stat-value accent">{fmt(todayRevenue)}</div>
             </div>
+            <div className="w-stat-chip">
+              <div className="w-stat-label">Still Unpaid</div>
+              <div className={`w-stat-value${todayUnpaidOrders.length > 0 ? ' amber' : ''}`}>
+                {todayUnpaidOrders.length > 0 ? fmt(todayUnpaidRevenue) : '—'}
+              </div>
+              {todayUnpaidOrders.length > 0 && (
+                <div className="w-stat-sub">{todayUnpaidOrders.length} order{todayUnpaidOrders.length !== 1 ? 's' : ''}</div>
+              )}
+            </div>
           </div>
 
           {/* Hourly chart */}
@@ -685,6 +801,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                   {dayOrders.map(order => {
                     const items = (order.order_items || []).map(i => `${i.quantity}× ${i.item_name}`).join(', ');
                     const time  = new Date(order.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' });
+                    const isPicking = payingOrderId === order.id;
                     return (
                       <div key={order.id} className="w-history-card">
                         <div className="w-history-row">
@@ -693,6 +810,32 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                         </div>
                         <div className="w-history-items">{items || '—'}</div>
                         <div className="w-history-total">{fmt(order.total)}</div>
+
+                        <PaymentBadge order={order} />
+
+                        {isPicking ? (
+                          <PaymentPicker
+                            onSelect={m => recordPayment(order.id, m)}
+                            onCancel={() => setPayingOrderId(null)}
+                            error={payErrors[order.id]}
+                          />
+                        ) : (
+                          <>
+                            {payErrors[order.id] && (
+                              <p className="w-pay-error">{payErrors[order.id]}</p>
+                            )}
+                            {!order.is_paid && order.status !== 'cancelled' && (
+                              <div className="w-actions" style={{ marginTop: 10 }}>
+                                <button
+                                  className="w-action-btn pay"
+                                  onClick={() => setPayingOrderId(order.id)}
+                                >
+                                  Mark Paid
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     );
                   })}
