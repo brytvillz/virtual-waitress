@@ -435,7 +435,7 @@ function OrderCard({
         {order.is_paid && canManagePayments && !isConfirmingUnpaid && (
           <button
             onClick={onStartMarkUnpaid}
-            className="text-xs text-[#4a4a4a] hover:text-[#ff6b6b] transition-colors px-2 py-1.5"
+            className="text-xs text-[#6B6570] hover:text-[#ff6b6b] border border-white/[0.14] hover:border-[#ff6b6b]/40 px-3 py-2 rounded-lg transition-colors"
           >
             Mark unpaid
           </button>

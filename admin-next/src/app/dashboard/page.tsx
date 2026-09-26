@@ -82,11 +82,13 @@ export default function AnalyticsPage() {
       // is_paid and status fetched to split paid/unpaid tiles and exclude cancelled (migration 021)
       supabase.from('orders').select('total, handled_by, is_paid, status').eq('restaurant_id', restaurantId).gte('created_at', todayStr),
       supabase.from('orders').select('total, status').eq('restaurant_id', restaurantId).gte('created_at', yesterdayStart).lt('created_at', todayStr),
-      supabase.from('orders').select('total', { count: 'exact' }).eq('restaurant_id', restaurantId),
+      // is_paid and status needed so totalRevenue counts paid non-cancelled orders only
+      supabase.from('orders').select('total, is_paid, status', { count: 'exact' }).eq('restaurant_id', restaurantId),
       supabase.from('order_items').select('item_name, quantity, price, orders!inner(restaurant_id)').eq('orders.restaurant_id', restaurantId),
       supabase.from('orders').select('id, total, status, table_number, created_at, handled_by, order_items(item_name, quantity, price)').eq('restaurant_id', restaurantId).order('created_at', { ascending: false }).limit(10),
       supabase.from('staff').select('id, name, role').eq('restaurant_id', restaurantId).order('name'),
-      supabase.from('orders').select('total, created_at, handled_by').eq('restaurant_id', restaurantId).gte('created_at', sevenDaysAgo),
+      // is_paid and status needed so chart revenue counts paid non-cancelled only
+      supabase.from('orders').select('total, created_at, handled_by, is_paid, status').eq('restaurant_id', restaurantId).gte('created_at', sevenDaysAgo),
     ]);
 
     // Split today's orders into paid / unpaid, both excluding cancelled.
@@ -110,26 +112,35 @@ export default function AnalyticsPage() {
     setYesterdayRevenue(yestRev);
     setYesterdayOrders(yestActive.length);
 
-    const allRev = (allOrders ?? []).reduce((s: number, o: { total: number }) => s + (o.total || 0), 0);
+    // All-time revenue = paid, non-cancelled orders only; count stays unrestricted
+    type AllRow = { total: number; is_paid: boolean; status: string };
+    const allRev = (allOrders ?? [] as AllRow[])
+      .filter((o: AllRow) => o.is_paid && o.status !== 'cancelled')
+      .reduce((s: number, o: AllRow) => s + (o.total || 0), 0);
     setTotalRevenue(allRev);
     setTotalOrders(orderCount ?? 0);
 
-    // 7-day chart
+    // 7-day chart:  revenue = paid, non-cancelled only;  orders = all non-cancelled
+    // Waiter stats: order value = all non-cancelled they handled (not filtered to paid —
+    //   this is the value of work they did, not cash they collected)
+    type SevenRow = { total: number; created_at: string; handled_by: string; is_paid: boolean; status: string };
     const days = last7Days();
-    (sevenDayOrders ?? []).forEach((o: { total: number; created_at: string }) => {
+    const ws: Record<string, { orders: number; revenue: number }> = {};
+    (sevenDayOrders ?? [] as SevenRow[]).forEach((o: SevenRow) => {
+      if (o.status === 'cancelled') return;
       const label = new Date(o.created_at).toLocaleDateString('en-US', { weekday: 'short' });
       const idx = days.findIndex(d => d.date === label);
-      if (idx !== -1) { days[idx].revenue += o.total || 0; days[idx].orders++; }
+      if (idx !== -1) {
+        days[idx].orders++;
+        if (o.is_paid) days[idx].revenue += o.total || 0;
+      }
+      if (o.handled_by) {
+        if (!ws[o.handled_by]) ws[o.handled_by] = { orders: 0, revenue: 0 };
+        ws[o.handled_by].orders++;
+        ws[o.handled_by].revenue += o.total || 0;
+      }
     });
     setChartData([...days]);
-
-    // Waiter stats (7 days)
-    const ws: Record<string, { orders: number; revenue: number }> = {};
-    (sevenDayOrders ?? []).forEach((o: { handled_by: string; total: number }) => {
-      if (!ws[o.handled_by]) ws[o.handled_by] = { orders: 0, revenue: 0 };
-      ws[o.handled_by].orders++;
-      ws[o.handled_by].revenue += o.total || 0;
-    });
     setWaiterStats(ws);
     setStaff((staffList ?? []).filter((s: Staff) => s.role === 'waiter'));
 
@@ -253,7 +264,7 @@ export default function AnalyticsPage() {
 
             {/* Staff performance */}
             <div className="bg-[#161616] border border-white/[0.06] rounded-2xl p-5">
-              <h2 className="text-[#F0EDE8] text-sm font-semibold mb-4">Staff Performance <span className="text-[#4a4a4a] font-normal">(7 days)</span></h2>
+              <h2 className="text-[#F0EDE8] text-sm font-semibold mb-4">Staff Performance <span className="text-[#4a4a4a] font-normal">(7 days · order value handled)</span></h2>
               {staff.length === 0 ? (
                 <p className="text-[#4a4a4a] text-sm">No staff added yet.</p>
               ) : (
