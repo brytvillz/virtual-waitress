@@ -487,7 +487,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
 
   const todayStr = new Date().toLocaleDateString('en-NG');
   const todayOrders = shiftHistory.filter(o => new Date(o.created_at).toLocaleDateString('en-NG') === todayStr);
-  const todayRevenue = todayOrders.reduce((s, o) => s + o.total, 0);
+  const todayCollectedOrders = todayOrders.filter(o => o.status !== 'cancelled' && o.is_paid);
+  const todayRevenue = todayCollectedOrders.reduce((s, o) => s + o.total, 0);
   const todayUnpaidOrders = todayOrders.filter(o => o.status !== 'cancelled' && !o.is_paid);
   const todayUnpaidRevenue = todayUnpaidOrders.reduce((s, o) => s + o.total, 0);
 
@@ -767,7 +768,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
               <div className="w-stat-value">{todayOrders.length}</div>
             </div>
             <div className="w-stat-chip">
-              <div className="w-stat-label">Today&apos;s Revenue</div>
+              <div className="w-stat-label">Collected</div>
               <div className="w-stat-value accent">{fmt(todayRevenue)}</div>
             </div>
             <div className="w-stat-chip">
