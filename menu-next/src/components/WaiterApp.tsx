@@ -500,7 +500,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     if (!isLoggedIn) return;
     const iv = setInterval(async () => {
       const rid = ridRef.current; if (!rid) return;
-      await loadAssignments(rid); fetchOrders(rid); fetchCalls(rid);
+      await loadAssignments(rid); fetchOrders(rid); fetchCalls(rid); fetchCancelReqs(rid);
     }, 30000);
     return () => clearInterval(iv);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -587,6 +587,10 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     setRequestingFor(null);
     setCancelStep('pick');
     setCancelOther('');
+    setCancelReqs(prev => ({
+      ...prev,
+      [orderId]: { id: 'local-' + orderId, order_id: orderId, status: 'pending', reason },
+    }));
   }
 
   function openCancelPicker(orderId: string) {
@@ -896,11 +900,18 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                     {/* ── Cancellation request section ── */}
                     <div className="w-cancel-section">
                       {hasPending ? (
-                        <div className="w-cancel-status">
-                          <span className="w-cancel-status-dot" style={{ background: 'var(--w-amber)' }} />
-                          <span className="w-cancel-status-text" style={{ color: 'var(--w-amber)' }}>
-                            Cancellation requested — waiting for manager
-                          </span>
+                        <div>
+                          <div className="w-cancel-status">
+                            <span className="w-cancel-status-dot" style={{ background: 'var(--w-amber)' }} />
+                            <span className="w-cancel-status-text" style={{ color: 'var(--w-amber)' }}>
+                              Cancellation requested — waiting for manager
+                            </span>
+                          </div>
+                          {cancelReq?.reason && (
+                            <p style={{ fontSize: '0.7rem', color: 'var(--w-faint)', marginTop: 3, paddingLeft: 12 }}>
+                              {cancelReq.reason}
+                            </p>
+                          )}
                         </div>
                       ) : hasDeclined && !isRequestingThis ? (
                         <div className="w-cancel-status">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRestaurant } from '@/components/DashboardShell';
+import { useRestaurant, useCancelCount } from '@/components/DashboardShell';
 
 type OrderItem = { item_name: string; quantity: number; price: number };
 
@@ -32,6 +32,8 @@ type CancellationRequest = {
   requested_by: string | null;
   created_at: string;
 };
+
+type ResolvedMsg = { id: string; type: 'approved' | 'declined'; tableNumber: number };
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: 'Cash',
@@ -120,6 +122,8 @@ export default function OrdersPage() {
   const [cancelReqs, setCancelReqs]           = useState<CancellationRequest[]>([]);
   const [decidingId, setDecidingId]           = useState<string | null>(null);
   const [decisionError, setDecisionError]     = useState<Record<string, string>>({});
+  const [resolvedMsgs, setResolvedMsgs]       = useState<ResolvedMsg[]>([]);
+  const { decrement: decrementCancelCount }   = useCancelCount();
   // Cancel-order state (manager/owner direct cancel on a card)
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
   const [cancelStep, setCancelStep]           = useState<'pick' | 'other'>('pick');
@@ -306,30 +310,40 @@ export default function OrdersPage() {
     );
   }
 
-  async function approveRequest(requestId: string) {
-    setDecidingId(requestId);
-    setDecisionError(prev => ({ ...prev, [requestId]: '' }));
+  async function approveRequest(req: CancellationRequest) {
+    setDecidingId(req.id);
+    setDecisionError(prev => ({ ...prev, [req.id]: '' }));
     const supabase = createClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).rpc('approve_cancellation_request', { p_request_id: requestId });
+    const { error } = await (supabase as any).rpc('approve_cancellation_request', { p_request_id: req.id });
     setDecidingId(null);
     if (error) {
-      setDecisionError(prev => ({ ...prev, [requestId]: error.message }));
+      setDecisionError(prev => ({ ...prev, [req.id]: error.message }));
+      return;
     }
-    // On success, realtime UPDATE on cancellation_requests removes it from state.
-    // Realtime UPDATE on orders changes status to 'cancelled'.
+    const tableNum = orders.find(o => o.id === req.order_id)?.table_number ?? 0;
+    setCancelReqs(prev => prev.filter(r => r.id !== req.id));
+    setResolvedMsgs(prev => [...prev, { id: req.id, type: 'approved', tableNumber: tableNum }]);
+    setTimeout(() => setResolvedMsgs(prev => prev.filter(m => m.id !== req.id)), 3000);
+    decrementCancelCount();
   }
 
-  async function declineRequest(requestId: string) {
-    setDecidingId(requestId);
-    setDecisionError(prev => ({ ...prev, [requestId]: '' }));
+  async function declineRequest(req: CancellationRequest) {
+    setDecidingId(req.id);
+    setDecisionError(prev => ({ ...prev, [req.id]: '' }));
     const supabase = createClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).rpc('decline_cancellation_request', { p_request_id: requestId });
+    const { error } = await (supabase as any).rpc('decline_cancellation_request', { p_request_id: req.id });
     setDecidingId(null);
     if (error) {
-      setDecisionError(prev => ({ ...prev, [requestId]: error.message }));
+      setDecisionError(prev => ({ ...prev, [req.id]: error.message }));
+      return;
     }
+    const tableNum = orders.find(o => o.id === req.order_id)?.table_number ?? 0;
+    setCancelReqs(prev => prev.filter(r => r.id !== req.id));
+    setResolvedMsgs(prev => [...prev, { id: req.id, type: 'declined', tableNumber: tableNum }]);
+    setTimeout(() => setResolvedMsgs(prev => prev.filter(m => m.id !== req.id)), 3000);
+    decrementCancelCount();
   }
 
   async function cancelOrder(orderId: string, reason: string) {
@@ -432,28 +446,42 @@ export default function OrdersPage() {
       ) : (
         <>
           {/* ── Pending Cancellation Requests ──────────────────────────────── */}
-          {cancelReqs.length > 0 && (
+          {(cancelReqs.length > 0 || resolvedMsgs.length > 0) && (
             <div className="mb-6 rounded-2xl border border-orange-500/30 bg-orange-500/[0.04] overflow-hidden">
-              <div className="flex items-center gap-3 px-5 py-3 border-b border-orange-500/20">
-                <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse shrink-0" />
-                <span className="text-orange-400 text-sm font-semibold">
-                  {cancelReqs.length} cancellation {cancelReqs.length === 1 ? 'request' : 'requests'} waiting
-                </span>
-              </div>
-              <div className="flex flex-col divide-y divide-white/[0.04]">
-                {cancelReqs.map(req => (
-                  <CancellationRequestCard
-                    key={req.id}
-                    req={req}
-                    order={orderMap[req.order_id]}
-                    staffMap={staffMap}
-                    isDeciding={decidingId === req.id}
-                    error={decisionError[req.id] || null}
-                    onApprove={() => approveRequest(req.id)}
-                    onDecline={() => declineRequest(req.id)}
-                  />
-                ))}
-              </div>
+              {cancelReqs.length > 0 && (
+                <div className="flex items-center gap-3 px-5 py-3 border-b border-orange-500/20">
+                  <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse shrink-0" />
+                  <span className="text-orange-400 text-sm font-semibold">
+                    {cancelReqs.length} cancellation {cancelReqs.length === 1 ? 'request' : 'requests'} waiting
+                  </span>
+                </div>
+              )}
+              {resolvedMsgs.map(msg => (
+                <div key={msg.id} className="flex items-center gap-3 px-5 py-3 border-b border-white/[0.04] last:border-b-0">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${msg.type === 'approved' ? 'bg-[#ff6b6b]' : 'bg-[#4a4a4a]'}`} />
+                  <span className="text-[#9a9098] text-sm font-medium">
+                    {msg.type === 'approved'
+                      ? `Order cancelled — Table ${msg.tableNumber || '?'}`
+                      : `Request declined — Table ${msg.tableNumber || '?'}`}
+                  </span>
+                </div>
+              ))}
+              {cancelReqs.length > 0 && (
+                <div className="flex flex-col divide-y divide-white/[0.04]">
+                  {cancelReqs.map(req => (
+                    <CancellationRequestCard
+                      key={req.id}
+                      req={req}
+                      order={orderMap[req.order_id]}
+                      staffMap={staffMap}
+                      isDeciding={decidingId === req.id}
+                      error={decisionError[req.id] || null}
+                      onApprove={() => approveRequest(req)}
+                      onDecline={() => declineRequest(req)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

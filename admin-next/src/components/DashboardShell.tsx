@@ -36,6 +36,10 @@ function getTrialStatus(r: NonNullable<Restaurant>) {
 const RestaurantContext = createContext<Restaurant>(null);
 export function useRestaurant() { return useContext(RestaurantContext); }
 
+type CancelCountCtx = { count: number; decrement: () => void };
+const CancelCountContext = createContext<CancelCountCtx>({ count: 0, decrement: () => {} });
+export function useCancelCount() { return useContext(CancelCountContext); }
+
 const NAV = [
   { href: '/dashboard',          label: 'Analytics',  icon: IconChart },
   { href: '/dashboard/orders',   label: 'Orders',     icon: IconOrders },
@@ -207,6 +211,7 @@ export default function DashboardShell({
   );
 
   return (
+    <CancelCountContext.Provider value={{ count: pendingCancelCount, decrement: () => setPendingCancelCount(c => Math.max(0, c - 1)) }}>
     <RestaurantContext.Provider value={restaurant}>
       <div className="flex min-h-screen bg-[#0f0f0f]">
 
@@ -330,6 +335,7 @@ export default function DashboardShell({
         </div>
       </div>
     </RestaurantContext.Provider>
+    </CancelCountContext.Provider>
   );
 }
 
