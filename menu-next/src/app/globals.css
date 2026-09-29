@@ -834,6 +834,12 @@ body {
   padding: 0 12px;
   flex: 1;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  cursor: default;
+  user-select: none;
 }
 
 /* ── Loading ─────────────────────────────── */
