@@ -24,9 +24,12 @@
  *   j) A direct PATCH setting tab_id is refused outside move_order_to_tab
  *   k) A settled tab cannot be settled again
  *
- * Cleanup: all test orders are cancelled via cancel_order() and all test
- * tabs are voided via void_tab() using the owner session. The script
- * reports any tabs it could not close so manual cleanup is possible.
+ * Cleanup: all live test orders are cancelled via cancel_order(), all test
+ * tabs are voided via void_tab(), and every test order row is deleted via
+ * the service-role key (bypasses RLS — no DELETE policy exists on orders).
+ * Without the delete step, zero-total stub orders accumulate and pollute
+ * dashboard figures. TEST_SERVICE_ROLE_KEY is required for this; the script
+ * hard-stops at preflight if it is absent.
  */
 
 import { readFileSync } from 'fs';
@@ -56,22 +59,24 @@ function loadEnv(path) {
 
 const env = loadEnv(envPath);
 
-const SUPABASE_URL   = env['NEXT_PUBLIC_SUPABASE_URL'];
-const ANON_KEY       = env['NEXT_PUBLIC_SUPABASE_ANON_KEY'];
-const OWNER_EMAIL    = env['TEST_OWNER_EMAIL'];
-const OWNER_PASSWORD = env['TEST_OWNER_PASSWORD'];
-const WAITER_A_CODE  = env['TEST_WAITER_A_CODE'];
-const WAITER_B_CODE  = env['TEST_WAITER_B_CODE'];
+const SUPABASE_URL     = env['NEXT_PUBLIC_SUPABASE_URL'];
+const ANON_KEY         = env['NEXT_PUBLIC_SUPABASE_ANON_KEY'];
+const OWNER_EMAIL      = env['TEST_OWNER_EMAIL'];
+const OWNER_PASSWORD   = env['TEST_OWNER_PASSWORD'];
+const WAITER_A_CODE    = env['TEST_WAITER_A_CODE'];
+const WAITER_B_CODE    = env['TEST_WAITER_B_CODE'];
+const SERVICE_ROLE_KEY = env['TEST_SERVICE_ROLE_KEY'];
 
 // ── Preflight ─────────────────────────────────────────────────────────────────
 
 const REQUIRED = [
-  ['NEXT_PUBLIC_SUPABASE_URL',   SUPABASE_URL],
+  ['NEXT_PUBLIC_SUPABASE_URL',     SUPABASE_URL],
   ['NEXT_PUBLIC_SUPABASE_ANON_KEY', ANON_KEY],
-  ['TEST_OWNER_EMAIL',           OWNER_EMAIL],
-  ['TEST_OWNER_PASSWORD',        OWNER_PASSWORD],
-  ['TEST_WAITER_A_CODE',         WAITER_A_CODE],
-  ['TEST_WAITER_B_CODE',         WAITER_B_CODE],
+  ['TEST_OWNER_EMAIL',             OWNER_EMAIL],
+  ['TEST_OWNER_PASSWORD',          OWNER_PASSWORD],
+  ['TEST_WAITER_A_CODE',           WAITER_A_CODE],
+  ['TEST_WAITER_B_CODE',           WAITER_B_CODE],
+  ['TEST_SERVICE_ROLE_KEY',        SERVICE_ROLE_KEY],
 ];
 let missingEnv = false;
 for (const [k, v] of REQUIRED) {
@@ -253,8 +258,11 @@ async function main() {
   }
   console.log(`  restaurant id: ${restaurantId}\n`);
 
-  // All test tab ids — tracked so cleanup can close any that are still open.
-  const testTabIds = [];
+  // All test tab ids — tracked so cleanup can void any that are still open.
+  const testTabIds   = [];
+  // All test order ids — tracked so cleanup can delete every row (no DELETE
+  // RLS policy; deletion requires the service-role key — see cleanup section).
+  const testOrderIds = [];
 
   // ══════════════════════════════════════════════════════════════════════════════
   // TEST A — Two concurrent opens get different tab numbers
@@ -322,6 +330,8 @@ async function main() {
 
   const orderCK1 = tabCK ? newOrder(tabCK) : null;
   const orderCK2 = tabCK ? newOrder(tabCK) : null;
+  if (orderCK1) testOrderIds.push(orderCK1.id);
+  if (orderCK2) testOrderIds.push(orderCK2.id);
   if (tabCK) {
     const [i1, i2] = await Promise.all([
       dbInsert('orders', orderCK1, waiterAToken),
@@ -338,6 +348,7 @@ async function main() {
   if (tabD) testTabIds.push(tabD);
 
   const orderD = tabD ? newOrder(tabD) : null;
+  if (orderD) testOrderIds.push(orderD.id);
   if (tabD) {
     const iD = await dbInsert('orders', orderD, waiterAToken);
     ok('setup: order on tab D', iD.ok, errMsg(iD.data));
@@ -359,6 +370,7 @@ async function main() {
   if (tabEF) testTabIds.push(tabEF);
 
   const orderEF = tabEF ? newOrder(tabEF) : null;
+  if (orderEF) testOrderIds.push(orderEF.id);
   if (tabEF) {
     const iEF = await dbInsert('orders', orderEF, waiterAToken);
     ok('setup: order on tab EF', iEF.ok, errMsg(iEF.data));
@@ -377,6 +389,7 @@ async function main() {
   if (tabG2) testTabIds.push(tabG2);
 
   const orderG = tabG ? newOrder(tabG) : null;
+  if (orderG) testOrderIds.push(orderG.id);
   if (tabG) {
     const iG = await dbInsert('orders', orderG, waiterAToken);
     ok('setup: order on tab G', iG.ok, errMsg(iG.data));
@@ -389,6 +402,7 @@ async function main() {
   if (tabH) testTabIds.push(tabH);
 
   const orderH = tabH ? newOrder(tabH) : null;
+  if (orderH) testOrderIds.push(orderH.id);
   if (tabH) {
     const iH = await dbInsert('orders', orderH, waiterAToken);
     ok('setup: order on tab H', iH.ok, errMsg(iH.data));
@@ -551,8 +565,10 @@ async function main() {
 
   // tabCK was settled in test c — use it as the closed target.
   if (tabCK) {
+    const orderIId = crypto.randomUUID();
+    testOrderIds.push(orderIId);  // track even though the insert should be rejected
     const insI = await dbInsert('orders', {
-      id:              crypto.randomUUID(),
+      id:              orderIId,
       restaurant_id:   restaurantId,
       table_number:    1,
       client_order_id: crypto.randomUUID(),
@@ -642,7 +658,7 @@ async function main() {
   // ══════════════════════════════════════════════════════════════════════════════
   console.log('Cleaning up...');
 
-  // Cancel every order that is still live (not yet cancelled), so void_tab can close the tabs.
+  // Step 1: Cancel every order that is still live so void_tab can close the tabs.
   const ordersToCancel = [orderD, orderG, orderH].filter(Boolean);
   for (const order of ordersToCancel) {
     const r = await rpc('cancel_order',
@@ -650,7 +666,7 @@ async function main() {
     if (!r.ok) console.warn(`  WARNING: could not cancel order ${order.id}: ${errMsg(r.data)}`);
   }
 
-  // Void all tabs that are still open (tabCK and tabEF are already closed by settle).
+  // Step 2: Void all tabs that are still open (tabCK and tabEF are already closed by settle).
   const tabsToVoid = [tabD, tabG, tabG2, tabH, raceTab1, raceTab2].filter(Boolean);
   for (const tabId of tabsToVoid) {
     const r = await rpc('void_tab',
@@ -658,7 +674,7 @@ async function main() {
     if (!r.ok) console.warn(`  WARNING: could not void tab ${tabId}: ${errMsg(r.data)}`);
   }
 
-  // Verify no test tabs are still open.
+  // Step 3: Verify no test tabs are still open.
   const openResp = await dbSelect(
     'tabs',
     { id: `in.(${testTabIds.join(',')})`, status: 'eq.open', select: 'id,tab_number,status' },
@@ -666,12 +682,38 @@ async function main() {
   );
   const stillOpen = openResp.data || [];
   if (stillOpen.length === 0) {
-    console.log('  all test tabs closed\n');
+    console.log('  all test tabs closed');
   } else {
     console.warn(`  WARNING: ${stillOpen.length} test tab(s) could not be closed — manual cleanup required:`);
     stillOpen.forEach(t => console.warn(`    tab_number=${t.tab_number}  id=${t.id}`));
-    console.log();
   }
+
+  // Step 4: Delete every test order row using the service-role key.
+  // Orders have no DELETE RLS policy — cancel_order() only changes status; rows persist.
+  // Without this step, zero-total stub orders accumulate on the payment-test dashboard.
+  if (testOrderIds.length > 0) {
+    const delRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/orders?id=in.(${testOrderIds.join(',')})`,
+      {
+        method: 'DELETE',
+        headers: {
+          apikey:        SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+        },
+      }
+    );
+    if (!delRes.ok) {
+      console.warn(`  WARNING: could not delete test orders: ${await delRes.text()}`);
+      console.warn(`  Run this in the SQL editor to clean up manually:`);
+      console.warn(`    DELETE FROM public.orders`);
+      console.warn(`    WHERE restaurant_id = (SELECT id FROM public.restaurants WHERE slug = 'payment-test')`);
+      console.warn(`      AND tab_id IS NOT NULL`);
+      console.warn(`      AND NOT EXISTS (SELECT 1 FROM public.order_items WHERE order_id = orders.id);`);
+    } else {
+      console.log(`  deleted ${testOrderIds.length} test order(s)`);
+    }
+  }
+  console.log();
 
   // ══════════════════════════════════════════════════════════════════════════════
   // SUMMARY
