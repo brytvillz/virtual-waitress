@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { orderLabel } from '@/lib/orderLabel';
 import { createClient } from '@/lib/supabase/client';
 import { useRestaurant } from '@/components/DashboardShell';
 import RevenueChart from '@/components/RevenueChart';
@@ -12,7 +13,9 @@ type Order = {
   id: string;
   total: number;
   status: string;
-  table_number: string | number;
+  table_number: number | null;
+  tab_id?: string | null;
+  tab_number?: number | null;
   created_at: string;
   handled_by: string;
   order_items: { item_name: string; quantity: number; price: number }[];
@@ -85,7 +88,7 @@ export default function AnalyticsPage() {
       // is_paid and status needed so totalRevenue counts paid non-cancelled orders only
       supabase.from('orders').select('total, is_paid, status', { count: 'exact' }).eq('restaurant_id', restaurantId),
       supabase.from('order_items').select('item_name, quantity, price, orders!inner(restaurant_id)').eq('orders.restaurant_id', restaurantId),
-      supabase.from('orders').select('id, total, status, table_number, created_at, handled_by, order_items(item_name, quantity, price)').eq('restaurant_id', restaurantId).order('created_at', { ascending: false }).limit(10),
+      supabase.from('orders').select('id, total, status, table_number, tab_id, tab_number, created_at, handled_by, order_items(item_name, quantity, price)').eq('restaurant_id', restaurantId).order('created_at', { ascending: false }).limit(10),
       supabase.from('staff').select('id, name, role').eq('restaurant_id', restaurantId).order('name'),
       // is_paid and status needed so chart revenue counts paid non-cancelled only
       supabase.from('orders').select('total, created_at, handled_by, is_paid, status').eq('restaurant_id', restaurantId).gte('created_at', sevenDaysAgo),
@@ -360,7 +363,7 @@ export default function AnalyticsPage() {
                   <tbody className="divide-y divide-white/[0.04]">
                     {recentOrders.map(order => (
                       <tr key={order.id} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="py-3 text-[#F0EDE8] pl-1">Table {order.table_number}</td>
+                        <td className="py-3 text-[#F0EDE8] pl-1">{orderLabel(order)}</td>
                         <td className="py-3 text-[#6B6570] max-w-[220px] truncate">
                           {order.order_items?.map(i => `${i.item_name} ×${i.quantity}`).join(', ') || '—'}
                         </td>

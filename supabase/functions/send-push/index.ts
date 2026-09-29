@@ -34,10 +34,16 @@ Deno.serve(async (req) => {
 
   if (table === "orders") {
     title = "🛒 New Order";
-    body = `Table ${record.table_number} placed an order — ₦${record.total}`;
+    const loc = record.tab_number != null
+      ? `Tab ${record.tab_number}`
+      : record.table_number != null
+        ? `Table ${record.table_number}`
+        : "A new order";
+    body = `${loc} placed an order — ₦${record.total}`;
   } else if (table === "waiter_calls") {
     title = "🔔 Waiter Called";
-    body = `Table ${record.table_number} needs assistance`;
+    const loc = record.table_number != null ? `Table ${record.table_number}` : "A guest";
+    body = `${loc} needs assistance`;
   } else {
     return new Response("Ignored — unrecognised table", { status: 200 });
   }

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRestaurant, useCancelCount } from '@/components/DashboardShell';
+import { orderLabel } from '@/lib/orderLabel';
 
 type OrderItem = { item_name: string; quantity: number; price: number };
 
@@ -10,7 +11,9 @@ type Order = {
   id: string;
   status: 'pending' | 'preparing' | 'served' | 'completed' | 'cancelled';
   total: number;
-  table_number: number;
+  table_number: number | null;
+  tab_id?: string | null;
+  tab_number?: number | null;
   created_at: string;
   handled_by: string | null;
   // Payment columns added in migration 021
@@ -33,7 +36,7 @@ type CancellationRequest = {
   created_at: string;
 };
 
-type ResolvedMsg = { id: string; type: 'approved' | 'declined'; tableNumber: number };
+type ResolvedMsg = { id: string; type: 'approved' | 'declined'; location: string };
 
 const PAYMENT_LABELS: Record<string, string> = {
   cash: 'Cash',
@@ -103,7 +106,7 @@ function playBeep() {
   } catch { /* audio unavailable */ }
 }
 
-const ORDER_SELECT = 'id, status, total, table_number, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(item_name, quantity, price)';
+const ORDER_SELECT = 'id, status, total, table_number, tab_id, tab_number, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(item_name, quantity, price)';
 
 export default function OrdersPage() {
   const restaurant = useRestaurant();
@@ -321,9 +324,10 @@ export default function OrdersPage() {
       setDecisionError(prev => ({ ...prev, [req.id]: error.message }));
       return;
     }
-    const tableNum = orders.find(o => o.id === req.order_id)?.table_number ?? 0;
+    const found = orders.find(o => o.id === req.order_id);
+    const loc   = found ? orderLabel(found) : '—';
     setCancelReqs(prev => prev.filter(r => r.id !== req.id));
-    setResolvedMsgs(prev => [...prev, { id: req.id, type: 'approved', tableNumber: tableNum }]);
+    setResolvedMsgs(prev => [...prev, { id: req.id, type: 'approved', location: loc }]);
     setTimeout(() => setResolvedMsgs(prev => prev.filter(m => m.id !== req.id)), 3000);
     decrementCancelCount();
   }
@@ -339,9 +343,10 @@ export default function OrdersPage() {
       setDecisionError(prev => ({ ...prev, [req.id]: error.message }));
       return;
     }
-    const tableNum = orders.find(o => o.id === req.order_id)?.table_number ?? 0;
+    const found = orders.find(o => o.id === req.order_id);
+    const loc   = found ? orderLabel(found) : '—';
     setCancelReqs(prev => prev.filter(r => r.id !== req.id));
-    setResolvedMsgs(prev => [...prev, { id: req.id, type: 'declined', tableNumber: tableNum }]);
+    setResolvedMsgs(prev => [...prev, { id: req.id, type: 'declined', location: loc }]);
     setTimeout(() => setResolvedMsgs(prev => prev.filter(m => m.id !== req.id)), 3000);
     decrementCancelCount();
   }
@@ -461,8 +466,8 @@ export default function OrdersPage() {
                   <span className={`w-2 h-2 rounded-full shrink-0 ${msg.type === 'approved' ? 'bg-[#ff6b6b]' : 'bg-[#4a4a4a]'}`} />
                   <span className="text-[#9a9098] text-sm font-medium">
                     {msg.type === 'approved'
-                      ? `Order cancelled — Table ${msg.tableNumber || '?'}`
-                      : `Request declined — Table ${msg.tableNumber || '?'}`}
+                      ? `Order cancelled — ${msg.location}`
+                      : `Request declined — ${msg.location}`}
                   </span>
                 </div>
               ))}
@@ -568,7 +573,7 @@ function CancellationRequestCard({
       <div className="flex items-start justify-between gap-4 mb-2">
         <div>
           <p className="text-[#F0EDE8] text-sm font-semibold">
-            Table {order?.table_number ?? '—'} — cancellation requested
+            {order ? orderLabel(order) : '—'} — cancellation requested
           </p>
           <p className="text-[#6B6570] text-xs mt-0.5">{timeAgo(req.created_at)} · by {waiterName}</p>
         </div>
@@ -747,7 +752,7 @@ function OrderCard({
       <div className={`rounded-xl border ${meta.card} bg-transparent overflow-hidden`}>
         <div className="flex items-center gap-4 px-4 py-3">
           <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dot}`} />
-          <span className="text-[#9a9098] text-sm font-medium w-16 shrink-0">Table {order.table_number}</span>
+          <span className="text-[#9a9098] text-sm font-medium w-16 shrink-0">{orderLabel(order)}</span>
           <span className="text-[#6B6570] text-xs flex-1 truncate">
             {order.order_items?.map(i => `${i.item_name} ×${i.quantity}`).join(', ') || '—'}
           </span>
@@ -780,10 +785,10 @@ function OrderCard({
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center shrink-0">
-            <span className="text-[#F0EDE8] text-sm font-bold">{order.table_number}</span>
+            <span className="text-[#F0EDE8] text-sm font-bold">{order.tab_number ?? order.table_number ?? '?'}</span>
           </div>
           <div>
-            <p className="text-[#F0EDE8] text-sm font-semibold">Table {order.table_number}</p>
+            <p className="text-[#F0EDE8] text-sm font-semibold">{orderLabel(order)}</p>
             <p className="text-[#6B6570] text-xs mt-0.5">{timeAgo(order.created_at)} · {waiter}</p>
           </div>
         </div>

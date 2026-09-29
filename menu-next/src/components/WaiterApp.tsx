@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { useState, useEffect, useRef } from 'react';
+import { orderLabel } from '../lib/orderLabel';
 
 const SUPABASE_URL     = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -15,7 +16,9 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 interface OrderItem  { quantity: number; item_name: string; price: number; }
 interface Order {
   id: string;
-  table_number: number;
+  table_number: number | null;
+  tab_id?: string | null;
+  tab_number?: number | null;
   status: string;
   total: number;
   created_at: string;
@@ -26,7 +29,7 @@ interface Order {
   payment_method: 'cash' | 'transfer' | 'pos' | null;
   order_items: OrderItem[];
 }
-interface Call   { id: string; table_number: number; created_at: string; }
+interface Call   { id: string; table_number: number | null; created_at: string; }
 interface MenuItem {
   id: string;
   name: string;
@@ -354,11 +357,11 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
 
   async function fetchOrders(rid: string) {
     let q = db.from('orders')
-      .select('id, table_number, status, total, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(*)')
+      .select('id, table_number, tab_id, tab_number, status, total, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(*)')
       .eq('restaurant_id', rid).in('status', ['pending', 'preparing'])
       .order('created_at', { ascending: true });
     if (othersRef.current.size > 0)
-      q = q.not('table_number', 'in', `(${[...othersRef.current].join(',')})`);
+      q = q.or(`table_number.is.null,table_number.not.in.(${[...othersRef.current].join(',')})`);
     const { data } = await q;
     setOrders(data || []);
   }
@@ -368,7 +371,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       .eq('restaurant_id', rid).eq('status', 'pending')
       .order('created_at', { ascending: true });
     if (othersRef.current.size > 0)
-      q = q.not('table_number', 'in', `(${[...othersRef.current].join(',')})`);
+      q = q.or(`table_number.is.null,table_number.not.in.(${[...othersRef.current].join(',')})`);
     const { data } = await q;
     setCalls(data || []);
   }
@@ -385,7 +388,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     if (!user) return;
     const ago = new Date(); ago.setDate(ago.getDate() - 7);
     const { data } = await db.from('orders')
-      .select('id, table_number, status, total, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(*)')
+      .select('id, table_number, tab_id, tab_number, status, total, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(*)')
       .eq('restaurant_id', rid).eq('handled_by', user.id)
       .gte('created_at', ago.toISOString()).order('created_at', { ascending: false });
     setShiftHistory(data || []);
@@ -422,7 +425,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders',
           filter: `restaurant_id=eq.${rid}` }, (payload) => {
         playBeep();
-        addToast({ type: 'order', label: 'New order', body: `Table ${(payload.new as any).table_number}` });
+        addToast({ type: 'order', label: 'New order', body: orderLabel(payload.new as any) });
         fetchOrders(rid);
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders',
@@ -432,7 +435,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waiter_calls',
           filter: `restaurant_id=eq.${rid}` }, (payload) => {
         playBeep();
-        addToast({ type: 'call', label: 'Waiter called', body: `Table ${(payload.new as any).table_number}` });
+        addToast({ type: 'call', label: 'Waiter called', body: orderLabel({ table_number: (payload.new as any).table_number }) });
         fetchCalls(rid);
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'waiter_calls',
@@ -797,7 +800,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                 return (
                   <div key={call.id} className={`w-card ${u}`}>
                     <div className="w-card-row">
-                      <span className="w-card-table">Table {call.table_number}</span>
+                      <span className="w-card-table">{orderLabel({ table_number: call.table_number })}</span>
                       <span className={`w-timer ${u}`}>{elapsedStr(call.created_at, nowMs)}</span>
                     </div>
                     <div className="w-progress">
@@ -838,7 +841,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                 return (
                   <div key={order.id} className={`w-card ${u}`}>
                     <div className="w-card-row" style={{ marginBottom: 6 }}>
-                      <span className="w-card-table">Table {order.table_number}</span>
+                      <span className="w-card-table">{orderLabel(order)}</span>
                       <span className={`w-badge ${order.status}`}>
                         <span className="w-badge-dot" />
                         {isPreparing ? 'Preparing' : 'Pending'}
@@ -1031,7 +1034,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                     return (
                       <div key={order.id} className="w-history-card">
                         <div className="w-history-row">
-                          <span className="w-history-table">Table {order.table_number}</span>
+                          <span className="w-history-table">{orderLabel(order)}</span>
                           <span className="w-history-time">{time}</span>
                         </div>
                         <div className="w-history-items">{items || '—'}</div>

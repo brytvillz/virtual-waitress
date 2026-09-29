@@ -98,6 +98,11 @@ export default function SettingsPage() {
   const [orderingStatus, setOrderingStatus]   = useState<SaveStatus>('idle');
   const [orderingError, setOrderingError]     = useState('');
 
+  // Table numbers toggle
+  const [usesTableNumbers, setUsesTableNumbers] = useState(true);
+  const [tableNumStatus, setTableNumStatus]     = useState<SaveStatus>('idle');
+  const [tableNumError, setTableNumError]       = useState('');
+
   // Delete account
   const [deleteOpen, setDeleteOpen]       = useState(false);
   const [deleteInput, setDeleteInput]     = useState('');
@@ -109,7 +114,7 @@ export default function SettingsPage() {
     const [{ data }, authResult] = await Promise.all([
       supabase
         .from('restaurants')
-        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme, alert_station_screen, alert_staff_phones, alert_sound, owner_id, customer_ordering_enabled')
+        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme, alert_station_screen, alert_staff_phones, alert_sound, owner_id, customer_ordering_enabled, uses_table_numbers')
         .eq('id', restaurantId)
         .single(),
       supabase.auth.getUser(),
@@ -137,6 +142,7 @@ export default function SettingsPage() {
       setAlerts(loaded);
       setBothOffWarning(!loaded.station_screen && !loaded.staff_phones);
       setOrderingEnabled((data as { customer_ordering_enabled?: boolean }).customer_ordering_enabled ?? true);
+      setUsesTableNumbers((data as { uses_table_numbers?: boolean }).uses_table_numbers ?? true);
 
       if (user) {
         if ((data as { owner_id?: string }).owner_id === user.id) {
@@ -222,6 +228,26 @@ export default function SettingsPage() {
     } else {
       setOrderingStatus('saved');
       setTimeout(() => setOrderingStatus('idle'), 2000);
+    }
+  }
+
+  async function handleTableNumToggle(value: boolean) {
+    if (!restaurant) return;
+    setUsesTableNumbers(value);
+    setTableNumStatus('saving');
+    setTableNumError('');
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('restaurants')
+      .update({ uses_table_numbers: value })
+      .eq('id', restaurant.id);
+    if (error) {
+      setUsesTableNumbers(!value);
+      setTableNumError('Failed to save — try again.');
+      setTableNumStatus('error');
+    } else {
+      setTableNumStatus('saved');
+      setTimeout(() => setTableNumStatus('idle'), 2000);
     }
   }
 
@@ -487,13 +513,24 @@ export default function SettingsPage() {
           </div>
           <StatusMsg status={orderingStatus} errorText={orderingError} />
         </div>
-        <div className="mt-5">
+        <div className="mt-5 flex flex-col gap-5">
           <AlertToggle
             label="Let customers order from their phones"
             hint="When off, customers can view the menu and call a waiter, but cannot place orders themselves"
             checked={orderingEnabled}
             onChange={handleOrderingToggle}
           />
+          <div className="border-t border-white/[0.06] pt-5 flex items-start justify-between">
+            <AlertToggle
+              label="Use table numbers"
+              hint="When off, orders and tabs are not linked to a table — suited to open-floor bars and venues with no fixed seating"
+              checked={usesTableNumbers}
+              onChange={handleTableNumToggle}
+            />
+            {(tableNumStatus !== 'idle') && (
+              <StatusMsg status={tableNumStatus} errorText={tableNumError} />
+            )}
+          </div>
         </div>
       </section>
 
