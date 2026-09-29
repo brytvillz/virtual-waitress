@@ -82,6 +82,7 @@ function isPaidPlan(r: RestaurantData) {
 function orderStatus(s: string) {
   if (s === 'preparing') return { label: 'Preparing', icon: '👨‍🍳', cls: 'status-preparing' };
   if (s === 'served')    return { label: 'Served',    icon: '✅',  cls: 'status-served' };
+  if (s === 'cancelled') return { label: 'CANCELLED', icon: '✖',  cls: 'status-cancelled' };
   return { label: 'Pending', icon: '⏳', cls: 'status-pending' };
 }
 
@@ -609,6 +610,16 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     loadMyOrders();
   }, [loadMyOrders]);
 
+  // Poll for order status updates while the modal is open.
+  // postgres_changes subscriptions are wired up in startRealtime once
+  // the supabase_realtime publication includes the orders table; until then
+  // this 15-second poll is the live-update mechanism.
+  useEffect(() => {
+    if (!myOrderOpen) return;
+    const iv = setInterval(loadMyOrders, 15000);
+    return () => clearInterval(iv);
+  }, [myOrderOpen, loadMyOrders]);
+
   // ── Rendering helpers ──────────────────────────────────────────────────────────
 
   function QtyStepper({ item, isMag }: { item: MenuItem; isMag?: boolean }) {
@@ -967,7 +978,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
                     const { label, icon, cls } = orderStatus(order.status);
                     const time = new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     return (
-                      <div key={order.id} className="my-order-block">
+                      <div key={order.id} className={`my-order-block${order.status === 'cancelled' ? ' my-order-block-cancelled' : ''}`}>
                         <div className="my-order-block-header">
                           <div className="my-order-status-group">
                             <span className={`my-order-status ${cls}`}>{icon} {label}</span>
@@ -985,6 +996,11 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
                             </div>
                           ))}
                         </div>
+                        {order.status === 'cancelled' && (
+                          <div className="my-order-cancelled-notice">
+                            This order was cancelled. Please speak to your waiter.
+                          </div>
+                        )}
                       </div>
                     );
                   })}

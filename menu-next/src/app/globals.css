@@ -1188,6 +1188,7 @@ body {
 .status-pending   { background: rgba(248,196,113,0.15); color: #F8C471; }
 .status-preparing { background: rgba(196,30,58,0.18);  color: var(--accent); }
 .status-served    { background: rgba(80,200,120,0.15);  color: #50C878; }
+.status-cancelled { background: rgba(255,255,255,0.06); color: var(--text-muted); }
 
 .my-order-time {
   font-size: 0.75rem;
@@ -1255,6 +1256,21 @@ body {
   color: var(--text-muted);
   font-size: 0.75rem;
   margin-top: 14px;
+}
+
+.my-order-block-cancelled {
+  opacity: 0.75;
+}
+
+.my-order-cancelled-notice {
+  margin: 8px 14px 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255,107,107,0.10);
+  border: 1px solid rgba(255,107,107,0.22);
+  color: #ff8a8a;
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 /* ══════════════════════════════════════════
