@@ -32,17 +32,29 @@
 -- Part G — settle_tab(tab_id, payment_method)
 --   SECURITY DEFINER. One transaction: marks every non-cancelled
 --   order on the tab paid, closes the tab. All-or-nothing.
+--   Auth: the waiter who opened the tab, any manager, or the owner.
 --
--- Part H — RLS on tabs
+-- Part H — void_tab(tab_id, reason)
+--   SECURITY DEFINER. Closes an empty tab (all orders cancelled or
+--   no orders) and records the reason on the tab row. Manager or
+--   owner only.
+--
+-- Part I — move_order_to_tab(order_id, new_tab_id, reason)
+--   SECURITY DEFINER. Reassigns one order to a different open tab.
+--   Manager or owner only. Writes two audit rows to order_history.
+--   Uses vw.moving_order_tab session flag to bypass the tab_id
+--   guard in enforce_staff_order_update (normal path only).
+--
+-- Part J — RLS on tabs
 --   Staff read. All writes go through the SECURITY DEFINER RPCs.
 --   Anon has no policies — both read and write blocked.
 --
--- Session variables used by settle_tab():
---   None needed. settle_tab() only changes is_paid and
---   payment_method — both intentionally absent from the
---   enforce_staff_order_update column guard list, so the
---   existing trigger stack passes through cleanly with no
---   additional signalling.
+-- Session variables used:
+--   vw.moving_order_tab = 'true' (is_local, set by move_order_to_tab)
+--     Permits a single tab_id change on orders in the normal path of
+--     enforce_staff_order_update. Cleared automatically at transaction end.
+--   settle_tab() needs no flag: is_paid and payment_method are absent
+--   from all enforce_staff_order_update guard lists.
 --
 -- Purely additive: no existing tables dropped or columns
 -- removed. enforce_device_order_update and
@@ -71,6 +83,9 @@ CREATE TABLE IF NOT EXISTS public.tabs (
   -- NULL for venues that do not use table numbers.
   table_number  int         NULL,
   note          text        NULL,
+  -- Set by void_tab(); NULL on a normally settled tab.
+  -- A closed tab with void_reason IS NOT NULL was voided before settlement.
+  void_reason   text        NULL,
   status        text        NOT NULL DEFAULT 'open'
                 CHECK (status IN ('open', 'closed')),
   opened_by     uuid        NOT NULL REFERENCES auth.users(id),
@@ -259,13 +274,15 @@ $$;
 -- PART E — enforce_staff_order_update replacement (from migration 022)
 -- ════════════════════════════════════════════════════════════════════════════
 --
--- Identical to the migration 022 body with two additions:
---   tab_id added to the recompute narrow-window guard and to the main
---   blocked-column list so waiter/manager sessions cannot reassign a tab.
+-- Identical to the migration 022 body with these additions:
+--   (recompute path) tab_id added unconditionally — no recompute may change
+--     a tab assignment.
+--   (normal path) tab_id guarded unless vw.moving_order_tab = 'true', which
+--     move_order_to_tab() sets (is_local) before its UPDATE so only that one
+--     function may reassign tabs. All other direct tab_id writes are blocked.
 --
 -- settle_tab() changes only is_paid and payment_method — both intentionally
--- absent from the blocked-column list (cashier flow). The replacement passes
--- settle_tab() through without any new session variable.
+-- absent from the blocked-column list (cashier flow). No session flag needed.
 
 CREATE OR REPLACE FUNCTION public.enforce_staff_order_update()
 RETURNS trigger
@@ -317,6 +334,8 @@ BEGIN
     -- Allowed changes: status (managers via cancel_order), handled_by,
     -- prepared_at, ready_at, served_at, payment_method, is_paid,
     -- paid_at, paid_by.
+    -- tab_id is also blocked unless move_order_to_tab() has signalled via
+    -- vw.moving_order_tab that it is the one performing this UPDATE.
     IF NEW.total           IS DISTINCT FROM OLD.total
     OR NEW.ordered_by      IS DISTINCT FROM OLD.ordered_by
     OR NEW.source          IS DISTINCT FROM OLD.source
@@ -325,12 +344,13 @@ BEGIN
     OR NEW.table_number    IS DISTINCT FROM OLD.table_number
     OR NEW.created_at      IS DISTINCT FROM OLD.created_at
     OR NEW.party_label     IS DISTINCT FROM OLD.party_label
-    OR NEW.tab_id          IS DISTINCT FROM OLD.tab_id
+    OR (NEW.tab_id IS DISTINCT FROM OLD.tab_id
+        AND current_setting('vw.moving_order_tab', true) IS DISTINCT FROM 'true')
     THEN
       RAISE EXCEPTION
         'Order header is immutable after creation (total, ordered_by, source, '
         'client_order_id, restaurant_id, table_number, created_at, '
-        'party_label, tab_id may not be changed)';
+        'party_label may not be changed; use move_order_to_tab() to reassign a tab)';
     END IF;
 
   END IF;
@@ -458,9 +478,10 @@ GRANT EXECUTE ON FUNCTION public.open_tab(uuid, int, text) TO authenticated;
 -- One atomic transaction:
 --   1. Locks the tab row (prevents concurrent settle calls).
 --   2. Verifies the tab is open and the payment method is valid.
---   3. Checks authorisation using the exact rule from enforce_payment_update:
---      v_is_owner OR v_role IN ('waiter', 'manager').
---      Resolves to: waiters may settle, managers may settle, owners may settle.
+--   3. Checks authorisation: the waiter who opened the tab, any manager, or
+--      the owner. A waiter who did not open the tab is not authorised.
+--      (Tighter than the general enforce_payment_update rule, which allows
+--      any waiter to mark an individual order paid.)
 --   4. Locks all non-cancelled orders on the tab (prevents a concurrent
 --      individual payment recording from racing with the bulk settlement).
 --   5. Pre-flight: raises if ANY non-cancelled order has a pending
@@ -499,7 +520,7 @@ DECLARE
   v_unpaid_count int;
 BEGIN
   -- Lock the tab row to prevent concurrent settlement calls.
-  SELECT id, restaurant_id, status
+  SELECT id, restaurant_id, status, opened_by
   INTO   v_tab
   FROM   public.tabs
   WHERE  id = p_tab_id
@@ -519,8 +540,7 @@ BEGIN
       'Invalid payment method — must be one of: cash, transfer, pos';
   END IF;
 
-  -- Authorisation: exact rule from enforce_payment_update
-  -- (marking paid path: v_is_owner OR v_role IN ('waiter', 'manager')).
+  -- Authorisation: opener of the tab, any manager, or the owner.
   SELECT (owner_id = auth.uid())
   INTO   v_is_owner
   FROM   public.restaurants
@@ -536,8 +556,13 @@ BEGIN
       AND  restaurant_id = v_tab.restaurant_id;
   END IF;
 
-  IF NOT (v_is_owner OR v_role IN ('waiter', 'manager')) THEN
-    RAISE EXCEPTION 'Not authorised to settle a tab for this restaurant';
+  IF NOT (
+    v_is_owner
+    OR v_role = 'manager'
+    OR v_tab.opened_by = auth.uid()
+  ) THEN
+    RAISE EXCEPTION
+      'Only the waiter who opened this tab, a manager, or the owner may settle it';
   END IF;
 
   -- Lock all non-cancelled orders on this tab before any reads or writes.
@@ -599,7 +624,235 @@ GRANT EXECUTE ON FUNCTION public.settle_tab(uuid, text) TO authenticated;
 
 
 -- ════════════════════════════════════════════════════════════════════════════
--- PART H — RLS on tabs
+-- PART H — void_tab(tab_id, reason)
+-- ════════════════════════════════════════════════════════════════════════════
+--
+-- Closes a tab that has no non-cancelled orders and records the reason.
+-- Use case: a waiter opened a tab in error, or a group left without ordering.
+-- Caller must cancel or move all orders before calling void_tab().
+--
+-- Auth: manager or owner only. A waiter may not void a tab.
+-- Reason: must be at least 3 characters (de-facto "something was typed" guard).
+-- void_reason is stored on the tabs row itself. Managers query
+--   SELECT * FROM tabs WHERE status = 'closed' AND void_reason IS NOT NULL
+-- to see all voided tabs and why.
+
+CREATE OR REPLACE FUNCTION public.void_tab(
+  p_tab_id uuid,
+  p_reason text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_tab      record;
+  v_is_owner boolean := false;
+  v_role     text;
+BEGIN
+  -- Validate reason first (cheap, no locks).
+  IF length(trim(p_reason)) < 3 THEN
+    RAISE EXCEPTION 'void_tab: reason must be at least 3 characters';
+  END IF;
+
+  -- Lock the tab row.
+  SELECT id, restaurant_id, status
+  INTO   v_tab
+  FROM   public.tabs
+  WHERE  id = p_tab_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Tab % not found', p_tab_id;
+  END IF;
+
+  IF v_tab.status = 'closed' THEN
+    RAISE EXCEPTION 'Tab is already closed';
+  END IF;
+
+  -- Authorisation: manager or owner only.
+  SELECT (owner_id = auth.uid())
+  INTO   v_is_owner
+  FROM   public.restaurants
+  WHERE  id = v_tab.restaurant_id;
+
+  v_is_owner := COALESCE(v_is_owner, false);
+
+  IF NOT v_is_owner THEN
+    SELECT role
+    INTO   v_role
+    FROM   public.staff
+    WHERE  id            = auth.uid()
+      AND  restaurant_id = v_tab.restaurant_id;
+  END IF;
+
+  IF NOT (v_is_owner OR v_role = 'manager') THEN
+    RAISE EXCEPTION 'Only a manager or the owner may void a tab';
+  END IF;
+
+  -- A voidable tab has no non-cancelled orders.
+  IF EXISTS (
+    SELECT 1
+    FROM   public.orders
+    WHERE  tab_id = p_tab_id
+      AND  status <> 'cancelled'
+  ) THEN
+    RAISE EXCEPTION
+      'Cannot void a tab that has non-cancelled orders; '
+      'cancel or move all orders first';
+  END IF;
+
+  -- Close the tab and record the reason.
+  UPDATE public.tabs
+  SET    status      = 'closed',
+         void_reason = p_reason,
+         closed_by   = auth.uid(),
+         closed_at   = now()
+  WHERE  id = p_tab_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.void_tab(uuid, text) TO authenticated;
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- PART I — move_order_to_tab(order_id, new_tab_id, reason)
+-- ════════════════════════════════════════════════════════════════════════════
+--
+-- Reassigns one non-cancelled order from its current tab to a different
+-- open tab in the same restaurant. Writes two order_history rows:
+--   change_type='assignment', field='tab_id'       — old and new tab ids
+--   change_type='assignment', field='tab_move_reason' — the supplied reason
+--
+-- Auth: manager or owner only. Waiters may never move orders between tabs.
+--
+-- Lock ordering: target tab is locked first, then the order row.
+-- This is consistent with settle_tab (tab first, orders second) and prevents
+-- deadlocks between settle_tab and move_order_to_tab in concurrent calls.
+--
+-- Session flag: sets vw.moving_order_tab = 'true' (is_local) before the
+-- UPDATE so that the tab_id guard in enforce_staff_order_update (normal path)
+-- permits this one change. The flag is cleared automatically at transaction end.
+-- The recompute narrow-window guard blocks tab_id unconditionally; a total
+-- recompute never changes a tab assignment.
+
+CREATE OR REPLACE FUNCTION public.move_order_to_tab(
+  p_order_id   uuid,
+  p_new_tab_id uuid,
+  p_reason     text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_tab        record;
+  v_order      record;
+  v_is_owner   boolean := false;
+  v_role       text;
+  v_old_tab_id uuid;
+BEGIN
+  -- Validate reason first (cheap, no locks).
+  IF length(trim(p_reason)) < 3 THEN
+    RAISE EXCEPTION 'move_order_to_tab: reason must be at least 3 characters';
+  END IF;
+
+  -- Lock target tab first — consistent lock ordering with settle_tab().
+  SELECT id, restaurant_id, status
+  INTO   v_tab
+  FROM   public.tabs
+  WHERE  id = p_new_tab_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Tab % not found', p_new_tab_id;
+  END IF;
+
+  IF v_tab.status = 'closed' THEN
+    RAISE EXCEPTION 'Cannot move an order to a closed tab';
+  END IF;
+
+  -- Lock the order row second.
+  SELECT id, restaurant_id, status, tab_id
+  INTO   v_order
+  FROM   public.orders
+  WHERE  id = p_order_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Order % not found', p_order_id;
+  END IF;
+
+  IF v_order.status = 'cancelled' THEN
+    RAISE EXCEPTION 'Cannot reassign a cancelled order';
+  END IF;
+
+  IF v_tab.restaurant_id <> v_order.restaurant_id THEN
+    RAISE EXCEPTION
+      'Tab does not belong to the same restaurant as the order';
+  END IF;
+
+  IF v_order.tab_id IS NOT DISTINCT FROM p_new_tab_id THEN
+    RAISE EXCEPTION 'Order is already assigned to tab %', p_new_tab_id;
+  END IF;
+
+  -- Authorisation: manager or owner only.
+  SELECT (owner_id = auth.uid())
+  INTO   v_is_owner
+  FROM   public.restaurants
+  WHERE  id = v_order.restaurant_id;
+
+  v_is_owner := COALESCE(v_is_owner, false);
+
+  IF NOT v_is_owner THEN
+    SELECT role
+    INTO   v_role
+    FROM   public.staff
+    WHERE  id            = auth.uid()
+      AND  restaurant_id = v_order.restaurant_id;
+  END IF;
+
+  IF NOT (v_is_owner OR v_role = 'manager') THEN
+    RAISE EXCEPTION 'Only a manager or the owner may move an order between tabs';
+  END IF;
+
+  v_old_tab_id := v_order.tab_id;
+
+  -- Signal enforce_staff_order_update to allow this tab_id change.
+  -- is_local = true: flag clears automatically at transaction end.
+  PERFORM set_config('vw.moving_order_tab', 'true', true);
+
+  -- Reassign the order.
+  UPDATE public.orders
+  SET    tab_id = p_new_tab_id
+  WHERE  id     = p_order_id;
+
+  -- record_order_history does not track tab_id changes; write audit rows directly.
+  INSERT INTO public.order_history
+    (restaurant_id, order_id, changed_by, change_type, field, old_value, new_value)
+  VALUES (
+    v_order.restaurant_id, p_order_id, auth.uid(),
+    'assignment', 'tab_id',
+    v_old_tab_id::text, p_new_tab_id::text
+  );
+
+  INSERT INTO public.order_history
+    (restaurant_id, order_id, changed_by, change_type, field, old_value, new_value)
+  VALUES (
+    v_order.restaurant_id, p_order_id, auth.uid(),
+    'assignment', 'tab_move_reason',
+    NULL, p_reason
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.move_order_to_tab(uuid, uuid, text) TO authenticated;
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- PART J — RLS on tabs
 -- ════════════════════════════════════════════════════════════════════════════
 --
 -- Staff (waiter, manager) and owners may SELECT tabs for their restaurant.

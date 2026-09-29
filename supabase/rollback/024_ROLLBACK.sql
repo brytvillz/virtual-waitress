@@ -19,6 +19,8 @@ BEGIN;
 -- Functions and triggers added by 024.
 DROP TRIGGER IF EXISTS trg_tab_order_assignment ON public.orders;
 DROP FUNCTION IF EXISTS public.enforce_tab_order_assignment();
+DROP FUNCTION IF EXISTS public.move_order_to_tab(uuid, uuid, text);
+DROP FUNCTION IF EXISTS public.void_tab(uuid, text);
 DROP FUNCTION IF EXISTS public.settle_tab(uuid, text);
 DROP FUNCTION IF EXISTS public.open_tab(uuid, int, text);
 
