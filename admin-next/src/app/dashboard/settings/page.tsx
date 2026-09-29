@@ -93,6 +93,11 @@ export default function SettingsPage() {
   const [accountMsg, setAccountMsg] = useState('');
   const [accountIsError, setAccountIsError] = useState(false);
 
+  // Ordering toggle (immediate-save, independent of the restaurant form)
+  const [orderingEnabled, setOrderingEnabled] = useState(true);
+  const [orderingStatus, setOrderingStatus]   = useState<SaveStatus>('idle');
+  const [orderingError, setOrderingError]     = useState('');
+
   // Delete account
   const [deleteOpen, setDeleteOpen]       = useState(false);
   const [deleteInput, setDeleteInput]     = useState('');
@@ -104,7 +109,7 @@ export default function SettingsPage() {
     const [{ data }, authResult] = await Promise.all([
       supabase
         .from('restaurants')
-        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme, alert_station_screen, alert_staff_phones, alert_sound, owner_id')
+        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme, alert_station_screen, alert_staff_phones, alert_sound, owner_id, customer_ordering_enabled')
         .eq('id', restaurantId)
         .single(),
       supabase.auth.getUser(),
@@ -131,6 +136,7 @@ export default function SettingsPage() {
       };
       setAlerts(loaded);
       setBothOffWarning(!loaded.station_screen && !loaded.staff_phones);
+      setOrderingEnabled((data as { customer_ordering_enabled?: boolean }).customer_ordering_enabled ?? true);
 
       if (user) {
         if ((data as { owner_id?: string }).owner_id === user.id) {
@@ -196,6 +202,26 @@ export default function SettingsPage() {
     } else {
       setAlertStatus('saved');
       setTimeout(() => setAlertStatus('idle'), 2000);
+    }
+  }
+
+  async function handleOrderingToggle(value: boolean) {
+    if (!restaurant) return;
+    setOrderingEnabled(value);
+    setOrderingStatus('saving');
+    setOrderingError('');
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('restaurants')
+      .update({ customer_ordering_enabled: value })
+      .eq('id', restaurant.id);
+    if (error) {
+      setOrderingEnabled(!value);
+      setOrderingError('Failed to save — try again.');
+      setOrderingStatus('error');
+    } else {
+      setOrderingStatus('saved');
+      setTimeout(() => setOrderingStatus('idle'), 2000);
     }
   }
 
@@ -450,6 +476,25 @@ export default function SettingsPage() {
             <StatusMsg status={restStatus} errorText={restError} />
           </div>
         </form>
+      </section>
+
+      {/* ── Ordering ── */}
+      <section className="bg-[#161616] border border-white/[0.06] rounded-2xl p-6 mb-6">
+        <div className="flex items-start justify-between mb-1">
+          <div>
+            <h2 className="text-[#F0EDE8] text-sm font-semibold">Ordering</h2>
+            <p className="text-[#4a4a4a] text-xs mt-0.5">Control whether customers can place orders from their phones</p>
+          </div>
+          <StatusMsg status={orderingStatus} errorText={orderingError} />
+        </div>
+        <div className="mt-5">
+          <AlertToggle
+            label="Let customers order from their phones"
+            hint="When off, customers can view the menu and call a waiter, but cannot place orders themselves"
+            checked={orderingEnabled}
+            onChange={handleOrderingToggle}
+          />
+        </div>
       </section>
 
       {/* ── Alerts ── */}

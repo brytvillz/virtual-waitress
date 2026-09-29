@@ -56,6 +56,7 @@ interface RestaurantData {
   name: string; tagline: string; whatsapp: string; accentColor: string;
   cover_image: string | null; plan: string; plan_status: string;
   plan_expires_at: string | null; menu_layout: string; menu_theme: string;
+  customer_ordering_enabled: boolean;
 }
 interface AdaData {
   name: string; emoji: string; welcome: string; idle: string;
@@ -209,6 +210,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         plan_expires_at: (restaurant!.plan_expires_at as string) || null,
         menu_layout:     (restaurant!.menu_layout as string)     || 'magazine',
         menu_theme:      (restaurant!.menu_theme as string)      || 'nightlife-dark',
+        customer_ordering_enabled: (restaurant!.customer_ordering_enabled as boolean) ?? true,
       },
       ada: {
         name:    restaurant!.ada_name as string,
@@ -624,6 +626,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
 
   function QtyStepper({ item, isMag }: { item: MenuItem; isMag?: boolean }) {
     if (item.available === false) return <span className="item-sold-out-tag">Sold Out</span>;
+    if (!orderingEnabled) return null;
     const qty = (orderState[item.name] || {}).qty || 0;
     return (
       <div
@@ -783,8 +786,9 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     return <MagazineLayout categories={categories} />;
   }
 
-  const restaurant = menuData?.restaurant;
-  const paid       = restaurant ? isPaidPlan(restaurant) : false;
+  const restaurant     = menuData?.restaurant;
+  const paid           = restaurant ? isPaidPlan(restaurant) : false;
+  const orderingEnabled = restaurant?.customer_ordering_enabled ?? true;
 
   // ── JSX ────────────────────────────────────────────────────────────────────────
 
@@ -867,7 +871,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         </div>
 
         {/* ── Order summary bar ─────────────────────────────────────── */}
-        <div className={`order-summary-bar${itemCount > 0 ? ' visible' : ''}`}>
+        <div className={`order-summary-bar${(itemCount > 0 && orderingEnabled) ? ' visible' : ''}`}>
           <span id="orderItemCount">{itemCount === 1 ? '1 item' : `${itemCount} items`}</span>
           <span id="orderTotal">{fmt(orderTotal)}</span>
         </div>
@@ -882,15 +886,19 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
             <span className="btn-icon">📲</span>
             <span>Call Waiter</span>
           </button>
-          <button
-            className="place-order-btn"
-            onClick={handlePlaceOrder}
-            disabled={placeOrderDisabled}
-          >
-            <span className="place-order-badge">{itemCount}</span>
-            <span className="place-order-main">🛒 Place Order</span>
-            <span className="place-order-sub">and get served</span>
-          </button>
+          {orderingEnabled ? (
+            <button
+              className="place-order-btn"
+              onClick={handlePlaceOrder}
+              disabled={placeOrderDisabled}
+            >
+              <span className="place-order-badge">{itemCount}</span>
+              <span className="place-order-main">🛒 Place Order</span>
+              <span className="place-order-sub">and get served</span>
+            </button>
+          ) : (
+            <span className="browse-only-notice">To order, please call your waiter.</span>
+          )}
         </div>
 
         {/* ── Powered by badge (free plan) ────────────────────────────── */}
@@ -925,14 +933,16 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
           <button className="cmenu-close" onClick={closeCmenu} aria-label="Close menu">✕</button>
         </div>
         <div className="cmenu-body">
-          <button
-            className="cmenu-item"
-            onClick={() => { closeCmenu(); openMyOrders(); }}
-          >
-            <span className="cmenu-item-icon">📋</span>
-            <span className="cmenu-item-label">My Orders</span>
-            <span className="cmenu-item-arrow">›</span>
-          </button>
+          {orderingEnabled && (
+            <button
+              className="cmenu-item"
+              onClick={() => { closeCmenu(); openMyOrders(); }}
+            >
+              <span className="cmenu-item-icon">📋</span>
+              <span className="cmenu-item-label">My Orders</span>
+              <span className="cmenu-item-arrow">›</span>
+            </button>
+          )}
           <button
             className="cmenu-item"
             onClick={() => { closeCmenu(); handleCallWaiter(); }}
