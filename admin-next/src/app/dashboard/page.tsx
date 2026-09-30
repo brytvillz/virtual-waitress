@@ -18,10 +18,21 @@ type Order = {
   tab_number?: number | null;
   created_at: string;
   handled_by: string;
+  is_paid: boolean;
   order_items: { item_name: string; quantity: number; price: number }[];
 };
 type Staff = { id: string; name: string; role: string };
 type DailyData = { date: string; revenue: number; orders: number };
+type VoidEntry = {
+  id: string;
+  item_name: string;
+  quantity: number;
+  price: number;
+  void_reason: string | null;
+  voided_while_served: boolean | null;
+  voided_at: string | null;
+  voided_by: string | null;
+};
 
 function fmt(n: number) {
   return '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 0 });
@@ -60,6 +71,8 @@ export default function AnalyticsPage() {
   const [waiterStats, setWaiterStats] = useState<Record<string, { orders: number; revenue: number }>>({});
   const [bestSellers, setBestSellers] = useState<{ name: string; qty: number; revenue: number }[]>([]);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [todaysVoids, setTodaysVoids] = useState<VoidEntry[]>([]);
+  const [staffNameMap, setStaffNameMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!restaurant) return;
@@ -81,6 +94,7 @@ export default function AnalyticsPage() {
       { data: recent },
       { data: staffList },
       { data: sevenDayOrders },
+      { data: voidItems },
     ] = await Promise.all([
       // is_paid and status fetched to split paid/unpaid tiles and exclude cancelled (migration 021)
       supabase.from('orders').select('total, handled_by, is_paid, status').eq('restaurant_id', restaurantId).gte('created_at', todayStr),
@@ -88,10 +102,17 @@ export default function AnalyticsPage() {
       // is_paid and status needed so totalRevenue counts paid non-cancelled orders only
       supabase.from('orders').select('total, is_paid, status', { count: 'exact' }).eq('restaurant_id', restaurantId),
       supabase.from('order_items').select('item_name, quantity, price, orders!inner(restaurant_id)').eq('orders.restaurant_id', restaurantId),
-      supabase.from('orders').select('id, total, status, table_number, tab_id, tab_number, created_at, handled_by, order_items(item_name, quantity, price)').eq('restaurant_id', restaurantId).order('created_at', { ascending: false }).limit(10),
+      supabase.from('orders').select('id, total, status, table_number, tab_id, tab_number, created_at, handled_by, is_paid, order_items(item_name, quantity, price)').eq('restaurant_id', restaurantId).order('created_at', { ascending: false }).limit(10),
       supabase.from('staff').select('id, name, role').eq('restaurant_id', restaurantId).order('name'),
       // is_paid and status needed so chart revenue counts paid non-cancelled only
       supabase.from('orders').select('total, created_at, handled_by, is_paid, status').eq('restaurant_id', restaurantId).gte('created_at', sevenDaysAgo),
+      // Voids today — joined through orders to scope by restaurant
+      supabase.from('order_items')
+        .select('id, item_name, quantity, price, void_reason, voided_while_served, voided_at, voided_by, orders!inner(restaurant_id)')
+        .eq('orders.restaurant_id', restaurantId)
+        .eq('item_status', 'voided')
+        .gte('voided_at', todayStr)
+        .order('voided_at', { ascending: false }),
     ]);
 
     // Split today's orders into paid / unpaid, both excluding cancelled.
@@ -156,6 +177,13 @@ export default function AnalyticsPage() {
     });
     setBestSellers(Object.entries(totals).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.qty - a.qty).slice(0, 5));
     setRecentOrders((recent ?? []) as Order[]);
+
+    // Staff name map (all roles — voids can be by managers/owners too)
+    const nameMap: Record<string, string> = {};
+    (staffList ?? []).forEach((s: Staff) => { nameMap[s.id] = s.name; });
+    setStaffNameMap(nameMap);
+
+    setTodaysVoids((voidItems ?? []) as VoidEntry[]);
     setLoading(false);
   }
 
@@ -343,6 +371,57 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
+          {/* Voids today */}
+          {todaysVoids.length > 0 && (
+            <div className="bg-[#161616] border border-red-500/10 rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[#F0EDE8] text-sm font-semibold">Voids today</h2>
+                <span className="text-[#6B6570] text-xs">
+                  {todaysVoids.length} void{todaysVoids.length !== 1 ? 's' : ''} · {fmt(todaysVoids.reduce((s, v) => s + v.quantity * v.price, 0))} removed
+                </span>
+              </div>
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-sm min-w-[540px]">
+                  <thead>
+                    <tr className="text-[#4a4a4a] text-xs uppercase tracking-wider border-b border-white/[0.05]">
+                      <th className="text-left pb-3 font-medium pl-1">Time</th>
+                      <th className="text-left pb-3 font-medium">Item</th>
+                      <th className="text-left pb-3 font-medium">By</th>
+                      <th className="text-left pb-3 font-medium">Reason</th>
+                      <th className="text-right pb-3 font-medium pr-1">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {todaysVoids.map(v => (
+                      <tr key={v.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3 pl-1 text-[#4a4a4a] text-xs tabular-nums">
+                          {v.voided_at ? new Date(v.voided_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                        </td>
+                        <td className="py-3 text-[#F0EDE8]">
+                          {v.quantity}× {v.item_name}
+                          {v.voided_while_served && (
+                            <span className="ml-2 text-[0.65rem] font-semibold uppercase tracking-wide text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded">
+                              after serving
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 text-[#6B6570] text-xs">
+                          {v.voided_by ? (staffNameMap[v.voided_by] ?? 'Unknown') : '—'}
+                        </td>
+                        <td className="py-3 text-[#6B6570] text-xs max-w-[160px] truncate">
+                          {v.void_reason || '—'}
+                        </td>
+                        <td className="py-3 pr-1 text-right text-[#9a9098] font-semibold tabular-nums">
+                          {fmt(v.quantity * v.price)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Recent orders */}
           <div className="bg-[#161616] border border-white/[0.06] rounded-2xl p-5">
             <h2 className="text-[#F0EDE8] text-sm font-semibold mb-4">Recent Orders</h2>
@@ -350,12 +429,12 @@ export default function AnalyticsPage() {
               <p className="text-[#4a4a4a] text-sm">No orders yet.</p>
             ) : (
               <div className="overflow-x-auto -mx-1">
-                <table className="w-full text-sm min-w-[500px]">
+                <table className="w-full text-sm min-w-[560px]">
                   <thead>
                     <tr className="text-[#4a4a4a] text-xs uppercase tracking-wider border-b border-white/[0.05]">
-                      <th className="text-left pb-3 font-medium pl-1">Table</th>
+                      <th className="text-left pb-3 font-medium pl-1">Order</th>
                       <th className="text-left pb-3 font-medium">Items</th>
-                      <th className="text-left pb-3 font-medium">Status</th>
+                      <th className="text-left pb-3 font-medium">Payment</th>
                       <th className="text-right pb-3 font-medium">Total</th>
                       <th className="text-right pb-3 font-medium pr-1">Time</th>
                     </tr>
@@ -364,10 +443,10 @@ export default function AnalyticsPage() {
                     {recentOrders.map(order => (
                       <tr key={order.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="py-3 text-[#F0EDE8] pl-1">{orderLabel(order)}</td>
-                        <td className="py-3 text-[#6B6570] max-w-[220px] truncate">
+                        <td className="py-3 text-[#6B6570] max-w-[200px] truncate">
                           {order.order_items?.map(i => `${i.item_name} ×${i.quantity}`).join(', ') || '—'}
                         </td>
-                        <td className="py-3"><StatusBadge status={order.status} /></td>
+                        <td className="py-3"><PaymentCell order={order} /></td>
                         <td className="py-3 text-right text-[#9a9098] font-semibold">{fmt(order.total)}</td>
                         <td className="py-3 text-right text-[#4a4a4a] text-xs pr-1">
                           {new Date(order.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
@@ -413,6 +492,26 @@ function KpiCard({ label, value, sub, trend: trendPct, accent }: {
         )}
       </div>
     </div>
+  );
+}
+
+function PaymentCell({ order }: { order: Order }) {
+  if (order.status === 'cancelled') {
+    return <span className="text-[#4a4a4a] text-xs font-medium">—</span>;
+  }
+  if (order.is_paid) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+        <span className="text-emerald-400 text-xs font-semibold">Paid</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+      <span className="text-amber-400 text-xs font-semibold">Unpaid</span>
+    </span>
   );
 }
 

@@ -4619,3 +4619,143 @@ body {
   color: var(--w-muted);
   margin: -10px 0 10px;
 }
+
+/* ── Round added-by label (shown only when different from tab opener) ── */
+.w-round-by {
+  font-size: 0.72rem;
+  color: var(--w-amber, #f59e0b);
+  margin-left: auto;
+  margin-right: 4px;
+}
+
+/* ── Settle-readonly: quiet message replacing the Settle button ── */
+.w-settle-readonly {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.w-settle-readonly-hint {
+  font-size: 0.78rem;
+  color: var(--w-muted);
+  text-align: right;
+  line-height: 1.35;
+}
+
+/* ── Void item UI ── */
+.w-item-row.voided {
+  opacity: 0.6;
+}
+.w-item-name-voided {
+  text-decoration: line-through;
+  color: var(--w-muted);
+}
+.w-item-void-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.w-void-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(100,100,100,0.25);
+  color: var(--w-muted);
+}
+.w-void-badge.after-served {
+  background: rgba(239,68,68,0.2);
+  color: #ef4444;
+}
+.w-void-reason-text {
+  font-size: 0.72rem;
+  color: var(--w-muted);
+  font-style: italic;
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.w-void-btn {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--w-muted);
+  background: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: color 0.15s, border-color 0.15s;
+}
+.w-void-btn:hover { color: #ef4444; border-color: rgba(239,68,68,0.4); }
+.w-void-confirm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 4px;
+}
+.w-void-warning {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ef4444;
+  line-height: 1.4;
+  margin: 0;
+}
+.w-void-item-label {
+  font-size: 0.8rem;
+  color: var(--w-muted);
+  margin: 0;
+}
+.w-void-reason-input {
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 6px;
+  color: var(--w-text, #f5f5f5);
+  font-size: 0.82rem;
+  padding: 8px 10px;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+.w-void-reason-input:focus { border-color: rgba(255,255,255,0.28); }
+.w-void-err {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin: 0;
+}
+.w-void-actions {
+  display: flex;
+  gap: 8px;
+}
+.w-void-cancel-btn {
+  flex: 1;
+  padding: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 8px;
+  color: var(--w-muted);
+  cursor: pointer;
+}
+.w-void-submit-btn {
+  flex: 2;
+  padding: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: rgba(239,68,68,0.18);
+  border: 1px solid rgba(239,68,68,0.35);
+  border-radius: 8px;
+  color: #ef4444;
+  cursor: pointer;
+}
+.w-void-submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }

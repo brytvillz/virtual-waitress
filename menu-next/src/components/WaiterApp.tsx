@@ -48,12 +48,22 @@ interface CancellationRequest {
   status: 'pending' | 'approved' | 'declined';
   reason: string;
 }
-interface TabOrderItem { quantity: number; item_name: string; price: number; }
+interface TabOrderItem {
+  id: string;
+  quantity: number;
+  item_name: string;
+  price: number;
+  item_status: string;
+  void_reason: string | null;
+  voided_while_served: boolean | null;
+}
 interface TabOrder {
   id: string;
   total: number;
   status: string;
   created_at: string;
+  handled_by: string | null;
+  is_paid: boolean;
   order_items: TabOrderItem[];
 }
 interface TabRow {
@@ -366,6 +376,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const [calls,      setCalls]      = useState<Call[]>([]);
   const [menuItems,  setMenuItems]  = useState<MenuItem[]>([]);
   const [shiftHistory, setShiftHistory] = useState<Order[]>([]);
+  const [settledOrders, setSettledOrders] = useState<Order[]>([]);
   const [activeTab,  setActiveTab]  = useState<'live' | 'tabs' | 'shift'>('live');
   const [toasts,     setToasts]     = useState<Toast[]>([]);
   const [tick,       setTick]       = useState(0);
@@ -408,6 +419,12 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const [settleStep,       setSettleStep]       = useState<'pick' | null>(null);
   const [settleSubmitting, setSettleSubmitting] = useState(false);
   const [settleError,      setSettleError]      = useState<string | null>(null);
+
+  // Void item state
+  const [voidingItemId,   setVoidingItemId]   = useState<string | null>(null);
+  const [voidReason,      setVoidReason]      = useState('');
+  const [voidSubmitting,  setVoidSubmitting]  = useState(false);
+  const [voidError,       setVoidError]       = useState<string | null>(null);
 
   // Cancellation request state (keyed by order_id — latest request per order)
   const [cancelReqs, setCancelReqs] = useState<Record<string, CancellationRequest>>({});
@@ -507,11 +524,15 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     const { data: { user } } = await db.auth.getUser();
     if (!user) return;
     const ago = new Date(); ago.setDate(ago.getDate() - 7);
-    const { data } = await db.from('orders')
-      .select('id, table_number, tab_id, tab_number, status, total, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(*)')
-      .eq('restaurant_id', rid).eq('handled_by', user.id)
-      .gte('created_at', ago.toISOString()).order('created_at', { ascending: false });
-    setShiftHistory(data || []);
+    const cols = 'id, table_number, tab_id, tab_number, status, total, created_at, handled_by, is_paid, paid_at, paid_by, payment_method, order_items(*)';
+    const [{ data: handled }, { data: settled }] = await Promise.all([
+      db.from('orders').select(cols).eq('restaurant_id', rid).eq('handled_by', user.id)
+        .gte('created_at', ago.toISOString()).order('created_at', { ascending: false }),
+      db.from('orders').select(cols).eq('restaurant_id', rid).eq('paid_by', user.id)
+        .gte('created_at', ago.toISOString()).order('created_at', { ascending: false }),
+    ]);
+    setShiftHistory(handled || []);
+    setSettledOrders(settled || []);
   }
 
   async function fetchCancelReqs(rid: string) {
@@ -529,7 +550,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
 
   async function fetchTabs(rid: string) {
     const { data } = await db.from('tabs')
-      .select('id, tab_number, note, opened_at, opened_by, orders(id, total, status, created_at, order_items(quantity, item_name, price))')
+      .select('id, tab_number, note, opened_at, opened_by, orders(id, total, status, created_at, handled_by, is_paid, order_items(id, quantity, item_name, price, item_status, void_reason, voided_while_served))')
       .eq('restaurant_id', rid)
       .eq('status', 'open')
       .order('opened_at', { ascending: true });
@@ -688,7 +709,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     if (rtRef.current) { db.removeChannel(rtRef.current); rtRef.current = null; }
     ridRef.current = null; othersRef.current = new Set();
     setIsLoggedIn(false); setStaffName(''); setIsManager(false);
-    setOrders([]); setCalls([]); setMenuItems([]); setMenuCategories([]); setShiftHistory([]); setMyTables(new Set());
+    setOrders([]); setCalls([]); setMenuItems([]); setMenuCategories([]); setShiftHistory([]); setSettledOrders([]); setMyTables(new Set());
     setPayingOrderId(null); setPayErrors({});
     setCancelReqs({}); setRequestingFor(null); setCancelStep('pick'); setCancelOther(''); setCancelErr(null);
     // New order state
@@ -701,6 +722,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     // Tabs state
     setOpenTabs([]); setStaffMap({}); setCurrentUserId(null);
     setViewTabId(null); setSettleStep(null); setSettleSubmitting(false); setSettleError(null);
+    setVoidingItemId(null); setVoidReason(''); setVoidSubmitting(false); setVoidError(null);
   }
 
   // ── New order / destination picker ───────────────────────────────────────────
@@ -810,14 +832,6 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   }
 
   function startSettle() {
-    const tab = openTabs.find(t => t.id === viewTabId);
-    if (!tab) return;
-    if (tab.opened_by !== currentUserId && !isManager) {
-      const openerName = staffMap[tab.opened_by] ?? 'another waiter';
-      setSettleError(`Tab ${tab.tab_number} was opened by ${openerName}. Only they or a manager can settle it.`);
-      setSettleStep('pick');
-      return;
-    }
     setSettleStep('pick');
     setSettleError(null);
   }
@@ -848,6 +862,33 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   function handleAddRound(tabId: string) {
     closeTabDetail();
     proceedToMenu(tabId);
+  }
+
+  async function handleVoidItem(itemId: string) {
+    if (voidReason.trim().length < 3) {
+      setVoidError('Please give a reason (at least 3 characters).');
+      return;
+    }
+    setVoidSubmitting(true);
+    setVoidError(null);
+    try {
+      const { error } = await db.rpc('void_order_item', {
+        p_order_item_id: itemId,
+        p_reason:        voidReason.trim(),
+      });
+      if (error) {
+        setVoidError(error.message.replace(/^void_order_item: /, ''));
+        return;
+      }
+      setVoidingItemId(null);
+      setVoidReason('');
+      const rid = ridRef.current;
+      if (rid) fetchTabs(rid);
+    } catch {
+      setVoidError('No connection. Try again.');
+    } finally {
+      setVoidSubmitting(false);
+    }
   }
 
   // ── Other actions ─────────────────────────────────────────────────────────────
@@ -970,10 +1011,15 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     : 'No tables assigned';
 
   const todayStr = new Date().toLocaleDateString('en-NG');
+  // Orders I handled today (created by me)
   const todayOrders = shiftHistory.filter(o => new Date(o.created_at).toLocaleDateString('en-NG') === todayStr);
-  const todayCollectedOrders = todayOrders.filter(o => o.status !== 'cancelled' && o.is_paid);
-  const todayRevenue = todayCollectedOrders.reduce((s, o) => s + o.total, 0);
-  const todayUnpaidOrders = todayOrders.filter(o => o.status !== 'cancelled' && !o.is_paid);
+  const todayActiveOrders = todayOrders.filter(o => o.status !== 'cancelled');
+  const todayHandledValue = todayActiveOrders.reduce((s, o) => s + o.total, 0);
+  // Orders I settled today (paid_by = me)
+  const todaySettledOrders = settledOrders.filter(o => new Date(o.created_at).toLocaleDateString('en-NG') === todayStr && o.status !== 'cancelled');
+  const todayRevenue = todaySettledOrders.reduce((s, o) => s + o.total, 0);
+  // Still unpaid: orders I handled that no one has settled yet
+  const todayUnpaidOrders = todayActiveOrders.filter(o => !o.is_paid);
   const todayUnpaidRevenue = todayUnpaidOrders.reduce((s, o) => s + o.total, 0);
 
   const groupedHistory = shiftHistory.reduce<Record<string, Order[]>>((acc, order) => {
@@ -1289,7 +1335,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
             )}
             {viewTab.opened_by !== currentUserId && (
               <div className="w-detail-owner">
-                Opened by {staffMap[viewTab.opened_by] ?? 'another waiter'}
+                Opened by {staffMap[viewTab.opened_by] ?? 'Unknown waiter'}
               </div>
             )}
 
@@ -1301,15 +1347,94 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                   <div className="w-round-header">
                     <span className="w-round-label">Round {idx + 1}</span>
                     <span className="w-round-time">{fmtTime(order.created_at)}</span>
+                    {order.handled_by && order.handled_by !== viewTab.opened_by && (
+                      <span className="w-round-by">{staffMap[order.handled_by] ?? 'Unknown'}</span>
+                    )}
                     {order.status === 'cancelled' && <span className="w-round-cancelled">cancelled</span>}
                   </div>
                   <div className="w-round-items">
-                    {(order.order_items || []).map((item, i) => (
-                      <div key={i} className="w-item-row">
-                        <span>{item.quantity}× {item.item_name}</span>
-                        <span>{fmt(item.quantity * item.price)}</span>
-                      </div>
-                    ))}
+                    {(order.order_items || []).map((item) => {
+                      const isVoided   = item.item_status === 'voided';
+                      const isVoiding  = voidingItemId === item.id;
+                      const canVoidThis = !order.is_paid
+                        && order.status !== 'cancelled'
+                        && !isVoided
+                        && (
+                          order.handled_by === currentUserId
+                          || viewTab.opened_by === currentUserId
+                          || isManager
+                        );
+                      return (
+                        <div key={item.id} className={`w-item-row${isVoided ? ' voided' : ''}`}>
+                          {isVoiding ? (
+                            <div className="w-void-confirm">
+                              <p className="w-void-warning">
+                                This cannot be undone. To correct a mistake, add a new round.
+                              </p>
+                              <p className="w-void-item-label">
+                                {item.quantity}× {item.item_name} · {fmt(item.quantity * item.price)}
+                              </p>
+                              <textarea
+                                className="w-void-reason-input"
+                                placeholder="Reason (required, min 3 chars)"
+                                value={voidReason}
+                                onChange={e => { setVoidReason(e.target.value); setVoidError(null); }}
+                                rows={2}
+                              />
+                              {voidError && <p className="w-void-err">{voidError}</p>}
+                              <div className="w-void-actions">
+                                <button
+                                  className="w-void-cancel-btn"
+                                  onClick={() => { setVoidingItemId(null); setVoidReason(''); setVoidError(null); }}
+                                  disabled={voidSubmitting}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  className="w-void-submit-btn"
+                                  onClick={() => handleVoidItem(item.id)}
+                                  disabled={voidSubmitting || voidReason.trim().length < 3}
+                                >
+                                  {voidSubmitting ? '…' : 'Void this item'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <span className={isVoided ? 'w-item-name-voided' : ''}>
+                                {item.quantity}× {item.item_name}
+                              </span>
+                              {isVoided ? (
+                                <span className="w-item-void-meta">
+                                  <span className={`w-void-badge${item.voided_while_served ? ' after-served' : ''}`}>
+                                    {item.voided_while_served ? 'voided after serving' : 'voided'}
+                                  </span>
+                                  {item.void_reason && (
+                                    <span className="w-void-reason-text">{item.void_reason}</span>
+                                  )}
+                                </span>
+                              ) : (
+                                <>
+                                  <span>{fmt(item.quantity * item.price)}</span>
+                                  {canVoidThis && (
+                                    <button
+                                      className="w-void-btn"
+                                      onClick={() => {
+                                        setVoidingItemId(item.id);
+                                        setVoidReason('');
+                                        setVoidError(null);
+                                      }}
+                                    >
+                                      Void
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   {order.status !== 'cancelled' && (
                     <div className="w-round-total">{fmt(order.total)}</div>
@@ -1325,22 +1450,29 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
           </div>
 
           <div className="w-detail-footer">
-            {settleStep === null ? (
-              <div className="w-detail-actions">
-                <button
-                  className="w-action-btn secondary"
-                  onClick={() => handleAddRound(viewTab.id)}
-                >
-                  Add round
-                </button>
-                <button
-                  className="w-action-btn primary"
-                  onClick={startSettle}
-                >
-                  Settle
-                </button>
-              </div>
-            ) : (
+            {settleStep === null ? (() => {
+              const canSettle = viewTab.opened_by === currentUserId || isManager;
+              const openerName = staffMap[viewTab.opened_by] ?? 'Unknown waiter';
+              return (
+                <div className="w-detail-actions">
+                  <button
+                    className="w-action-btn secondary"
+                    onClick={() => handleAddRound(viewTab.id)}
+                  >
+                    Add round
+                  </button>
+                  {canSettle ? (
+                    <button className="w-action-btn primary" onClick={startSettle}>
+                      Settle
+                    </button>
+                  ) : (
+                    <div className="w-settle-readonly">
+                      <span className="w-settle-readonly-hint">Only {openerName} or a manager can settle this tab</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })() : (
               <div className="w-settle-section">
                 {settleError ? (
                   <>
@@ -1662,7 +1794,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                 {tab.note && <div className="w-tab-note-text">{tab.note}</div>}
                 {!isOwn && (
                   <div className="w-tab-owner-label">
-                    By {staffMap[tab.opened_by] ?? 'another waiter'}
+                    By {staffMap[tab.opened_by] ?? 'Unknown waiter'}
                   </div>
                 )}
                 <div className="w-tab-meta">
@@ -1681,12 +1813,16 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
 
           <div className="w-shift-stats">
             <div className="w-stat-chip">
-              <div className="w-stat-label">Today&apos;s Orders</div>
-              <div className="w-stat-value">{todayOrders.length}</div>
+              <div className="w-stat-label">Orders handled</div>
+              <div className="w-stat-value">{todayActiveOrders.length}</div>
+              <div className="w-stat-sub">{fmt(todayHandledValue)} value</div>
             </div>
             <div className="w-stat-chip">
-              <div className="w-stat-label">Collected</div>
+              <div className="w-stat-label">I collected</div>
               <div className="w-stat-value accent">{fmt(todayRevenue)}</div>
+              {todaySettledOrders.length > 0 && (
+                <div className="w-stat-sub">{todaySettledOrders.length} order{todaySettledOrders.length !== 1 ? 's' : ''}</div>
+              )}
             </div>
             <div className="w-stat-chip">
               <div className="w-stat-label">Still Unpaid</div>
