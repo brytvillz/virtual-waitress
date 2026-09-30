@@ -24,12 +24,12 @@
  *   j) A direct PATCH setting tab_id is refused outside move_order_to_tab
  *   k) A settled tab cannot be settled again
  *
- * Cleanup: all live test orders are cancelled via cancel_order(), all test
- * tabs are voided via void_tab(), and every test order row is deleted via
- * the service-role key (bypasses RLS — no DELETE policy exists on orders).
- * Without the delete step, zero-total stub orders accumulate and pollute
- * dashboard figures. TEST_SERVICE_ROLE_KEY is required for this; the script
- * hard-stops at preflight if it is absent.
+ * Cleanup: all live test orders are cancelled via cancel_order() and all
+ * test tabs are voided via void_tab(). Zero-total stub orders cannot be
+ * deleted automatically — no DELETE RLS policy exists on orders. At the
+ * end of the run the script prints an exact DELETE statement with the
+ * order ids listed explicitly. Copy it into the Supabase SQL editor and
+ * run it there.
  */
 
 import { readFileSync } from 'fs';
@@ -59,24 +59,22 @@ function loadEnv(path) {
 
 const env = loadEnv(envPath);
 
-const SUPABASE_URL     = env['NEXT_PUBLIC_SUPABASE_URL'];
-const ANON_KEY         = env['NEXT_PUBLIC_SUPABASE_ANON_KEY'];
-const OWNER_EMAIL      = env['TEST_OWNER_EMAIL'];
-const OWNER_PASSWORD   = env['TEST_OWNER_PASSWORD'];
-const WAITER_A_CODE    = env['TEST_WAITER_A_CODE'];
-const WAITER_B_CODE    = env['TEST_WAITER_B_CODE'];
-const SERVICE_ROLE_KEY = env['TEST_SERVICE_ROLE_KEY'];
+const SUPABASE_URL   = env['NEXT_PUBLIC_SUPABASE_URL'];
+const ANON_KEY       = env['NEXT_PUBLIC_SUPABASE_ANON_KEY'];
+const OWNER_EMAIL    = env['TEST_OWNER_EMAIL'];
+const OWNER_PASSWORD = env['TEST_OWNER_PASSWORD'];
+const WAITER_A_CODE  = env['TEST_WAITER_A_CODE'];
+const WAITER_B_CODE  = env['TEST_WAITER_B_CODE'];
 
 // ── Preflight ─────────────────────────────────────────────────────────────────
 
 const REQUIRED = [
-  ['NEXT_PUBLIC_SUPABASE_URL',     SUPABASE_URL],
+  ['NEXT_PUBLIC_SUPABASE_URL',      SUPABASE_URL],
   ['NEXT_PUBLIC_SUPABASE_ANON_KEY', ANON_KEY],
-  ['TEST_OWNER_EMAIL',             OWNER_EMAIL],
-  ['TEST_OWNER_PASSWORD',          OWNER_PASSWORD],
-  ['TEST_WAITER_A_CODE',           WAITER_A_CODE],
-  ['TEST_WAITER_B_CODE',           WAITER_B_CODE],
-  ['TEST_SERVICE_ROLE_KEY',        SERVICE_ROLE_KEY],
+  ['TEST_OWNER_EMAIL',              OWNER_EMAIL],
+  ['TEST_OWNER_PASSWORD',           OWNER_PASSWORD],
+  ['TEST_WAITER_A_CODE',            WAITER_A_CODE],
+  ['TEST_WAITER_B_CODE',            WAITER_B_CODE],
 ];
 let missingEnv = false;
 for (const [k, v] of REQUIRED) {
@@ -688,31 +686,25 @@ async function main() {
     stillOpen.forEach(t => console.warn(`    tab_number=${t.tab_number}  id=${t.id}`));
   }
 
-  // Step 4: Delete every test order row using the service-role key.
-  // Orders have no DELETE RLS policy — cancel_order() only changes status; rows persist.
-  // Without this step, zero-total stub orders accumulate on the payment-test dashboard.
+  // Step 4: Print DELETE statement for manual execution.
+  // Orders have no DELETE RLS policy — rows must be deleted from the
+  // Supabase SQL editor (already privileged; no key needed on disk).
+  console.log();
+  console.log('================================================================');
+  console.log(' CLEANUP — run this in the Supabase SQL editor:');
+  console.log('================================================================');
   if (testOrderIds.length > 0) {
-    const delRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/orders?id=in.(${testOrderIds.join(',')})`,
-      {
-        method: 'DELETE',
-        headers: {
-          apikey:        SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-        },
-      }
-    );
-    if (!delRes.ok) {
-      console.warn(`  WARNING: could not delete test orders: ${await delRes.text()}`);
-      console.warn(`  Run this in the SQL editor to clean up manually:`);
-      console.warn(`    DELETE FROM public.orders`);
-      console.warn(`    WHERE restaurant_id = (SELECT id FROM public.restaurants WHERE slug = 'payment-test')`);
-      console.warn(`      AND tab_id IS NOT NULL`);
-      console.warn(`      AND NOT EXISTS (SELECT 1 FROM public.order_items WHERE order_id = orders.id);`);
-    } else {
-      console.log(`  deleted ${testOrderIds.length} test order(s)`);
-    }
+    console.log(`DELETE FROM public.orders`);
+    console.log(`WHERE id IN (`);
+    testOrderIds.forEach((id, i) => {
+      const comma = i < testOrderIds.length - 1 ? ',' : '';
+      console.log(`  '${id}'${comma}`);
+    });
+    console.log(`);`);
+  } else {
+    console.log('  (no test orders to delete)');
   }
+  console.log('================================================================');
   console.log();
 
   // ══════════════════════════════════════════════════════════════════════════════
