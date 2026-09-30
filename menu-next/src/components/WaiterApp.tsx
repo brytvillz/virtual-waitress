@@ -33,9 +33,14 @@ interface Call   { id: string; table_number: number | null; created_at: string; 
 interface MenuItem {
   id: string;
   name: string;
+  price: number;
+  station: string | null;
   available: boolean;
-  menu_categories?: { name: string } | null;
+  category_id: string | null;
+  menu_categories?: { id: string; name: string; emoji: string; sort_order?: number } | null;
 }
+interface MenuCategory { id: string; name: string; emoji: string; sort_order?: number; }
+interface CartEntry { qty: number; price: number; item_name: string; menu_item_id: string; }
 interface Toast { id: string; type: 'call' | 'order'; label: string; body: string; }
 interface CancellationRequest {
   id: string;
@@ -311,6 +316,17 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [payErrors, setPayErrors] = useState<Record<string, string>>({});
 
+  // New order overlay state
+  const [menuCategories,     setMenuCategories]     = useState<MenuCategory[]>([]);
+  const [newOrderOpen,       setNewOrderOpen]       = useState(false);
+  const [newOrderClientId,   setNewOrderClientId]   = useState('');
+  const [newOrderCart,       setNewOrderCart]       = useState<Record<string, CartEntry>>({});
+  const [newOrderSearch,     setNewOrderSearch]     = useState('');
+  const [newOrderActiveCat,  setNewOrderActiveCat]  = useState('');
+  const [newOrderConfirmOpen, setNewOrderConfirmOpen] = useState(false);
+  const [newOrderSubmitting, setNewOrderSubmitting] = useState(false);
+  const [newOrderError,      setNewOrderError]      = useState<string | null>(null);
+
   // Cancellation request state (keyed by order_id — latest request per order)
   const [cancelReqs, setCancelReqs] = useState<Record<string, CancellationRequest>>({});
   const [requestingFor, setRequestingFor] = useState<string | null>(null);
@@ -378,9 +394,23 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
 
   async function fetchMenuItems(rid: string) {
     const { data } = await db.from('menu_items')
-      .select('id, name, available, menu_categories(name)')
+      .select('id, name, price, station, available, category_id, menu_categories(id, name, emoji, sort_order)')
       .eq('restaurant_id', rid).order('name');
-    setMenuItems((data || []) as unknown as MenuItem[]);
+    const items = (data || []) as unknown as MenuItem[];
+    setMenuItems(items);
+
+    // Build ordered category list from items (avoids a separate round-trip)
+    const seen = new Set<string>();
+    const cats: MenuCategory[] = [];
+    items.forEach(item => {
+      const cat = item.menu_categories as MenuCategory | null;
+      if (cat && !seen.has(cat.id)) {
+        seen.add(cat.id);
+        cats.push(cat);
+      }
+    });
+    cats.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    setMenuCategories(cats);
   }
 
   async function fetchShiftHistory(rid: string) {
@@ -539,9 +569,64 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     if (rtRef.current) { db.removeChannel(rtRef.current); rtRef.current = null; }
     ridRef.current = null; othersRef.current = new Set();
     setIsLoggedIn(false); setStaffName(''); setIsManager(false);
-    setOrders([]); setCalls([]); setMenuItems([]); setShiftHistory([]); setMyTables(new Set());
+    setOrders([]); setCalls([]); setMenuItems([]); setMenuCategories([]); setShiftHistory([]); setMyTables(new Set());
     setPayingOrderId(null); setPayErrors({});
     setCancelReqs({}); setRequestingFor(null); setCancelStep('pick'); setCancelOther(''); setCancelErr(null);
+    setNewOrderOpen(false); setNewOrderClientId(''); setNewOrderCart({});
+    setNewOrderSearch(''); setNewOrderActiveCat(''); setNewOrderConfirmOpen(false);
+    setNewOrderSubmitting(false); setNewOrderError(null);
+  }
+
+  // ── New order overlay ─────────────────────────────────────────────────────
+  function openNewOrder() {
+    setNewOrderClientId(crypto.randomUUID());
+    setNewOrderCart({});
+    setNewOrderSearch('');
+    setNewOrderActiveCat(menuCategories[0]?.id ?? '');
+    setNewOrderError(null);
+    setNewOrderConfirmOpen(false);
+    setNewOrderOpen(true);
+  }
+
+  function closeNewOrder() {
+    setNewOrderOpen(false);
+    setNewOrderConfirmOpen(false);
+    setNewOrderError(null);
+  }
+
+  function setCartQty(itemId: string, item: MenuItem, qty: number) {
+    if (qty <= 0) {
+      setNewOrderCart(prev => { const next = { ...prev }; delete next[itemId]; return next; });
+    } else {
+      setNewOrderCart(prev => ({
+        ...prev,
+        [itemId]: { qty, price: item.price, item_name: item.name, menu_item_id: item.id },
+      }));
+    }
+  }
+
+  async function handleSendOrder() {
+    setNewOrderSubmitting(true);
+    setNewOrderError(null);
+    try {
+      const items = Object.values(newOrderCart).map(c => ({
+        menu_item_id: c.menu_item_id,
+        item_name:    c.item_name,
+        quantity:     c.qty,
+      }));
+      const { error } = await db.rpc('waiter_place_order', {
+        p_client_order_id: newOrderClientId,
+        p_table_number:    null,
+        p_items:           items,
+      });
+      if (error) { setNewOrderError(error.message); return; }
+      closeNewOrder();
+      const rid = ridRef.current; if (rid) fetchOrders(rid);
+    } catch (e: any) {
+      setNewOrderError(e?.message ?? 'Network error — tap Send again.');
+    } finally {
+      setNewOrderSubmitting(false);
+    }
   }
 
   async function updateOrderStatus(orderId: string, status: string) {
@@ -654,6 +739,16 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const now = Date.now() + tick * 0; // tick forces re-render each second
   const _ = tick; void _; // ensure tick is read
 
+  // New order overlay derived values
+  const cartItems = Object.entries(newOrderCart).map(([id, c]) => ({ ...c, id }));
+  const cartCount = cartItems.reduce((s, c) => s + c.qty, 0);
+  const cartTotal = cartItems.reduce((s, c) => s + c.qty * c.price, 0);
+  const overlayItems = menuItems.filter(item => {
+    if (!item.available) return false;
+    if (newOrderSearch) return item.name.toLowerCase().includes(newOrderSearch.toLowerCase());
+    return !newOrderActiveCat || item.category_id === newOrderActiveCat;
+  });
+
   const tableBadge = myTables.size > 0
     ? `Tables ${[...myTables].sort((a, b) => a - b).join(', ')}`
     : 'No tables assigned';
@@ -742,6 +837,130 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
         </div>
       )}
 
+      {/* ── New order overlay ── */}
+      {newOrderOpen && (
+        <div className="w-no-overlay">
+          <div className="w-no-header">
+            <button className="w-no-close" onClick={closeNewOrder} aria-label="Close">✕</button>
+            <span className="w-no-title">New order</span>
+            <span />
+          </div>
+
+          <div className="w-no-search-wrap">
+            <input
+              className="w-no-search"
+              type="search"
+              placeholder="Search menu…"
+              value={newOrderSearch}
+              onChange={e => setNewOrderSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          {!newOrderSearch && menuCategories.length > 0 && (
+            <div className="w-no-cats">
+              {menuCategories.map(cat => (
+                <button
+                  key={cat.id}
+                  className={`w-no-cat-btn${newOrderActiveCat === cat.id ? ' active' : ''}`}
+                  onClick={() => setNewOrderActiveCat(cat.id)}
+                >
+                  {cat.emoji ? `${cat.emoji} ${cat.name}` : cat.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="w-no-items">
+            {overlayItems.length === 0 ? (
+              <p className="w-empty">
+                {newOrderSearch ? `No items matching "${newOrderSearch}"` : 'No available items'}
+              </p>
+            ) : overlayItems.map(item => {
+              const entry = newOrderCart[item.id];
+              const qty   = entry?.qty ?? 0;
+              return (
+                <div key={item.id} className={`w-no-item${qty > 0 ? ' selected' : ''}`}>
+                  <div className="w-no-item-info">
+                    <span className="w-no-item-name">{item.name}</span>
+                    <span className="w-no-item-price">{fmt(item.price)}</span>
+                  </div>
+                  <div className="w-no-item-qty">
+                    {qty > 0 ? (
+                      <>
+                        <button
+                          className="w-no-qty-btn minus"
+                          onClick={() => setCartQty(item.id, item, qty - 1)}
+                          aria-label="Remove one"
+                        >−</button>
+                        <span className="w-no-qty-val">{qty}</span>
+                        <button
+                          className="w-no-qty-btn plus"
+                          onClick={() => setCartQty(item.id, item, Math.min(qty + 1, 99))}
+                          aria-label="Add one"
+                        >+</button>
+                      </>
+                    ) : (
+                      <button
+                        className="w-no-qty-btn add"
+                        onClick={() => setCartQty(item.id, item, 1)}
+                        aria-label="Add to order"
+                      >+</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {cartCount > 0 && (
+            <div className="w-no-bar">
+              <div className="w-no-bar-info">
+                <span className="w-no-bar-count">{cartCount} item{cartCount !== 1 ? 's' : ''}</span>
+                <span className="w-no-bar-total">{fmt(cartTotal)}</span>
+              </div>
+              <button className="w-no-send-btn" onClick={() => setNewOrderConfirmOpen(true)}>
+                Send order
+              </button>
+            </div>
+          )}
+
+          {newOrderConfirmOpen && (
+            <div className="w-no-confirm-overlay">
+              <div className="w-no-confirm-card">
+                <p className="w-no-confirm-title">Confirm order</p>
+                <div className="w-no-confirm-items">
+                  {cartItems.map(c => (
+                    <div key={c.id} className="w-no-confirm-row">
+                      <span>{c.qty}× {c.item_name}</span>
+                      <span>{fmt(c.qty * c.price)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="w-no-confirm-total">{fmt(cartTotal)}</div>
+                {newOrderError && <p className="w-no-confirm-err">{newOrderError}</p>}
+                <div className="w-no-confirm-actions">
+                  <button
+                    className="w-action-btn primary"
+                    onClick={handleSendOrder}
+                    disabled={newOrderSubmitting}
+                  >
+                    {newOrderSubmitting ? 'Sending…' : 'Yes, send'}
+                  </button>
+                  <button
+                    className="w-action-btn secondary"
+                    onClick={() => { setNewOrderConfirmOpen(false); setNewOrderError(null); }}
+                    disabled={newOrderSubmitting}
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Top bar */}
       <header className="w-topbar">
         <div className="w-topbar-left">
@@ -764,6 +983,13 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
           </button>
         </div>
       </header>
+
+      {/* New order strip */}
+      <div className="w-new-order-strip">
+        <button className="w-new-order-btn" onClick={openNewOrder}>
+          + New order
+        </button>
+      </div>
 
       {/* Tabs */}
       <nav className="w-tabs">
