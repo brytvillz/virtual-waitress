@@ -9,7 +9,7 @@ type OrderItem = { item_name: string; quantity: number; price: number };
 
 type Order = {
   id: string;
-  status: 'pending' | 'preparing' | 'served' | 'completed' | 'cancelled';
+  status: 'pending' | 'preparing' | 'served' | 'cancelled';
   total: number;
   table_number: number | null;
   tab_id?: string | null;
@@ -52,20 +52,17 @@ const STATUS_META: Record<string, { label: string; dot: string; card: string }> 
   pending:   { label: 'Pending',   dot: 'bg-amber-400 animate-pulse', card: 'border-amber-500/20 bg-amber-500/[0.04]' },
   preparing: { label: 'Preparing', dot: 'bg-blue-400',                card: 'border-blue-500/20 bg-blue-500/[0.04]'  },
   served:    { label: 'Served',    dot: 'bg-emerald-400',             card: 'border-emerald-500/20'                   },
-  completed: { label: 'Completed', dot: 'bg-[#4a4a4a]',              card: 'border-white/[0.06]'                     },
   cancelled: { label: 'Cancelled', dot: 'bg-[#ff6b6b]',              card: 'border-[#ff6b6b]/10'                     },
 };
 
 const NEXT_STATUS: Partial<Record<string, string>> = {
   pending:   'preparing',
   preparing: 'served',
-  served:    'completed',
 };
 
 const NEXT_LABEL: Partial<Record<string, string>> = {
   pending:   'Start preparing',
   preparing: 'Mark as served',
-  served:    'Mark complete',
 };
 
 const CANCEL_REASONS = [
@@ -280,7 +277,11 @@ export default function OrdersPage() {
         { event: 'UPDATE', schema: 'public', table: 'tabs', filter: `restaurant_id=eq.${restaurantId}` },
         () => load(restaurantId)
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('[Realtime] channel failed:', status, err);
+        }
+      });
 
     channelRef.current = channel as unknown as ReturnType<typeof createClient>['channel'];
     return () => { supabase.removeChannel(channel); };
@@ -457,7 +458,7 @@ export default function OrdersPage() {
   const orderMap = Object.fromEntries(orders.map(o => [o.id, o]));
 
   const active    = orders.filter(o => o.status === 'pending' || o.status === 'preparing');
-  const completed = orders.filter(o => o.status === 'served' || o.status === 'completed' || o.status === 'cancelled');
+  const completed = orders.filter(o => o.status === 'served' || o.status === 'cancelled');
 
   const sharedCardProps = (order: Order) => ({
     order,
@@ -1013,7 +1014,7 @@ function OrderCard({
     </div>
   );
 
-  // ── Compact card (served / completed / cancelled) ──────────────────────────
+  // ── Compact card (served / cancelled) ──────────────────────────────────────
   if (compact) {
     return (
       <div className={`rounded-xl border ${meta.card} bg-transparent overflow-hidden`}>

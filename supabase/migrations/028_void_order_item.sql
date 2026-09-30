@@ -170,7 +170,7 @@ BEGIN
   END IF;
 
   -- "Drink left the bar" flag: order was already being prepared or served
-  v_while_served := v_order_status IN ('preparing', 'served', 'completed');
+  v_while_served := v_order_status IN ('preparing', 'served');
 
   -- Bypass enforce_order_item_immutable using the existing session flag
   PERFORM set_config('vw.resolving_void', 'true', true);

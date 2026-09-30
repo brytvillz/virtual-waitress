@@ -587,8 +587,6 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders',
           filter: `restaurant_id=eq.${rid}` }, () => fetchOrders(rid))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_items' },
-          () => fetchOrders(rid))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waiter_calls',
           filter: `restaurant_id=eq.${rid}` }, (payload) => {
         playBeep();
@@ -611,7 +609,11 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
           filter: `restaurant_id=eq.${rid}` }, () => fetchTabs(rid))
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tabs',
           filter: `restaurant_id=eq.${rid}` }, () => fetchTabs(rid))
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('[Realtime] channel failed:', status, err);
+        }
+      });
   }
 
   async function initPushSubscription() {

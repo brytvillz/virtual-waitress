@@ -76,7 +76,19 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     if (!restaurant) return;
+    const supabase = createClient();
     load(restaurant.id);
+    const rid = restaurant.id;
+    const channel = supabase
+      .channel(`dashboard-${rid}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders',
+          filter: `restaurant_id=eq.${rid}` }, () => load(rid))
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('[Realtime/dashboard] channel failed:', status, err);
+        }
+      });
+    return () => { supabase.removeChannel(channel); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurant]);
 
@@ -517,7 +529,7 @@ function PaymentCell({ order }: { order: Order }) {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    completed: 'bg-emerald-500/10 text-emerald-400',
+    served:    'bg-emerald-500/10 text-emerald-400',
     pending:   'bg-amber-500/10 text-amber-400',
     cancelled: 'bg-red-500/10 text-red-400',
   };
