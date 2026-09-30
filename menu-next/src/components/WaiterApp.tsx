@@ -48,6 +48,22 @@ interface CancellationRequest {
   status: 'pending' | 'approved' | 'declined';
   reason: string;
 }
+interface TabOrderItem { quantity: number; item_name: string; price: number; }
+interface TabOrder {
+  id: string;
+  total: number;
+  status: string;
+  created_at: string;
+  order_items: TabOrderItem[];
+}
+interface TabRow {
+  id: string;
+  tab_number: number;
+  note: string | null;
+  opened_at: string;
+  opened_by: string;
+  orders: TabOrder[];
+}
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
 const PAYMENT_LABELS: Record<string, string> = { cash: 'Cash', transfer: 'Transfer', pos: 'POS' };
@@ -71,6 +87,14 @@ function elapsedStr(iso: string, now: number) {
   const m = Math.floor(secs / 60);
   const s = String(secs % 60).padStart(2, '0');
   return `${m}m ${s}s`;
+}
+
+function elapsedMins(iso: string, now: number): string {
+  const mins = Math.floor((now - new Date(iso).getTime()) / 60000);
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 function urgency(iso: string, now: number): 'normal' | 'warning' | 'urgent' {
@@ -110,6 +134,42 @@ function urlBase64ToUint8Array(b64: string) {
   const arr = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
   return arr;
+}
+
+function tabRunningTotal(tab: TabRow): number {
+  return (tab.orders || []).filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0);
+}
+
+function tabRoundCount(tab: TabRow): number {
+  return (tab.orders || []).filter(o => o.status !== 'cancelled').length;
+}
+
+// Strip function-name prefix from RPC error messages; replace network errors with plain language.
+function sanitiseOrderError(msg: string): string {
+  if (!msg || msg.includes('supabase.co') || msg.startsWith('TypeError') || msg.startsWith('FetchError')) {
+    return "No connection. Tap 'Yes, send' to try again.";
+  }
+  return msg.replace(/^waiter_place_order:\s*/i, '');
+}
+
+function sanitiseSettleError(msg: string): string {
+  if (!msg || msg.includes('supabase.co') || msg.startsWith('TypeError') || msg.startsWith('FetchError')) {
+    return "No connection. Tap to try again.";
+  }
+  if (msg.includes('pending cancellation')) {
+    return 'One or more orders on this tab have a pending cancellation. A manager must decide those first before the tab can be settled.';
+  }
+  if (msg.includes('may settle it')) {
+    return 'Only the waiter who opened this tab, or a manager, can settle it.';
+  }
+  return msg;
+}
+
+function sanitiseOpenTabError(msg: string): string {
+  if (!msg || msg.includes('supabase.co') || msg.startsWith('TypeError') || msg.startsWith('FetchError')) {
+    return "No connection. Tap 'Open tab' to try again.";
+  }
+  return msg;
 }
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
@@ -306,7 +366,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const [calls,      setCalls]      = useState<Call[]>([]);
   const [menuItems,  setMenuItems]  = useState<MenuItem[]>([]);
   const [shiftHistory, setShiftHistory] = useState<Order[]>([]);
-  const [activeTab,  setActiveTab]  = useState<'live' | 'shift'>('live');
+  const [activeTab,  setActiveTab]  = useState<'live' | 'tabs' | 'shift'>('live');
   const [toasts,     setToasts]     = useState<Toast[]>([]);
   const [tick,       setTick]       = useState(0);
   const [pushStatus, setPushStatus] = useState<'granted' | 'denied' | 'default' | 'unsupported'>('default');
@@ -320,12 +380,34 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const [menuCategories,     setMenuCategories]     = useState<MenuCategory[]>([]);
   const [newOrderOpen,       setNewOrderOpen]       = useState(false);
   const [newOrderClientId,   setNewOrderClientId]   = useState('');
+  const [newOrderTabId,      setNewOrderTabId]      = useState<string | null>(null);
   const [newOrderCart,       setNewOrderCart]       = useState<Record<string, CartEntry>>({});
   const [newOrderSearch,     setNewOrderSearch]     = useState('');
   const [newOrderActiveCat,  setNewOrderActiveCat]  = useState('');
   const [newOrderConfirmOpen, setNewOrderConfirmOpen] = useState(false);
   const [newOrderSubmitting, setNewOrderSubmitting] = useState(false);
   const [newOrderError,      setNewOrderError]      = useState<string | null>(null);
+
+  // Destination picker state
+  const [destPickerOpen, setDestPickerOpen] = useState(false);
+
+  // New tab note sheet state
+  const [newTabOpen,       setNewTabOpen]       = useState(false);
+  const [newTabNote,       setNewTabNote]       = useState('');
+  const [newTabClientId,   setNewTabClientId]   = useState('');
+  const [newTabSubmitting, setNewTabSubmitting] = useState(false);
+  const [newTabError,      setNewTabError]      = useState<string | null>(null);
+
+  // Tabs feature state
+  const [openTabs,     setOpenTabs]     = useState<TabRow[]>([]);
+  const [staffMap,     setStaffMap]     = useState<Record<string, string>>({});
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Tab detail view state
+  const [viewTabId,        setViewTabId]        = useState<string | null>(null);
+  const [settleStep,       setSettleStep]       = useState<'pick' | null>(null);
+  const [settleSubmitting, setSettleSubmitting] = useState(false);
+  const [settleError,      setSettleError]      = useState<string | null>(null);
 
   // Cancellation request state (keyed by order_id — latest request per order)
   const [cancelReqs, setCancelReqs] = useState<Record<string, CancellationRequest>>({});
@@ -344,6 +426,15 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     const iv = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(iv);
   }, []);
+
+  // Close tab detail when the tab is settled/closed via realtime
+  useEffect(() => {
+    if (viewTabId && !openTabs.find(t => t.id === viewTabId)) {
+      setViewTabId(null);
+      setSettleStep(null);
+      setSettleError(null);
+    }
+  }, [openTabs, viewTabId]);
 
   // ── Toast helper ────────────────────────────────────────────────────────────
   function addToast(t: Omit<Toast, 'id'>) {
@@ -399,7 +490,6 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     const items = (data || []) as unknown as MenuItem[];
     setMenuItems(items);
 
-    // Build ordered category list from items (avoids a separate round-trip)
     const seen = new Set<string>();
     const cats: MenuCategory[] = [];
     items.forEach(item => {
@@ -430,7 +520,6 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       .eq('restaurant_id', rid)
       .in('status', ['pending', 'declined'])
       .order('created_at', { ascending: false });
-    // Keep only the latest request per order_id
     const map: Record<string, CancellationRequest> = {};
     (data || []).forEach((r: any) => {
       if (!map[r.order_id]) map[r.order_id] = r as CancellationRequest;
@@ -438,9 +527,26 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     setCancelReqs(map);
   }
 
+  async function fetchTabs(rid: string) {
+    const { data } = await db.from('tabs')
+      .select('id, tab_number, note, opened_at, opened_by, orders(id, total, status, created_at, order_items(quantity, item_name, price))')
+      .eq('restaurant_id', rid)
+      .eq('status', 'open')
+      .order('opened_at', { ascending: true });
+    setOpenTabs((data || []) as unknown as TabRow[]);
+  }
+
+  async function fetchStaffMap(rid: string) {
+    const { data } = await db.from('staff').select('id, name').eq('restaurant_id', rid);
+    const map: Record<string, string> = {};
+    (data || []).forEach((s: any) => { if (s.id && s.name) map[s.id] = s.name; });
+    setStaffMap(map);
+  }
+
   async function loadProfile(rid: string) {
     const { data: { user } } = await db.auth.getUser();
     if (!user) return;
+    setCurrentUserId(user.id);
     const [pr, rr] = await Promise.all([
       db.from('staff').select('name').eq('id', user.id).single(),
       db.from('staff').select('role').eq('id', user.id).single(),
@@ -480,6 +586,10 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
         const r = payload.new as CancellationRequest;
         setCancelReqs(prev => ({ ...prev, [r.order_id]: r }));
       })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tabs',
+          filter: `restaurant_id=eq.${rid}` }, () => fetchTabs(rid))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tabs',
+          filter: `restaurant_id=eq.${rid}` }, () => fetchTabs(rid))
       .subscribe();
   }
 
@@ -510,7 +620,15 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   async function startDashboard(rid: string) {
     ridRef.current = rid;
     await loadAssignments(rid);
-    await Promise.all([loadProfile(rid), fetchOrders(rid), fetchCalls(rid), fetchMenuItems(rid), fetchCancelReqs(rid)]);
+    await Promise.all([
+      loadProfile(rid),
+      fetchOrders(rid),
+      fetchCalls(rid),
+      fetchMenuItems(rid),
+      fetchCancelReqs(rid),
+      fetchTabs(rid),
+      fetchStaffMap(rid),
+    ]);
     startRealtime(rid);
     initPushSubscription();
   }
@@ -533,7 +651,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     if (!isLoggedIn) return;
     const iv = setInterval(async () => {
       const rid = ridRef.current; if (!rid) return;
-      await loadAssignments(rid); fetchOrders(rid); fetchCalls(rid); fetchCancelReqs(rid);
+      await loadAssignments(rid);
+      fetchOrders(rid); fetchCalls(rid); fetchCancelReqs(rid); fetchTabs(rid);
     }, 30000);
     return () => clearInterval(iv);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -572,13 +691,30 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     setOrders([]); setCalls([]); setMenuItems([]); setMenuCategories([]); setShiftHistory([]); setMyTables(new Set());
     setPayingOrderId(null); setPayErrors({});
     setCancelReqs({}); setRequestingFor(null); setCancelStep('pick'); setCancelOther(''); setCancelErr(null);
-    setNewOrderOpen(false); setNewOrderClientId(''); setNewOrderCart({});
+    // New order state
+    setNewOrderOpen(false); setNewOrderClientId(''); setNewOrderTabId(null); setNewOrderCart({});
     setNewOrderSearch(''); setNewOrderActiveCat(''); setNewOrderConfirmOpen(false);
     setNewOrderSubmitting(false); setNewOrderError(null);
+    // Destination picker + new tab state
+    setDestPickerOpen(false); setNewTabOpen(false); setNewTabNote(''); setNewTabClientId('');
+    setNewTabSubmitting(false); setNewTabError(null);
+    // Tabs state
+    setOpenTabs([]); setStaffMap({}); setCurrentUserId(null);
+    setViewTabId(null); setSettleStep(null); setSettleSubmitting(false); setSettleError(null);
   }
 
-  // ── New order overlay ─────────────────────────────────────────────────────
+  // ── New order / destination picker ───────────────────────────────────────────
+
   function openNewOrder() {
+    setDestPickerOpen(true);
+  }
+
+  function proceedToMenu(tabId: string | null) {
+    setDestPickerOpen(false);
+    setNewTabOpen(false);
+    setNewTabNote('');
+    setNewTabError(null);
+    setNewOrderTabId(tabId);
     setNewOrderClientId(crypto.randomUUID());
     setNewOrderCart({});
     setNewOrderSearch('');
@@ -592,6 +728,34 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     setNewOrderOpen(false);
     setNewOrderConfirmOpen(false);
     setNewOrderError(null);
+    setNewOrderTabId(null);
+  }
+
+  function openNewTabSheet() {
+    setNewTabClientId(crypto.randomUUID());
+    setNewTabNote('');
+    setNewTabError(null);
+    setNewTabOpen(true);
+  }
+
+  async function handleOpenTab() {
+    const rid = ridRef.current; if (!rid) return;
+    setNewTabSubmitting(true);
+    setNewTabError(null);
+    try {
+      const { data, error } = await db.rpc('open_tab', {
+        p_restaurant_id: rid,
+        p_note: newTabNote.trim() || null,
+        p_client_tab_id: newTabClientId,
+      });
+      if (error) { setNewTabError(sanitiseOpenTabError(error.message)); return; }
+      const tabId = Array.isArray(data) ? data[0] : (data as string);
+      proceedToMenu(tabId);
+    } catch {
+      setNewTabError("No connection. Tap 'Open tab' to try again.");
+    } finally {
+      setNewTabSubmitting(false);
+    }
   }
 
   function setCartQty(itemId: string, item: MenuItem, qty: number) {
@@ -618,16 +782,75 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
         p_client_order_id: newOrderClientId,
         p_table_number:    null,
         p_items:           items,
+        p_tab_id:          newOrderTabId,
       });
-      if (error) { setNewOrderError(error.message); return; }
+      if (error) { setNewOrderError(sanitiseOrderError(error.message)); return; }
       closeNewOrder();
-      const rid = ridRef.current; if (rid) fetchOrders(rid);
-    } catch (e: any) {
-      setNewOrderError(e?.message ?? 'Network error — tap Send again.');
+      const rid = ridRef.current;
+      if (rid) { fetchOrders(rid); fetchTabs(rid); }
+    } catch {
+      setNewOrderError("No connection. Tap 'Yes, send' to try again.");
     } finally {
       setNewOrderSubmitting(false);
     }
   }
+
+  // ── Tab detail ────────────────────────────────────────────────────────────────
+
+  function openTabDetail(tabId: string) {
+    setViewTabId(tabId);
+    setSettleStep(null);
+    setSettleError(null);
+  }
+
+  function closeTabDetail() {
+    setViewTabId(null);
+    setSettleStep(null);
+    setSettleError(null);
+  }
+
+  function startSettle() {
+    const tab = openTabs.find(t => t.id === viewTabId);
+    if (!tab) return;
+    if (tab.opened_by !== currentUserId && !isManager) {
+      const openerName = staffMap[tab.opened_by] ?? 'another waiter';
+      setSettleError(`Tab ${tab.tab_number} was opened by ${openerName}. Only they or a manager can settle it.`);
+      setSettleStep('pick');
+      return;
+    }
+    setSettleStep('pick');
+    setSettleError(null);
+  }
+
+  async function handleSettle(method: string) {
+    if (!viewTabId) return;
+    setSettleSubmitting(true);
+    setSettleError(null);
+    try {
+      const { error } = await db.rpc('settle_tab', {
+        p_tab_id:         viewTabId,
+        p_payment_method: method,
+      });
+      if (error) { setSettleError(sanitiseSettleError(error.message)); return; }
+      const tab = openTabs.find(t => t.id === viewTabId);
+      const tabLabel = tab ? `Tab ${tab.tab_number}` : 'Tab';
+      closeTabDetail();
+      const rid = ridRef.current;
+      if (rid) fetchTabs(rid);
+      addToast({ type: 'order', label: 'Tab settled', body: `${tabLabel} settled · ${PAYMENT_LABELS[method]}` });
+    } catch {
+      setSettleError("No connection. Tap to try again.");
+    } finally {
+      setSettleSubmitting(false);
+    }
+  }
+
+  function handleAddRound(tabId: string) {
+    closeTabDetail();
+    proceedToMenu(tabId);
+  }
+
+  // ── Other actions ─────────────────────────────────────────────────────────────
 
   async function updateOrderStatus(orderId: string, status: string) {
     const payload: Record<string, unknown> = { status };
@@ -665,7 +888,6 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     });
     setCancelSubmitting(false);
     if (error) {
-      // Surface uniqueness violation as a friendly message
       const msg = error.message.includes('unique') || error.message.includes('duplicate')
         ? 'A cancellation request is already pending for this order.'
         : error.message;
@@ -686,7 +908,6 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     setCancelStep('pick');
     setCancelOther('');
     setCancelErr(null);
-    // Close payment picker if open
     if (payingOrderId === orderId) setPayingOrderId(null);
   }
 
@@ -698,19 +919,12 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   }
 
   function handlePickReason(orderId: string, reason: string) {
-    if (reason === '__other__') {
-      setCancelStep('other');
-      return;
-    }
+    if (reason === '__other__') { setCancelStep('other'); return; }
     submitCancelReq(orderId, reason);
   }
 
   function dismissDeclined(orderId: string) {
-    setCancelReqs(prev => {
-      const next = { ...prev };
-      delete next[orderId];
-      return next;
-    });
+    setCancelReqs(prev => { const next = { ...prev }; delete next[orderId]; return next; });
   }
 
   async function acknowledgeCall(callId: string) {
@@ -724,20 +938,22 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     if (error) setMenuItems(prev => prev.map(i => i.id === itemId ? { ...i, available: !available } : i));
   }
 
-  async function handleTabChange(tab: 'live' | 'shift') {
+  async function handleTabChange(tab: 'live' | 'tabs' | 'shift') {
     setActiveTab(tab);
-    if (tab === 'shift') { const rid = ridRef.current; if (rid) fetchShiftHistory(rid); }
+    const rid = ridRef.current; if (!rid) return;
+    if (tab === 'shift') fetchShiftHistory(rid);
+    if (tab === 'tabs')  fetchTabs(rid);
   }
 
   async function handleRefresh() {
     const rid = ridRef.current; if (!rid) return;
     await loadAssignments(rid);
-    fetchOrders(rid); fetchCalls(rid); fetchMenuItems(rid); fetchCancelReqs(rid);
+    fetchOrders(rid); fetchCalls(rid); fetchMenuItems(rid); fetchCancelReqs(rid); fetchTabs(rid);
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────────
-  const now = Date.now() + tick * 0; // tick forces re-render each second
-  const _ = tick; void _; // ensure tick is read
+  const now = Date.now() + tick * 0;
+  const _ = tick; void _;
 
   // New order overlay derived values
   const cartItems = Object.entries(newOrderCart).map(([id, c]) => ({ ...c, id }));
@@ -767,6 +983,17 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     (acc[key] = acc[key] || []).push(order);
     return acc;
   }, {});
+
+  // Tabs view derived
+  const myOpenTabs    = openTabs.filter(t => t.opened_by === currentUserId);
+  const otherOpenTabs = openTabs.filter(t => t.opened_by !== currentUserId);
+  const sortedTabs    = [...myOpenTabs, ...otherOpenTabs];
+  const viewTab       = viewTabId ? openTabs.find(t => t.id === viewTabId) ?? null : null;
+
+  // Confirm sheet destination label
+  const newOrderDestLabel = newOrderTabId
+    ? (() => { const t = openTabs.find(x => x.id === newOrderTabId); return t ? `Tab ${t.tab_number}` : 'Tab'; })()
+    : 'Quick order';
 
   // ── Login screen ──────────────────────────────────────────────────────────────
   if (!isLoggedIn) {
@@ -837,12 +1064,97 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
         </div>
       )}
 
+      {/* ── Destination picker overlay ── */}
+      {destPickerOpen && !newTabOpen && (
+        <div className="w-dest-overlay" onClick={() => setDestPickerOpen(false)}>
+          <div className="w-dest-sheet" onClick={e => e.stopPropagation()}>
+            <p className="w-dest-title">Where does this order go?</p>
+
+            <button className="w-dest-option w-dest-quick" onClick={() => proceedToMenu(null)}>
+              <span className="w-dest-option-label">Quick order</span>
+              <span className="w-dest-option-sub">No tab — pay per round</span>
+            </button>
+
+            <button className="w-dest-option w-dest-newtab" onClick={openNewTabSheet}>
+              <span className="w-dest-option-label">+ New tab</span>
+              <span className="w-dest-option-sub">Open a tab for this group</span>
+            </button>
+
+            {sortedTabs.length > 0 && (
+              <>
+                <div className="w-dest-divider">Open tabs</div>
+                {sortedTabs.map(tab => {
+                  const total  = tabRunningTotal(tab);
+                  const rounds = tabRoundCount(tab);
+                  const isOwn  = tab.opened_by === currentUserId;
+                  return (
+                    <button key={tab.id} className="w-dest-option w-dest-tab-row" onClick={() => proceedToMenu(tab.id)}>
+                      <span className="w-dest-option-label">
+                        Tab {tab.tab_number}
+                        {tab.note ? <span className="w-dest-tab-note"> · {tab.note}</span> : null}
+                      </span>
+                      <span className="w-dest-option-sub">
+                        {rounds} round{rounds !== 1 ? 's' : ''} · {fmt(total)}
+                        {!isOwn && staffMap[tab.opened_by] ? ` · by ${staffMap[tab.opened_by]}` : ''}
+                      </span>
+                    </button>
+                  );
+                })}
+              </>
+            )}
+
+            <button className="w-dest-cancel" onClick={() => setDestPickerOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── New tab note sheet ── */}
+      {newTabOpen && (
+        <div className="w-dest-overlay">
+          <div className="w-new-tab-sheet" onClick={e => e.stopPropagation()}>
+            <p className="w-dest-title">New tab</p>
+            <label className="w-new-tab-label">Note for this tab</label>
+            <textarea
+              className="w-new-tab-note"
+              rows={3}
+              placeholder="e.g. Corner booth, green shirt, birthday group"
+              value={newTabNote}
+              onChange={e => setNewTabNote(e.target.value)}
+              autoFocus
+              maxLength={200}
+            />
+            {newTabError && <p className="w-no-confirm-err">{newTabError}</p>}
+            <div className="w-new-tab-actions">
+              <button
+                className="w-action-btn primary"
+                onClick={handleOpenTab}
+                disabled={newTabSubmitting}
+              >
+                {newTabSubmitting ? 'Opening…' : 'Open tab'}
+              </button>
+              <button
+                className="w-action-btn secondary"
+                onClick={() => { setNewTabOpen(false); setNewTabError(null); }}
+                disabled={newTabSubmitting}
+              >
+                ← Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── New order overlay ── */}
       {newOrderOpen && (
         <div className="w-no-overlay">
           <div className="w-no-header">
             <button className="w-no-close" onClick={closeNewOrder} aria-label="Close">✕</button>
-            <span className="w-no-title">New order</span>
+            <span className="w-no-title">
+              New order
+              {newOrderTabId && (
+                <span className="w-no-title-dest"> · {newOrderDestLabel}</span>
+              )}
+            </span>
             <span />
           </div>
 
@@ -929,6 +1241,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
             <div className="w-no-confirm-overlay">
               <div className="w-no-confirm-card">
                 <p className="w-no-confirm-title">Confirm order</p>
+                <p className="w-no-confirm-dest">{newOrderDestLabel}</p>
                 <div className="w-no-confirm-items">
                   {cartItems.map(c => (
                     <div key={c.id} className="w-no-confirm-row">
@@ -958,6 +1271,114 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Tab detail overlay ── */}
+      {viewTab && (
+        <div className="w-no-overlay">
+          <div className="w-no-header">
+            <button className="w-no-close" onClick={closeTabDetail} aria-label="Close">✕</button>
+            <span className="w-no-title">Tab {viewTab.tab_number}</span>
+            <span />
+          </div>
+
+          <div className="w-detail-body">
+            {viewTab.note && (
+              <div className="w-detail-note">{viewTab.note}</div>
+            )}
+            {viewTab.opened_by !== currentUserId && (
+              <div className="w-detail-owner">
+                Opened by {staffMap[viewTab.opened_by] ?? 'another waiter'}
+              </div>
+            )}
+
+            <div className="w-detail-rounds">
+              {(viewTab.orders || []).length === 0 ? (
+                <p className="w-empty">No rounds yet</p>
+              ) : (viewTab.orders || []).map((order, idx) => (
+                <div key={order.id} className={`w-round-card${order.status === 'cancelled' ? ' cancelled' : ''}`}>
+                  <div className="w-round-header">
+                    <span className="w-round-label">Round {idx + 1}</span>
+                    <span className="w-round-time">{fmtTime(order.created_at)}</span>
+                    {order.status === 'cancelled' && <span className="w-round-cancelled">cancelled</span>}
+                  </div>
+                  <div className="w-round-items">
+                    {(order.order_items || []).map((item, i) => (
+                      <div key={i} className="w-item-row">
+                        <span>{item.quantity}× {item.item_name}</span>
+                        <span>{fmt(item.quantity * item.price)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {order.status !== 'cancelled' && (
+                    <div className="w-round-total">{fmt(order.total)}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="w-detail-total-row">
+              <span className="w-detail-total-label">Running total</span>
+              <span className="w-detail-total-val">{fmt(tabRunningTotal(viewTab))}</span>
+            </div>
+          </div>
+
+          <div className="w-detail-footer">
+            {settleStep === null ? (
+              <div className="w-detail-actions">
+                <button
+                  className="w-action-btn secondary"
+                  onClick={() => handleAddRound(viewTab.id)}
+                >
+                  Add round
+                </button>
+                <button
+                  className="w-action-btn primary"
+                  onClick={startSettle}
+                >
+                  Settle
+                </button>
+              </div>
+            ) : (
+              <div className="w-settle-section">
+                {settleError ? (
+                  <>
+                    <p className="w-settle-err">{settleError}</p>
+                    <button
+                      className="w-settle-cancel"
+                      onClick={() => { setSettleStep(null); setSettleError(null); }}
+                    >
+                      Back
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="w-settle-prompt">How did they pay?</p>
+                    <div className="w-settle-btns">
+                      {(['cash', 'transfer', 'pos'] as const).map(m => (
+                        <button
+                          key={m}
+                          className="w-pay-pick-btn"
+                          onClick={() => handleSettle(m)}
+                          disabled={settleSubmitting}
+                        >
+                          {settleSubmitting ? '…' : PAYMENT_LABELS[m]}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      className="w-settle-cancel"
+                      onClick={() => { setSettleStep(null); setSettleError(null); }}
+                      disabled={settleSubmitting}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -991,7 +1412,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
         </button>
       </div>
 
-      {/* Tabs */}
+      {/* Nav tabs */}
       <nav className="w-tabs">
         <button
           className={`w-tab${activeTab === 'live' ? ' active' : ''}`}
@@ -999,6 +1420,15 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
         >
           <span className="w-live-dot" />
           Live
+        </button>
+        <button
+          className={`w-tab${activeTab === 'tabs' ? ' active' : ''}`}
+          onClick={() => handleTabChange('tabs')}
+        >
+          Tabs
+          {openTabs.length > 0 && (
+            <span className="w-tab-badge">{openTabs.length}</span>
+          )}
         </button>
         <button
           className={`w-tab${activeTab === 'shift' ? ' active' : ''}`}
@@ -1126,7 +1556,6 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                       </div>
                     )}
 
-                    {/* ── Cancellation request section ── */}
                     <div className="w-cancel-section">
                       {hasPending ? (
                         <div>
@@ -1211,11 +1640,45 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
         </div>
       )}
 
+      {/* ── Tabs view ── */}
+      {activeTab === 'tabs' && (
+        <div className="w-tabs-list">
+          {sortedTabs.length === 0 ? (
+            <p className="w-empty" style={{ textAlign: 'center', paddingTop: 48 }}>No open tabs</p>
+          ) : sortedTabs.map(tab => {
+            const total  = tabRunningTotal(tab);
+            const rounds = tabRoundCount(tab);
+            const isOwn  = tab.opened_by === currentUserId;
+            return (
+              <button
+                key={tab.id}
+                className={`w-tab-card${isOwn ? ' mine' : ''}`}
+                onClick={() => openTabDetail(tab.id)}
+              >
+                <div className="w-tab-card-top">
+                  <span className="w-tab-num">Tab {tab.tab_number}</span>
+                  <span className="w-tab-elapsed">{elapsedMins(tab.opened_at, now)}</span>
+                </div>
+                {tab.note && <div className="w-tab-note-text">{tab.note}</div>}
+                {!isOwn && (
+                  <div className="w-tab-owner-label">
+                    By {staffMap[tab.opened_by] ?? 'another waiter'}
+                  </div>
+                )}
+                <div className="w-tab-meta">
+                  <span>{rounds} round{rounds !== 1 ? 's' : ''}</span>
+                  <span className="w-tab-meta-total">{fmt(total)}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* ── Shift view ── */}
       {activeTab === 'shift' && (
         <div className="w-shift">
 
-          {/* Stat chips */}
           <div className="w-shift-stats">
             <div className="w-stat-chip">
               <div className="w-stat-label">Today&apos;s Orders</div>
@@ -1236,10 +1699,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
             </div>
           </div>
 
-          {/* Hourly chart */}
           {todayOrders.length > 0 && <HourlyChart orders={todayOrders} />}
 
-          {/* History */}
           {shiftHistory.length === 0 ? (
             <p className="w-empty" style={{ textAlign: 'left', paddingTop: 0 }}>No orders in the last 7 days</p>
           ) : Object.entries(groupedHistory).map(([date, dayOrders]) => {

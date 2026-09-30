@@ -38,6 +38,10 @@ type CancellationRequest = {
 
 type ResolvedMsg = { id: string; type: 'approved' | 'declined'; location: string };
 
+type TabOrderItem = { quantity: number; item_name: string; price: number };
+type TabOrder     = { id: string; total: number; status: string; created_at: string; order_items: TabOrderItem[] };
+type TabRow       = { id: string; tab_number: number; note: string | null; opened_at: string; opened_by: string; orders: TabOrder[] };
+
 const PAYMENT_LABELS: Record<string, string> = {
   cash: 'Cash',
   transfer: 'Transfer',
@@ -121,6 +125,18 @@ export default function OrdersPage() {
   const [markUnpaidError, setMarkUnpaidError] = useState<string | null>(null);
   const [tick, setTick]                       = useState(0);
 
+  // Tabs state
+  const [openTabs, setOpenTabs]               = useState<TabRow[]>([]);
+  const [viewMode, setViewMode]               = useState<'orders' | 'tabs'>('orders');
+  const [viewTabId, setViewTabId]             = useState<string | null>(null);
+  const [settleTabId, setSettleTabId]         = useState<string | null>(null);
+  const [settleError, setSettleError]         = useState<string | null>(null);
+  const [settleSubmitting, setSettleSubmitting] = useState(false);
+  const [voidTabId, setVoidTabId]             = useState<string | null>(null);
+  const [voidReason, setVoidReason]           = useState('');
+  const [voidSubmitting, setVoidSubmitting]   = useState(false);
+  const [voidError, setVoidError]             = useState<string | null>(null);
+
   // Cancellation request state
   const [cancelReqs, setCancelReqs]           = useState<CancellationRequest[]>([]);
   const [decidingId, setDecidingId]           = useState<string | null>(null);
@@ -147,6 +163,7 @@ export default function OrdersPage() {
       { data: orderData },
       { data: staffData },
       { data: cancelData },
+      { data: tabData },
       { data: { user } },
     ] = await Promise.all([
       supabase
@@ -165,12 +182,19 @@ export default function OrdersPage() {
         .eq('restaurant_id', restaurantId)
         .eq('status', 'pending')
         .order('created_at', { ascending: true }),
+      supabase
+        .from('tabs')
+        .select('id, tab_number, note, opened_at, opened_by, orders(id, total, status, created_at, order_items(quantity, item_name, price))')
+        .eq('restaurant_id', restaurantId)
+        .eq('status', 'open')
+        .order('opened_at', { ascending: true }),
       supabase.auth.getUser(),
     ]);
 
     setOrders((orderData ?? []) as Order[]);
     setStaff((staffData ?? []) as Staff[]);
     setCancelReqs((cancelData ?? []) as CancellationRequest[]);
+    setOpenTabs((tabData ?? []) as unknown as TabRow[]);
 
     if (user) {
       const { data: ownerRow } = await supabase
@@ -245,6 +269,16 @@ export default function OrdersPage() {
               : prev.filter(x => x.id !== r.id)
           );
         }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'tabs', filter: `restaurant_id=eq.${restaurantId}` },
+        () => load(restaurantId)
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'tabs', filter: `restaurant_id=eq.${restaurantId}` },
+        () => load(restaurantId)
       )
       .subscribe();
 
@@ -367,6 +401,40 @@ export default function OrdersPage() {
     setCancelOther('');
   }
 
+  async function settleTab(tabId: string, method: string) {
+    setSettleSubmitting(true);
+    setSettleError(null);
+    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).rpc('settle_tab', { p_tab_id: tabId, p_payment_method: method });
+    setSettleSubmitting(false);
+    if (error) {
+      if (error.message?.includes('pending cancellation')) {
+        setSettleError('One or more orders on this tab have a pending cancellation. Resolve those requests first.');
+      } else {
+        setSettleError(error.message);
+      }
+      return;
+    }
+    setSettleTabId(null);
+    setViewTabId(null);
+    if (restaurant) load(restaurant.id);
+  }
+
+  async function voidTab(tabId: string, reason: string) {
+    setVoidSubmitting(true);
+    setVoidError(null);
+    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).rpc('void_tab', { p_tab_id: tabId, p_reason: reason });
+    setVoidSubmitting(false);
+    if (error) { setVoidError(error.message); return; }
+    setVoidTabId(null);
+    setVoidReason('');
+    setViewTabId(null);
+    if (restaurant) load(restaurant.id);
+  }
+
   function openCancelOrder(orderId: string) {
     setCancelingOrderId(orderId);
     setCancelStep('pick');
@@ -425,22 +493,49 @@ export default function OrdersPage() {
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
 
-      {/* Header */}
+      {/* Header + view mode toggle */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-[#F0EDE8] text-2xl font-bold tracking-tight">Live Orders</h1>
+          <h1 className="text-[#F0EDE8] text-2xl font-bold tracking-tight">
+            {viewMode === 'orders' ? 'Live Orders' : 'Open Tabs'}
+          </h1>
           <p className="text-[#6B6570] text-sm mt-1">
-            {active.length > 0
-              ? `${active.length} active order${active.length !== 1 ? 's' : ''} right now`
-              : "No active orders right now"}
+            {viewMode === 'orders'
+              ? (active.length > 0
+                  ? `${active.length} active order${active.length !== 1 ? 's' : ''} right now`
+                  : 'No active orders right now')
+              : (openTabs.length > 0
+                  ? `${openTabs.length} open tab${openTabs.length !== 1 ? 's' : ''}`
+                  : 'No open tabs')}
           </p>
         </div>
-        {active.length > 0 && (
-          <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span className="text-amber-400 text-xs font-semibold">{active.length} active</span>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-xl overflow-hidden border border-white/[0.08]">
+            <button
+              onClick={() => setViewMode('orders')}
+              className={`px-4 py-2 text-xs font-semibold transition-colors ${viewMode === 'orders' ? 'bg-[#C41E3A] text-white' : 'bg-transparent text-[#6B6570] hover:text-[#9a9098]'}`}
+            >
+              Orders
+            </button>
+            <button
+              onClick={() => setViewMode('tabs')}
+              className={`px-4 py-2 text-xs font-semibold transition-colors flex items-center gap-1.5 ${viewMode === 'tabs' ? 'bg-[#C41E3A] text-white' : 'bg-transparent text-[#6B6570] hover:text-[#9a9098]'}`}
+            >
+              Tabs
+              {openTabs.length > 0 && (
+                <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold ${viewMode === 'tabs' ? 'bg-white/25 text-white' : 'bg-[#C41E3A] text-white'}`}>
+                  {openTabs.length}
+                </span>
+              )}
+            </button>
           </div>
-        )}
+          {viewMode === 'orders' && active.length > 0 && (
+            <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-amber-400 text-xs font-semibold">{active.length} active</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -450,6 +545,177 @@ export default function OrdersPage() {
         </div>
       ) : (
         <>
+          {/* ── Open Tabs view ───────────────────────────────────────────── */}
+          {viewMode === 'tabs' && (
+            <div>
+              {openTabs.length === 0 ? (
+                <p className="text-[#4a4a4a] text-sm text-center py-8">No open tabs.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {openTabs.map(tab => {
+                    const total  = (tab.orders || []).filter(o => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0);
+                    const rounds = (tab.orders || []).filter(o => o.status !== 'cancelled').length;
+                    const mins   = Math.floor((Date.now() - new Date(tab.opened_at).getTime()) / 60000);
+                    const elapsed = mins < 60 ? `${mins}m` : `${Math.floor(mins/60)}h ${mins%60}m`;
+                    const opener  = staffMap[tab.opened_by] ?? 'Unknown';
+                    const isViewing = viewTabId === tab.id;
+                    const isSettling = settleTabId === tab.id;
+                    const isVoiding  = voidTabId   === tab.id;
+
+                    return (
+                      <div key={tab.id} className="rounded-2xl border border-white/[0.08] bg-[#161616] overflow-hidden">
+                        {/* Tab header row */}
+                        <div
+                          className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                          onClick={() => setViewTabId(isViewing ? null : tab.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-[#F0EDE8] font-semibold">Tab {tab.tab_number}</span>
+                            {tab.note && (
+                              <span className="text-[#6B6570] text-xs truncate max-w-[180px]">· {tab.note}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 shrink-0">
+                            <span className="text-[#6B6570] text-xs">{elapsed} · {opener}</span>
+                            <span className="text-[#6B6570] text-xs">{rounds} round{rounds !== 1 ? 's' : ''}</span>
+                            <span className="text-[#F0EDE8] font-semibold text-sm">{fmt(total)}</span>
+                            <svg
+                              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B6570" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                              style={{ transform: isViewing ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}
+                            >
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </div>
+                        </div>
+
+                        {/* Expanded detail */}
+                        {isViewing && (
+                          <div className="border-t border-white/[0.06] px-5 pb-5 pt-4">
+                            {/* Rounds */}
+                            {(tab.orders || []).length === 0 ? (
+                              <p className="text-[#4a4a4a] text-xs mb-4">No rounds yet</p>
+                            ) : (
+                              <div className="flex flex-col gap-2 mb-4">
+                                {(tab.orders || []).map((order, idx) => (
+                                  <div key={order.id} className={`rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 ${order.status === 'cancelled' ? 'opacity-50' : ''}`}>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-[#6B6570] text-xs font-semibold uppercase tracking-wide">Round {idx + 1}</span>
+                                      <span className="text-[#6B6570] text-xs">
+                                        {new Date(order.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                        {order.status === 'cancelled' ? ' · cancelled' : ''}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                      {(order.order_items || []).map((item, i) => (
+                                        <div key={i} className="flex justify-between">
+                                          <span className="text-[#F0EDE8] text-sm">{item.quantity}× {item.item_name}</span>
+                                          <span className="text-[#6B6570] text-xs">{fmt(item.quantity * item.price)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {order.status !== 'cancelled' && (
+                                      <div className="text-right text-sm font-semibold text-[#F0EDE8] mt-2">{fmt(order.total)}</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Running total */}
+                            <div className="flex items-center justify-between py-2 border-t border-white/[0.06] mb-4">
+                              <span className="text-[#6B6570] text-sm">Running total</span>
+                              <span className="text-[#F0EDE8] font-bold">{fmt(total)}</span>
+                            </div>
+
+                            {/* Actions */}
+                            {!isSettling && !isVoiding && (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                  onClick={() => { setSettleTabId(tab.id); setSettleError(null); }}
+                                  className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 border border-emerald-600/25 transition-colors"
+                                >
+                                  Settle tab
+                                </button>
+                                {canManagePayments && (
+                                  <button
+                                    onClick={() => { setVoidTabId(tab.id); setVoidReason(''); setVoidError(null); }}
+                                    className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#ff6b6b]/10 hover:bg-[#ff6b6b]/20 text-[#ff6b6b] border border-[#ff6b6b]/20 transition-colors"
+                                  >
+                                    Void tab
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Settle flow */}
+                            {isSettling && (
+                              <div>
+                                <p className="text-[#9a9098] text-xs mb-2 font-medium">How did they pay?</p>
+                                {settleError && <p className="text-[#ff6b6b] text-xs mb-2">{settleError}</p>}
+                                <div className="grid grid-cols-3 gap-2 mb-2">
+                                  {(['cash', 'transfer', 'pos'] as const).map(m => (
+                                    <button
+                                      key={m}
+                                      disabled={settleSubmitting}
+                                      onClick={() => settleTab(tab.id, m)}
+                                      className="py-3 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-emerald-600/20 hover:border-emerald-500/40 text-[#F0EDE8] text-sm font-semibold transition-colors disabled:opacity-50"
+                                    >
+                                      {settleSubmitting ? '…' : PAYMENT_LABELS[m]}
+                                    </button>
+                                  ))}
+                                </div>
+                                <button
+                                  onClick={() => { setSettleTabId(null); setSettleError(null); }}
+                                  className="text-xs text-[#4a4a4a] hover:text-[#6B6570] transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Void flow — manager/owner only */}
+                            {isVoiding && canManagePayments && (
+                              <div>
+                                <p className="text-[#9a9098] text-xs mb-2 font-medium">Reason for voiding this tab:</p>
+                                <textarea
+                                  rows={2}
+                                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-[#F0EDE8] placeholder:text-[#4a4a4a] outline-none focus:border-[#ff6b6b]/40 resize-none mb-2"
+                                  placeholder="e.g. Walk-out, system error, duplicate"
+                                  value={voidReason}
+                                  onChange={e => setVoidReason(e.target.value)}
+                                  autoFocus
+                                />
+                                {voidError && <p className="text-[#ff6b6b] text-xs mb-2">{voidError}</p>}
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    disabled={voidSubmitting || !voidReason.trim()}
+                                    onClick={() => voidTab(tab.id, voidReason.trim())}
+                                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[#ff6b6b]/15 hover:bg-[#ff6b6b]/25 text-[#ff6b6b] border border-[#ff6b6b]/25 transition-colors disabled:opacity-50"
+                                  >
+                                    {voidSubmitting ? 'Voiding…' : 'Void tab'}
+                                  </button>
+                                  <button
+                                    onClick={() => { setVoidTabId(null); setVoidError(null); }}
+                                    className="text-xs text-[#4a4a4a] hover:text-[#6B6570] transition-colors px-2"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Hide orders section when in tabs mode */}
+          {viewMode === 'orders' && (<>
+
           {/* ── Pending Cancellation Requests ──────────────────────────────── */}
           {(cancelReqs.length > 0 || resolvedMsgs.length > 0) && (
             <div className="mb-6 rounded-2xl border border-orange-500/30 bg-orange-500/[0.04] overflow-hidden">
@@ -537,6 +803,7 @@ export default function OrdersPage() {
           {orders.length === 0 && (
             <p className="text-[#4a4a4a] text-sm text-center py-8">No orders today yet.</p>
           )}
+          </>)}
         </>
       )}
     </div>

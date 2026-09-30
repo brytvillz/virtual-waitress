@@ -11,6 +11,10 @@
  * This script only ever targets the 'payment-test' venue.
  * It hard-stops if the slug constant below is changed, as a safety net.
  *
+ * Requires migration 027 to be applied before running (open_tab now takes
+ * an optional p_client_tab_id uuid parameter; the old 3-argument overload
+ * was dropped).
+ *
  * Tests covered:
  *   a) Two concurrent open_tab calls get different tab numbers
  *   b) MANUAL — business day boundary (see output)
@@ -267,8 +271,8 @@ async function main() {
   // ══════════════════════════════════════════════════════════════════════════════
   console.log('a) Concurrent open_tab calls get different tab numbers');
   const [rA1, rA2] = await Promise.all([
-    rpc('open_tab', { p_restaurant_id: restaurantId }, waiterAToken),
-    rpc('open_tab', { p_restaurant_id: restaurantId }, ownerToken),
+    rpc('open_tab', { p_restaurant_id: restaurantId, p_client_tab_id: null }, waiterAToken),
+    rpc('open_tab', { p_restaurant_id: restaurantId, p_client_tab_id: null }, ownerToken),
   ]);
 
   ok('a-1: both calls succeed', rA1.ok && rA2.ok,
@@ -321,7 +325,7 @@ async function main() {
   }
 
   // Tab CK — two orders — used for tests c (settle) and k (double-settle)
-  const rCK = await rpc('open_tab', { p_restaurant_id: restaurantId }, waiterAToken);
+  const rCK = await rpc('open_tab', { p_restaurant_id: restaurantId, p_client_tab_id: null }, waiterAToken);
   const tabCK = extractUuid(rCK.data);
   ok('setup: open tab CK (tests c, k)', rCK.ok && !!tabCK, errMsg(rCK.data));
   if (tabCK) testTabIds.push(tabCK);
@@ -340,7 +344,7 @@ async function main() {
   }
 
   // Tab D — one order + pending cancellation request — used for test d
-  const rD = await rpc('open_tab', { p_restaurant_id: restaurantId }, waiterAToken);
+  const rD = await rpc('open_tab', { p_restaurant_id: restaurantId, p_client_tab_id: null }, waiterAToken);
   const tabD = extractUuid(rD.data);
   ok('setup: open tab D (test d)', rD.ok && !!tabD, errMsg(rD.data));
   if (tabD) testTabIds.push(tabD);
@@ -362,7 +366,7 @@ async function main() {
   }
 
   // Tab EF — one order — used for tests e (wrong waiter refused) and f (opener succeeds)
-  const rEF = await rpc('open_tab', { p_restaurant_id: restaurantId }, waiterAToken);
+  const rEF = await rpc('open_tab', { p_restaurant_id: restaurantId, p_client_tab_id: null }, waiterAToken);
   const tabEF = extractUuid(rEF.data);
   ok('setup: open tab EF (tests e, f)', rEF.ok && !!tabEF, errMsg(rEF.data));
   if (tabEF) testTabIds.push(tabEF);
@@ -376,8 +380,8 @@ async function main() {
 
   // Tabs G and G2 — one order on G — used for test g (waiter refused on move_order_to_tab)
   const [rG, rG2] = await Promise.all([
-    rpc('open_tab', { p_restaurant_id: restaurantId }, waiterAToken),
-    rpc('open_tab', { p_restaurant_id: restaurantId }, waiterAToken),
+    rpc('open_tab', { p_restaurant_id: restaurantId, p_client_tab_id: null }, waiterAToken),
+    rpc('open_tab', { p_restaurant_id: restaurantId, p_client_tab_id: null }, waiterAToken),
   ]);
   const tabG  = extractUuid(rG.data);
   const tabG2 = extractUuid(rG2.data);
@@ -394,7 +398,7 @@ async function main() {
   }
 
   // Tab H — one order — used for test h (void refused with live order) and j (direct PATCH)
-  const rH = await rpc('open_tab', { p_restaurant_id: restaurantId }, waiterAToken);
+  const rH = await rpc('open_tab', { p_restaurant_id: restaurantId, p_client_tab_id: null }, waiterAToken);
   const tabH = extractUuid(rH.data);
   ok('setup: open tab H (tests h, j)', rH.ok && !!tabH, errMsg(rH.data));
   if (tabH) testTabIds.push(tabH);
