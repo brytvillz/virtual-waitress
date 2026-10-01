@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRestaurant, useCancelCount } from '@/components/DashboardShell';
 import { orderLabel } from '@/lib/orderLabel';
@@ -147,8 +147,6 @@ export default function OrdersPage() {
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
   const [cancelRpcError, setCancelRpcError]   = useState<string | null>(null);
 
-  const channelRef = useRef<ReturnType<typeof createClient>['channel'] | null>(null);
-
   useEffect(() => {
     const t = setInterval(() => setTick(n => n + 1), 60_000);
     return () => clearInterval(t);
@@ -217,82 +215,88 @@ export default function OrdersPage() {
     setLoading(false);
   }, []);
 
-  const setupRealtime = useCallback((restaurantId: string) => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`orders-cancel-${restaurantId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            supabase
-              .from('orders')
-              .select(ORDER_SELECT)
-              .eq('id', (payload.new as { id: string }).id)
-              .single()
-              .then(({ data }) => {
-                if (data) setOrders(prev => [data as Order, ...prev]);
-              });
-          } else if (payload.eventType === 'UPDATE') {
-            setOrders(prev =>
-              prev.map(o => o.id === (payload.new as Order).id ? { ...o, ...(payload.new as Order) } : o)
-            );
-          } else if (payload.eventType === 'DELETE') {
-            setOrders(prev => prev.filter(o => o.id !== (payload.old as { id: string }).id));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'cancellation_requests', filter: `restaurant_id=eq.${restaurantId}` },
-        (payload) => {
-          const r = payload.new as CancellationRequest;
-          if (r.status === 'pending') {
-            playBeep();
-            setCancelReqs(prev => [...prev, r]);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'cancellation_requests', filter: `restaurant_id=eq.${restaurantId}` },
-        (payload) => {
-          const r = payload.new as CancellationRequest;
-          // Remove from pending list if no longer pending
-          setCancelReqs(prev =>
-            r.status === 'pending'
-              ? prev.map(x => x.id === r.id ? r : x)
-              : prev.filter(x => x.id !== r.id)
-          );
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'tabs', filter: `restaurant_id=eq.${restaurantId}` },
-        () => load(restaurantId)
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'tabs', filter: `restaurant_id=eq.${restaurantId}` },
-        () => load(restaurantId)
-      )
-      .subscribe((status, err) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error('[Realtime] channel failed:', status, err);
-        }
-      });
-
-    channelRef.current = channel as unknown as ReturnType<typeof createClient>['channel'];
-    return () => { supabase.removeChannel(channel); };
-  }, []);
-
   useEffect(() => {
     if (!restaurant) return;
-    load(restaurant.id);
-    const cleanup = setupRealtime(restaurant.id);
-    return cleanup;
-  }, [restaurant, load, setupRealtime]);
+    const rid = restaurant.id;
+    load(rid);
+    const supabase = createClient();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    (async () => {
+      const { data: { session: _sess } } = await supabase.auth.getSession();
+      const _rt = (supabase as any).realtime;
+      console.log('[Realtime/orders] pre-subscribe diag', {
+        hasSession: !!_sess,
+        accessTokenLen: _sess?.access_token?.length ?? 0,
+        realtimeTokenLen: (_rt?.accessTokenValue?.length ?? 0),
+        realtimeUrl: _rt?.endpointURL?.() ?? _rt?.realtimeUrl ?? 'unknown',
+      });
+      channel = supabase
+        .channel(`orders-cancel-${rid}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${rid}` },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              supabase
+                .from('orders')
+                .select(ORDER_SELECT)
+                .eq('id', (payload.new as { id: string }).id)
+                .single()
+                .then(({ data }) => {
+                  if (data) setOrders(prev => [data as Order, ...prev]);
+                });
+            } else if (payload.eventType === 'UPDATE') {
+              setOrders(prev =>
+                prev.map(o => o.id === (payload.new as Order).id ? { ...o, ...(payload.new as Order) } : o)
+              );
+            } else if (payload.eventType === 'DELETE') {
+              setOrders(prev => prev.filter(o => o.id !== (payload.old as { id: string }).id));
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'cancellation_requests', filter: `restaurant_id=eq.${rid}` },
+          (payload) => {
+            const r = payload.new as CancellationRequest;
+            if (r.status === 'pending') {
+              playBeep();
+              setCancelReqs(prev => [...prev, r]);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'cancellation_requests', filter: `restaurant_id=eq.${rid}` },
+          (payload) => {
+            const r = payload.new as CancellationRequest;
+            setCancelReqs(prev =>
+              r.status === 'pending'
+                ? prev.map(x => x.id === r.id ? r : x)
+                : prev.filter(x => x.id !== r.id)
+            );
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'tabs', filter: `restaurant_id=eq.${rid}` },
+          () => load(rid)
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'tabs', filter: `restaurant_id=eq.${rid}` },
+          () => load(rid)
+        )
+        .subscribe((status, err) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[Realtime] channel failed:', status, err);
+          }
+        });
+    })();
+
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, [restaurant, load]);
 
   async function advanceStatus(order: Order) {
     const next = NEXT_STATUS[order.status];

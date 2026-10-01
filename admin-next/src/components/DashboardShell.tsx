@@ -104,27 +104,42 @@ export default function DashboardShell({
   useEffect(() => {
     if (!restaurant) return;
     const supabase = createClient();
+    const rid = restaurant.id;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function loadCount() {
       const { count } = await supabase
         .from('cancellation_requests')
         .select('*', { count: 'exact', head: true })
-        .eq('restaurant_id', restaurant!.id)
+        .eq('restaurant_id', rid)
         .eq('status', 'pending');
       setPendingCancelCount(count ?? 0);
     }
 
-    loadCount();
+    (async () => {
+      const { data: { session: _sess } } = await supabase.auth.getSession();
+      const _rt = (supabase as any).realtime;
+      console.log('[Realtime/shell] pre-subscribe diag', {
+        hasSession: !!_sess,
+        accessTokenLen: _sess?.access_token?.length ?? 0,
+        realtimeTokenLen: (_rt?.accessTokenValue?.length ?? 0),
+        realtimeUrl: _rt?.endpointURL?.() ?? _rt?.realtimeUrl ?? 'unknown',
+      });
+      await loadCount();
+      channel = supabase
+        .channel(`cancel-count-${rid}`)
+        .on('postgres_changes', {
+          event: '*', schema: 'public', table: 'cancellation_requests',
+          filter: `restaurant_id=eq.${rid}`,
+        }, loadCount)
+        .subscribe((status, err) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('[Realtime/shell] channel failed:', status, err);
+          }
+        });
+    })();
 
-    const channel = supabase
-      .channel(`cancel-count-${restaurant.id}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'cancellation_requests',
-        filter: `restaurant_id=eq.${restaurant.id}`,
-      }, loadCount)
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    return () => { if (channel) supabase.removeChannel(channel); };
   }, [restaurant]);
 
   const sidebar = (
