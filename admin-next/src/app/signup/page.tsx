@@ -108,7 +108,7 @@ export default function SignupPage() {
     e.preventDefault();
     setStep1Error('');
 
-    if (!restaurantName.trim()) { setStep1Error('Please enter your restaurant name.'); return; }
+    if (!restaurantName.trim()) { setStep1Error('Please enter your business name.'); return; }
     if (!email.trim())          { setStep1Error('Please enter your email address.'); return; }
     if (!passStrong(password))  { setStep1Error('Password must meet all requirements below.'); return; }
     if (password !== confirmPass) { setStep1Error('Passwords do not match.'); return; }
@@ -278,7 +278,7 @@ export default function SignupPage() {
           {/* ── Step 1: Account form ── */}
           {step === 1 && (
             <>
-              <h1 className="text-[#F0EDE8] text-2xl font-bold tracking-tight mb-1">Set up your restaurant</h1>
+              <h1 className="text-[#F0EDE8] text-2xl font-bold tracking-tight mb-1">Set up your business</h1>
               <p className="text-[#6B6570] text-sm mb-8">Create your free account and go live today.</p>
 
               <form onSubmit={handleSignup} noValidate className="flex flex-col gap-5">
@@ -286,20 +286,20 @@ export default function SignupPage() {
                 {/* Restaurant name */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">
-                    Restaurant name
+                    Business name
                   </label>
                   <input
                     type="text"
                     value={restaurantName}
                     onChange={e => setRestaurantName(e.target.value)}
-                    placeholder="e.g. Mama Ngozi's Kitchen"
+                    placeholder="e.g. Ichiban Lounge"
                     autoComplete="organization"
                     maxLength={80}
                     required
                     className="bg-[#1f1f1f] border border-white/[0.08] rounded-xl px-4 py-3 text-[#F0EDE8] text-sm placeholder-[#4a4a4a] outline-none focus:border-[#C41E3A]/50 transition-colors"
                   />
                   {urlShow && (
-                    <p className="text-[#10b981] text-xs mt-0.5">app.virtualwaitress.com/{slug}/1</p>
+                    <p className="text-[#10b981] text-xs mt-0.5">app.virtualwaitress.com/{slug}</p>
                   )}
                   {!urlShow && (
                     <p className="text-[#4a4a4a] text-xs mt-0.5">Your menu URL will appear here</p>
@@ -423,7 +423,7 @@ export default function SignupPage() {
                   disabled={!agreed || submitting}
                   className="w-full bg-[#C41E3A] hover:bg-[#a01830] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl py-3.5 transition-colors shadow-[0_6px_20px_rgba(196,30,58,0.28)]"
                 >
-                  {submitting ? 'Creating your restaurant…' : 'Create My Restaurant'}
+                  {submitting ? 'Creating your account…' : 'Create My Account'}
                 </button>
               </form>
 

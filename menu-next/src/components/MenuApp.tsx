@@ -378,7 +378,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     if (error) {
       adaSpeak("Hmm, that didn't go through — please try again 🙏", 5500);
     } else {
-      adaSpeak(`I've called your waiter! 😊 Someone will be at Table ${table} shortly.`, 6000);
+      adaSpeak(table ? `I've called your waiter! 😊 Someone will be at Table ${table} shortly.` : `I've called your waiter! 😊 Someone will be with you shortly.`, 6000);
     }
     resetIdleTimer();
   }, [db, restaurantId, table, adaSpeak, resetIdleTimer]);
@@ -441,7 +441,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     requestAnimationFrame(() => {
       requestAnimationFrame(() => setOrderConfirmVisible(true));
     });
-    adaSpeak(`Order sent! 🎉 The kitchen has your order for Table ${table}. Sit tight!`, 6000);
+    adaSpeak(`Your order has been sent. Sit tight!`, 6000);
     resetIdleTimer();
     setOrderState({});
 
@@ -539,7 +539,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         cursor.style.transform = 'translate(-50%,-50%) scale(0.68)';
         timers.push(setTimeout(() => {
           cursor.style.transform = 'translate(-50%,-50%) scale(1)';
-          adaSpeak(`I've called your waiter! 😊 Someone will be at Table ${table} shortly.`, 4500);
+          adaSpeak(table ? `I've called your waiter! 😊 Someone will be at Table ${table} shortly.` : `I've called your waiter! 😊 Someone will be with you shortly.`, 4500);
         }, 220));
       });
       // Hide cursor, reset, loop
@@ -808,7 +808,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         <header className="mag-header">
           <div className="mag-header-left">
             <span className="mag-header-name">{restaurant?.name ?? '—'}</span>
-            <span className="mag-header-table">Table {table}</span>
+            {table && <span className="mag-header-table">Table {table}</span>}
           </div>
           <div className="mag-header-right">
             <a href="https://dashboard.virtualwaitress.com" className="mag-header-signin">Sign In</a>
@@ -928,7 +928,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         <div className="cmenu-header">
           <div className="cmenu-restaurant">
             <p className="cmenu-restaurant-name">{restaurant?.name ?? '—'}</p>
-            <p className="cmenu-table-label">Table {table}</p>
+            {table && <p className="cmenu-table-label">Table {table}</p>}
           </div>
           <button className="cmenu-close" onClick={closeCmenu} aria-label="Close menu">✕</button>
         </div>
@@ -965,7 +965,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
             <div className="my-order-header">
               <div className="my-order-header-left">
                 <span className="my-order-title">My Orders</span>
-                <span className="my-order-table-pill">Table {table}</span>
+                {table && <span className="my-order-table-pill">Table {table}</span>}
               </div>
               <div className="my-order-header-right">
                 <button className="my-order-refresh-icon" onClick={loadMyOrders} type="button" title="Refresh">↻</button>

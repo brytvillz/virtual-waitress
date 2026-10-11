@@ -103,7 +103,7 @@ export default function ItemModal({ item, categoryId: _categoryId, categoryName,
         price: Number(price),
         description: description.trim(),
         ada_message: adaMessage.trim(),
-        station,
+        station: station ?? 'bar',
         file,
         removeImage,
       });
@@ -185,28 +185,6 @@ export default function ItemModal({ item, categoryId: _categoryId, categoryName,
               className="bg-[#111] border border-white/[0.08] rounded-xl px-4 py-3 text-[#F0EDE8] text-sm placeholder-[#4a4a4a] outline-none focus:border-[#C41E3A]/50 transition-colors"
             />
           </label>
-
-          {/* Station */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">Station</span>
-            <span className="text-[#4a4a4a] text-xs -mt-1">Required for waiter orders — bar or kitchen</span>
-            <div className="flex gap-2">
-              {([null, 'bar', 'kitchen'] as const).map(opt => (
-                <button
-                  key={String(opt)}
-                  type="button"
-                  onClick={() => setStation(opt)}
-                  className={`flex-1 py-2.5 rounded-xl border text-xs font-medium transition-colors ${
-                    station === opt
-                      ? 'border-[#C41E3A] bg-[#C41E3A]/10 text-[#C41E3A]'
-                      : 'border-white/[0.08] text-[#6B6570] hover:bg-white/[0.04]'
-                  }`}
-                >
-                  {opt === null ? 'None' : opt.charAt(0).toUpperCase() + opt.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* AI generate button */}
           <div className="flex items-center gap-3">

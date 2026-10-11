@@ -44,7 +44,7 @@ export default function LoginPage() {
         {/* Card */}
         <div className="bg-[#161616] border border-white/[0.07] rounded-2xl p-8">
           <h1 className="text-[#F0EDE8] text-xl font-bold mb-1">Sign in</h1>
-          <p className="text-[#6B6570] text-sm mb-7">Manage your restaurant from one place.</p>
+          <p className="text-[#6B6570] text-sm mb-7">Manage your business from one place.</p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <label className="flex flex-col gap-1.5">

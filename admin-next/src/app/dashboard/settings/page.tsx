@@ -98,11 +98,6 @@ export default function SettingsPage() {
   const [orderingStatus, setOrderingStatus]   = useState<SaveStatus>('idle');
   const [orderingError, setOrderingError]     = useState('');
 
-  // Table numbers toggle
-  const [usesTableNumbers, setUsesTableNumbers] = useState(true);
-  const [tableNumStatus, setTableNumStatus]     = useState<SaveStatus>('idle');
-  const [tableNumError, setTableNumError]       = useState('');
-
   // Delete account
   const [deleteOpen, setDeleteOpen]       = useState(false);
   const [deleteInput, setDeleteInput]     = useState('');
@@ -142,7 +137,6 @@ export default function SettingsPage() {
       setAlerts(loaded);
       setBothOffWarning(!loaded.station_screen && !loaded.staff_phones);
       setOrderingEnabled((data as { customer_ordering_enabled?: boolean }).customer_ordering_enabled ?? true);
-      setUsesTableNumbers((data as { uses_table_numbers?: boolean }).uses_table_numbers ?? true);
 
       if (user) {
         if ((data as { owner_id?: string }).owner_id === user.id) {
@@ -228,26 +222,6 @@ export default function SettingsPage() {
     } else {
       setOrderingStatus('saved');
       setTimeout(() => setOrderingStatus('idle'), 2000);
-    }
-  }
-
-  async function handleTableNumToggle(value: boolean) {
-    if (!restaurant) return;
-    setUsesTableNumbers(value);
-    setTableNumStatus('saving');
-    setTableNumError('');
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('restaurants')
-      .update({ uses_table_numbers: value })
-      .eq('id', restaurant.id);
-    if (error) {
-      setUsesTableNumbers(!value);
-      setTableNumError('Failed to save — try again.');
-      setTableNumStatus('error');
-    } else {
-      setTableNumStatus('saved');
-      setTimeout(() => setTableNumStatus('idle'), 2000);
     }
   }
 
@@ -362,11 +336,11 @@ export default function SettingsPage() {
 
       {/* ── Restaurant settings ── */}
       <section className="bg-[#161616] border border-white/[0.06] rounded-2xl p-6 mb-6">
-        <h2 className="text-[#F0EDE8] text-sm font-semibold mb-5">Restaurant</h2>
+        <h2 className="text-[#F0EDE8] text-sm font-semibold mb-5">Your business</h2>
 
         <form onSubmit={handleSaveRestaurant} className="flex flex-col gap-5">
 
-          <Field label="Restaurant Name">
+          <Field label="Business name">
             <input
               type="text"
               value={settings.name}
@@ -520,17 +494,6 @@ export default function SettingsPage() {
             checked={orderingEnabled}
             onChange={handleOrderingToggle}
           />
-          <div className="border-t border-white/[0.06] pt-5 flex items-start justify-between">
-            <AlertToggle
-              label="Use table numbers"
-              hint="When off, orders and tabs are not linked to a table — suited to open-floor bars and venues with no fixed seating"
-              checked={usesTableNumbers}
-              onChange={handleTableNumToggle}
-            />
-            {(tableNumStatus !== 'idle') && (
-              <StatusMsg status={tableNumStatus} errorText={tableNumError} />
-            )}
-          </div>
         </div>
       </section>
 
@@ -548,7 +511,7 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-5">
             <AlertToggle
               label="Station Screen"
-              hint="Highlights new orders on the kitchen or bar display"
+              hint="Highlights new orders on the bar display"
               checked={alerts.station_screen}
               onChange={v => handleAlertToggle('station_screen', v)}
             />
@@ -699,7 +662,7 @@ export default function SettingsPage() {
               This will permanently delete:
             </p>
             <ul className="text-[#6B6570] text-sm mb-5 list-disc list-inside space-y-0.5 leading-relaxed">
-              <li>Your restaurant profile and settings</li>
+              <li>Your business profile and settings</li>
               <li>All menu items and categories</li>
               <li>All tables, staff, and orders</li>
               <li>Your login account</li>

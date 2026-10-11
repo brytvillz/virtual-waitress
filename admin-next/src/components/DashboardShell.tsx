@@ -44,9 +44,7 @@ const NAV = [
   { href: '/dashboard',          label: 'Analytics',  icon: IconChart },
   { href: '/dashboard/orders',   label: 'Orders',     icon: IconOrders },
   { href: '/dashboard/menu',     label: 'Menu',       icon: IconMenu },
-  { href: '/dashboard/tables',   label: 'Tables',     icon: IconTable },
   { href: '/dashboard/staff',    label: 'Staff',      icon: IconStaff },
-  { href: '/dashboard/qr',       label: 'QR Codes',   icon: IconQr },
   { href: '/dashboard/settings', label: 'Settings',   icon: IconSettings },
 ];
 

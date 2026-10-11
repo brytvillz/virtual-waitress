@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
-type StepId = 'menu' | 'tables' | 'staff' | 'qr';
+type StepId = 'menu' | 'staff' | 'orders';
 
 type Step = {
   id: StepId;
@@ -19,15 +19,14 @@ export default function GettingStarted({
 }: {
   restaurantId: string;
 }) {
-  const [loading, setLoading]       = useState(true);
-  const [dismissed, setDismissed]   = useState(false);
-  const [hasItems, setHasItems]     = useState(false);
-  const [hasTables, setHasTables]   = useState(false);
-  const [hasStaff, setHasStaff]     = useState(false);
-  const [hasQr, setHasQr]           = useState(false);
+  const [loading, setLoading]         = useState(true);
+  const [dismissed, setDismissed]     = useState(false);
+  const [hasItems, setHasItems]       = useState(false);
+  const [hasStaff, setHasStaff]       = useState(false);
+  const [hasOrders, setHasOrders]     = useState(false);
+  const [optionalOpen, setOptionalOpen] = useState(false);
 
   const dismissKey = `vw_checklist_dismissed_${restaurantId}`;
-  const qrKey      = `vw_qr_visited_${restaurantId}`;
 
   useEffect(() => {
     if (localStorage.getItem(dismissKey) === 'true') {
@@ -35,17 +34,16 @@ export default function GettingStarted({
       setLoading(false);
       return;
     }
-    setHasQr(localStorage.getItem(qrKey) === 'true');
 
     const supabase = createClient();
     Promise.all([
       supabase.from('menu_items').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId),
-      supabase.from('tables').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId),
       supabase.from('staff').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId).eq('role', 'waiter'),
-    ]).then(([items, tables, staff]) => {
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId),
+    ]).then(([items, staff, orders]) => {
       setHasItems((items.count ?? 0) > 0);
-      setHasTables((tables.count ?? 0) > 0);
       setHasStaff((staff.count ?? 0) > 0);
+      setHasOrders((orders.count ?? 0) > 0);
       setLoading(false);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,47 +54,60 @@ export default function GettingStarted({
     setDismissed(true);
   }
 
-  function markQrVisited() {
-    localStorage.setItem(qrKey, 'true');
-    setHasQr(true);
-  }
-
   if (loading || dismissed) return null;
 
   const steps: Step[] = [
     {
       id: 'menu',
-      label: 'Add your menu',
-      description: 'Create categories and add your food & drink items',
+      label: 'Add your drinks and food',
+      description: 'Everything you sell. You can add more any time.',
       href: '/dashboard/menu',
       done: hasItems,
     },
     {
-      id: 'tables',
-      label: 'Set up your tables',
-      description: 'Tell us how many tables your restaurant has',
-      href: '/dashboard/tables',
-      done: hasTables,
-    },
-    {
       id: 'staff',
       label: 'Add a waiter',
-      description: 'Create a login code your waiter uses to receive orders',
+      description: 'Your waiter signs in on his own phone with the code you give him. He does not need your password.',
       href: '/dashboard/staff',
       done: hasStaff,
     },
     {
-      id: 'qr',
-      label: 'Get your QR codes',
-      description: 'Print QR codes and place one on each table — customers scan to order',
-      href: '/dashboard/qr',
-      done: hasQr,
+      id: 'orders',
+      label: 'Take your first order',
+      description: 'Ask your waiter to open his phone and send one order. It will appear here the moment he sends it.',
+      href: '/dashboard/orders',
+      done: hasOrders,
     },
   ];
 
   const doneCount = steps.filter(s => s.done).length;
 
-  if (doneCount === steps.length) return null;
+  if (doneCount === steps.length) {
+    return (
+      <div className="bg-[#161616] border border-emerald-500/20 rounded-2xl p-6 mb-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+              <h2 className="text-emerald-400 text-sm font-semibold">You&apos;re live</h2>
+            </div>
+            <p className="text-[#6B6570] text-xs">Your first order is in. Orders appear here as they come in.</p>
+          </div>
+          <button
+            onClick={dismiss}
+            aria-label="Dismiss"
+            className="text-[#4a4a4a] hover:text-[#9a9098] transition-colors p-1 -mt-1 -mr-1"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#161616] border border-white/[0.06] rounded-2xl p-6 mb-6">
@@ -132,14 +143,12 @@ export default function GettingStarted({
           <Link
             key={step.id}
             href={step.href}
-            onClick={step.id === 'qr' ? markQrVisited : undefined}
             className={`flex items-center gap-4 px-3 py-3 rounded-xl transition-colors group ${
               step.done
                 ? 'pointer-events-none opacity-40'
                 : 'hover:bg-white/[0.04] cursor-pointer'
             }`}
           >
-            {/* Circle: number or checkmark */}
             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors ${
               step.done
                 ? 'bg-emerald-500/15'
@@ -154,7 +163,6 @@ export default function GettingStarted({
               )}
             </div>
 
-            {/* Text */}
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-medium leading-snug ${step.done ? 'line-through text-[#6B6570]' : 'text-[#F0EDE8]'}`}>
                 {step.label}
@@ -162,7 +170,6 @@ export default function GettingStarted({
               <p className="text-[#4a4a4a] text-xs mt-0.5 leading-snug">{step.description}</p>
             </div>
 
-            {/* Arrow */}
             {!step.done && (
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a4a4a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                 className="shrink-0 group-hover:stroke-[#9a9098] transition-colors">
@@ -171,6 +178,37 @@ export default function GettingStarted({
             )}
           </Link>
         ))}
+      </div>
+
+      {/* Optional self-ordering card */}
+      <div className="mt-4 border-t border-white/[0.06] pt-4">
+        <button
+          onClick={() => setOptionalOpen(v => !v)}
+          className="flex items-center justify-between w-full text-left group"
+        >
+          <span className="text-[#6B6570] text-xs font-medium">Let customers order themselves (optional)</span>
+          <svg
+            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a4a4a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            className={`shrink-0 transition-transform ${optionalOpen ? 'rotate-180' : ''}`}
+          >
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        {optionalOpen && (
+          <div className="mt-3">
+            <p className="text-[#6B6570] text-xs leading-relaxed mb-3">
+              If you want customers to scan a code and order without calling a waiter, set that up here. Most bars start without it.
+            </p>
+            <div className="flex gap-4">
+              <Link href="/dashboard/settings" className="text-[#C41E3A] text-xs hover:underline transition-colors">
+                Customer ordering
+              </Link>
+              <Link href="/dashboard/qr" className="text-[#C41E3A] text-xs hover:underline transition-colors">
+                QR codes
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

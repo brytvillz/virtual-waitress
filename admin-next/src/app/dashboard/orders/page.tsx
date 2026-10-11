@@ -806,7 +806,7 @@ export default function OrdersPage() {
           )}
 
           {orders.length === 0 && (
-            <p className="text-[#4a4a4a] text-sm text-center py-8">No orders today yet.</p>
+            <p className="text-[#4a4a4a] text-sm text-center py-8">No orders yet. When your waiter sends one from his phone, it appears here straight away.</p>
           )}
           </>)}
         </>
@@ -1057,7 +1057,7 @@ function OrderCard({
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center shrink-0">
-            <span className="text-[#F0EDE8] text-sm font-bold">{order.tab_number ?? order.table_number ?? '?'}</span>
+            <span className="text-[#F0EDE8] text-sm font-bold">{order.tab_number ?? order.table_number ?? '—'}</span>
           </div>
           <div>
             <p className="text-[#F0EDE8] text-sm font-semibold">{orderLabel(order)}</p>

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Virtual Waitress — Dashboard",
-  description: "Manage your restaurant with Virtual Waitress",
+  description: "Manage your business with Virtual Waitress",
 };
 
 export default function RootLayout({

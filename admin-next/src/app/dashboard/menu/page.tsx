@@ -445,15 +445,6 @@ export default function MenuPage() {
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-[#F0EDE8] text-sm font-medium leading-snug flex-1">
                             {item.name}
-                            {item.station && (
-                              <span className={`ml-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold align-middle ${
-                                item.station === 'bar'
-                                  ? 'bg-blue-500/10 text-blue-400'
-                                  : 'bg-amber-500/10 text-amber-400'
-                              }`}>
-                                {item.station}
-                              </span>
-                            )}
                             {!item.available && (
                               <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#ff6b6b]/10 text-[#ff6b6b] align-middle">
                                 Sold out
