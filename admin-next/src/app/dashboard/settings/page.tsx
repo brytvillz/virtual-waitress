@@ -31,15 +31,13 @@ type RestaurantSettings = {
 };
 
 type AlertSettings = {
-  station_screen: boolean;
   staff_phones: boolean;
   sound: boolean;
 };
 
 const ALERT_DB_KEY: Record<keyof AlertSettings, string> = {
-  station_screen: 'alert_station_screen',
-  staff_phones:   'alert_staff_phones',
-  sound:          'alert_sound',
+  staff_phones: 'alert_staff_phones',
+  sound:        'alert_sound',
 };
 
 const THEMES = [
@@ -74,11 +72,11 @@ export default function SettingsPage() {
   const [restError, setRestError] = useState('');
 
   // Alert settings state
-  const [alerts, setAlerts] = useState<AlertSettings>({ station_screen: true, staff_phones: false, sound: true });
+  const [alerts, setAlerts] = useState<AlertSettings>({ staff_phones: false, sound: true });
   const [canManageAlerts, setCanManageAlerts] = useState(false);
   const [alertStatus, setAlertStatus] = useState<SaveStatus>('idle');
   const [alertError, setAlertError] = useState('');
-  const [bothOffWarning, setBothOffWarning] = useState(false);
+
 
   // Account state
   const [userEmail, setUserEmail] = useState('');
@@ -109,7 +107,7 @@ export default function SettingsPage() {
     const [{ data }, authResult] = await Promise.all([
       supabase
         .from('restaurants')
-        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme, alert_station_screen, alert_staff_phones, alert_sound, owner_id, customer_ordering_enabled, uses_table_numbers')
+        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme, alert_staff_phones, alert_sound, owner_id, customer_ordering_enabled')
         .eq('id', restaurantId)
         .single(),
       supabase.auth.getUser(),
@@ -130,12 +128,10 @@ export default function SettingsPage() {
       });
 
       const loaded: AlertSettings = {
-        station_screen: data.alert_station_screen ?? true,
-        staff_phones:   data.alert_staff_phones ?? false,
-        sound:          data.alert_sound ?? true,
+        staff_phones: data.alert_staff_phones ?? false,
+        sound:        data.alert_sound ?? true,
       };
       setAlerts(loaded);
-      setBothOffWarning(!loaded.station_screen && !loaded.staff_phones);
       setOrderingEnabled((data as { customer_ordering_enabled?: boolean }).customer_ordering_enabled ?? true);
 
       if (user) {
@@ -188,7 +184,6 @@ export default function SettingsPage() {
     if (!restaurant) return;
     const next = { ...alerts, [key]: value };
     setAlerts(next);
-    setBothOffWarning(!next.station_screen && !next.staff_phones);
     setAlertStatus('saving');
     setAlertError('');
     const supabase = createClient();
@@ -196,7 +191,6 @@ export default function SettingsPage() {
     const { error } = await supabase.from('restaurants').update({ [ALERT_DB_KEY[key]]: value } as any).eq('id', restaurant.id);
     if (error) {
       setAlerts(prev => ({ ...prev, [key]: !value }));
-      setBothOffWarning(!alerts.station_screen && !alerts.staff_phones);
       setAlertError('Failed to save — try again.');
       setAlertStatus('error');
     } else {
@@ -510,12 +504,6 @@ export default function SettingsPage() {
 
           <div className="flex flex-col gap-5">
             <AlertToggle
-              label="Station Screen"
-              hint="Highlights new orders on the bar display"
-              checked={alerts.station_screen}
-              onChange={v => handleAlertToggle('station_screen', v)}
-            />
-            <AlertToggle
               label="Staff Phones"
               hint="Sends a push notification to all logged-in staff browsers"
               checked={alerts.staff_phones}
@@ -528,12 +516,6 @@ export default function SettingsPage() {
               onChange={v => handleAlertToggle('sound', v)}
             />
           </div>
-
-          {bothOffWarning && (
-            <div className="mt-5 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs leading-relaxed">
-              Station Screen and Staff Phones are both off — new orders and waiter calls will arrive silently. Turn at least one on so staff are notified.
-            </div>
-          )}
         </section>
       )}
 
