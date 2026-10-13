@@ -118,7 +118,7 @@ function progressPct(iso: string, now: number, maxMin = 15) {
   return Math.min(((now - new Date(iso).getTime()) / 60000 / maxMin) * 100, 100);
 }
 
-function todayDate() {
+function fallbackTodayDate() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -437,6 +437,10 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const ridRef     = useRef<string | null>(null);
   const othersRef  = useRef<Set<number>>(new Set());
   const rtRef      = useRef<ReturnType<typeof db.channel> | null>(null);
+  const restaurantTimezoneRef = useRef<string>('Africa/Lagos');
+  type DayWindow = { starts_at: string; ends_at: string; assigned_date: string };
+  const windowRef  = useRef<DayWindow | null>(null);
+  const [dayWindow, setDayWindow] = useState<DayWindow | null>(null);
 
   // 1-second tick for live timers
   useEffect(() => {
@@ -464,11 +468,26 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   async function loadAssignments(rid: string) {
     const { data: { user } } = await db.auth.getUser();
     if (!user) return;
+
+    // Fetch server-authoritative business day window.
+    const { data: winRows } = await db.rpc('business_day_window', { p_restaurant_id: rid });
+    const rawWin = Array.isArray(winRows) && winRows[0] ? winRows[0] as { starts_at: string; ends_at: string } : null;
+    let assigned_date: string;
+    if (rawWin) {
+      const tz = restaurantTimezoneRef.current;
+      assigned_date = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(rawWin.starts_at));
+      const newWin: DayWindow = { starts_at: rawWin.starts_at, ends_at: rawWin.ends_at, assigned_date };
+      windowRef.current = newWin;
+      setDayWindow(newWin);
+    } else {
+      assigned_date = fallbackTodayDate();
+    }
+
     const { data } = await db
       .from('shift_assignments')
       .select('waiter_id, tables(table_number)')
       .eq('restaurant_id', rid)
-      .eq('assigned_date', todayDate());
+      .eq('assigned_date', assigned_date);
     const my = new Set<number>(), others = new Set<number>();
     (data || []).forEach((a: any) => {
       const num = a.tables?.table_number;
@@ -642,6 +661,9 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
 
   async function startDashboard(rid: string) {
     ridRef.current = rid;
+    // Seed timezone before loadAssignments derives assigned_date from the window.
+    const { data: tzData } = await db.from('restaurants').select('timezone').eq('id', rid).single();
+    if (tzData?.timezone) restaurantTimezoneRef.current = tzData.timezone;
     await loadAssignments(rid);
     await Promise.all([
       loadProfile(rid),
@@ -678,6 +700,22 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       fetchOrders(rid); fetchCalls(rid); fetchCancelReqs(rid); fetchTabs(rid);
     }, 30000);
     return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
+
+  // Refetch window and day-scoped data when the tab regains visibility.
+  // A waiter's phone stays open overnight; at business_day_start the window
+  // rolls over and the old assignments/dates become stale.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    function onVisible() {
+      if (document.visibilityState !== 'visible') return;
+      const rid = ridRef.current; if (!rid) return;
+      loadAssignments(rid);
+      fetchOrders(rid); fetchCalls(rid); fetchCancelReqs(rid); fetchTabs(rid);
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
 
@@ -1012,13 +1050,19 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     ? `Tables ${[...myTables].sort((a, b) => a - b).join(', ')}`
     : 'No tables assigned';
 
-  const todayStr = new Date().toLocaleDateString('en-NG');
+  // Use the server-authoritative business day window for "today" filtering.
+  // Falls back to device clock locale date if the window hasn't loaded yet.
+  const winStart = dayWindow?.starts_at;
+  const winEnd   = dayWindow?.ends_at;
+  const inWindow = winStart && winEnd
+    ? (iso: string) => iso >= winStart && iso < winEnd
+    : (iso: string) => new Date(iso).toLocaleDateString('en-NG') === new Date().toLocaleDateString('en-NG');
   // Orders I handled today (created by me)
-  const todayOrders = shiftHistory.filter(o => new Date(o.created_at).toLocaleDateString('en-NG') === todayStr);
+  const todayOrders = shiftHistory.filter(o => inWindow(o.created_at));
   const todayActiveOrders = todayOrders.filter(o => o.status !== 'cancelled');
   const todayHandledValue = todayActiveOrders.reduce((s, o) => s + o.total, 0);
   // Orders I settled today (paid_by = me)
-  const todaySettledOrders = settledOrders.filter(o => new Date(o.created_at).toLocaleDateString('en-NG') === todayStr && o.status !== 'cancelled');
+  const todaySettledOrders = settledOrders.filter(o => inWindow(o.created_at) && o.status !== 'cancelled');
   const todayRevenue = todaySettledOrders.reduce((s, o) => s + o.total, 0);
   // Still unpaid: orders I handled that no one has settled yet
   const todayUnpaidOrders = todayActiveOrders.filter(o => !o.is_paid);

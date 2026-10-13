@@ -107,6 +107,11 @@ export default function AnalyticsPage() {
     load(rid);
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
+    function onVisible() {
+      if (document.visibilityState === 'visible') load(rid);
+    }
+    document.addEventListener('visibilitychange', onVisible);
+
     (async () => {
       const { data: { session: _sess } } = await supabase.auth.getSession();
       const _rt = (supabase as any).realtime;
@@ -127,14 +132,26 @@ export default function AnalyticsPage() {
         });
     })();
 
-    return () => { if (channel) supabase.removeChannel(channel); };
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      if (channel) supabase.removeChannel(channel);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurant]);
 
   async function load(restaurantId: string) {
     const supabase = createClient();
-    const todayStr = startOf(new Date());
-    const yesterdayStart = startOf(new Date(Date.now() - 86400000));
+
+    // Get the server-authoritative business day window (respects venue timezone
+    // and business_day_start so the boundary is correct even overnight).
+    const { data: winRows } = await supabase.rpc('business_day_window', { p_restaurant_id: restaurantId });
+    type WinRow = { starts_at: string; ends_at: string };
+    const win = Array.isArray(winRows) && winRows[0] ? winRows[0] as WinRow : null;
+    const winStart = win?.starts_at ?? startOf(new Date());
+    const winEnd   = win?.ends_at   ?? startOf(new Date(Date.now() + 86400000));
+    const yesterdayStart = win
+      ? new Date(new Date(winStart).getTime() - 86400000).toISOString()
+      : startOf(new Date(Date.now() - 86400000));
     const sevenDaysAgo = startOf(new Date(Date.now() - 6 * 86400000));
 
     const [
@@ -148,8 +165,8 @@ export default function AnalyticsPage() {
       { data: voidItems },
     ] = await Promise.all([
       // is_paid and status fetched to split paid/unpaid tiles and exclude cancelled (migration 021)
-      supabase.from('orders').select('total, handled_by, is_paid, status').eq('restaurant_id', restaurantId).gte('created_at', todayStr),
-      supabase.from('orders').select('total, status').eq('restaurant_id', restaurantId).gte('created_at', yesterdayStart).lt('created_at', todayStr),
+      supabase.from('orders').select('total, handled_by, is_paid, status').eq('restaurant_id', restaurantId).gte('created_at', winStart).lt('created_at', winEnd),
+      supabase.from('orders').select('total, status').eq('restaurant_id', restaurantId).gte('created_at', yesterdayStart).lt('created_at', winStart),
       // is_paid and status needed so totalRevenue counts paid non-cancelled orders only
       supabase.from('orders').select('total, is_paid, status', { count: 'exact' }).eq('restaurant_id', restaurantId),
       supabase.from('order_items').select('item_name, quantity, price, orders!inner(restaurant_id)').eq('orders.restaurant_id', restaurantId),
@@ -162,7 +179,8 @@ export default function AnalyticsPage() {
         .select('id, item_name, quantity, price, void_reason, voided_while_served, voided_at, voided_by, orders!inner(restaurant_id)')
         .eq('orders.restaurant_id', restaurantId)
         .eq('item_status', 'voided')
-        .gte('voided_at', todayStr)
+        .gte('voided_at', winStart)
+        .lt('voided_at', winEnd)
         .order('voided_at', { ascending: false }),
     ]);
 

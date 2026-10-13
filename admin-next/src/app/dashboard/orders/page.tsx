@@ -155,6 +155,14 @@ export default function OrdersPage() {
 
   const load = useCallback(async (restaurantId: string) => {
     const supabase = createClient();
+
+    // Fetch server-authoritative business day window first.
+    const { data: winRows } = await supabase.rpc('business_day_window', { p_restaurant_id: restaurantId });
+    type WinRow = { starts_at: string; ends_at: string };
+    const win = Array.isArray(winRows) && winRows[0] ? winRows[0] as WinRow : null;
+    const winStart = win?.starts_at ?? startOfToday();
+    const winEnd   = win?.ends_at   ?? new Date(Date.now() + 86400000).toISOString();
+
     const [
       { data: orderData },
       { data: staffData },
@@ -166,7 +174,8 @@ export default function OrdersPage() {
         .from('orders')
         .select(ORDER_SELECT)
         .eq('restaurant_id', restaurantId)
-        .gte('created_at', startOfToday())
+        .gte('created_at', winStart)
+        .lt('created_at', winEnd)
         .order('created_at', { ascending: false }),
       supabase
         .from('staff')
@@ -233,6 +242,11 @@ export default function OrdersPage() {
     load(rid);
     const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    function onVisible() {
+      if (document.visibilityState === 'visible') load(rid);
+    }
+    document.addEventListener('visibilitychange', onVisible);
 
     (async () => {
       const { data: { session: _sess } } = await supabase.auth.getSession();
@@ -307,7 +321,10 @@ export default function OrdersPage() {
         });
     })();
 
-    return () => { if (channel) supabase.removeChannel(channel); };
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [restaurant, load]);
 
   async function advanceStatus(order: Order) {

@@ -10,7 +10,7 @@ type Table = { id: string; table_number: number; label: string; restaurant_id: s
 type Waiter = { id: string; name: string };
 type Assignment = { table_id: string; waiter_id: string; waiter_name: string };
 
-function todayDate() {
+function fallbackDate() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -20,6 +20,7 @@ export default function TablesPage() {
   const [tables, setTables] = useState<Table[]>([]);
   const [waiters, setWaiters] = useState<Waiter[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [assignedDate, setAssignedDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [tableNumber, setTableNumber] = useState('');
@@ -27,9 +28,17 @@ export default function TablesPage() {
   const [addError, setAddError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async (restaurantId: string) => {
+  const load = useCallback(async (restaurantId: string, tz: string) => {
     const supabase = createClient();
-    const today = todayDate();
+
+    // Fetch server-authoritative business day window.
+    const { data: winRows } = await supabase.rpc('business_day_window', { p_restaurant_id: restaurantId });
+    type WinRow = { starts_at: string; ends_at: string };
+    const win = Array.isArray(winRows) && winRows[0] ? winRows[0] as WinRow : null;
+    const today = win
+      ? new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(win.starts_at))
+      : fallbackDate();
+    setAssignedDate(today);
 
     const [{ data: tbls }, { data: asgn }, { data: wtr }] = await Promise.all([
       supabase.from('tables').select('*').eq('restaurant_id', restaurantId).order('table_number'),
@@ -54,13 +63,22 @@ export default function TablesPage() {
 
   useEffect(() => {
     if (!restaurant) return;
-    load(restaurant.id);
+    const rid = restaurant.id;
+    const tz = restaurant.timezone ?? 'Africa/Lagos';
+    load(rid, tz);
+
+    function onVisible() {
+      if (document.visibilityState === 'visible') load(rid, tz);
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [restaurant, load]);
 
   async function handleAssign(tableId: string, waiterId: string) {
     if (!restaurant) return;
     const supabase = createClient();
-    const today = todayDate();
+    const today = assignedDate || fallbackDate();
+    const tz = restaurant.timezone ?? 'Africa/Lagos';
 
     if (!waiterId) {
       await supabase.from('shift_assignments')
@@ -68,7 +86,7 @@ export default function TablesPage() {
         .eq('table_id', tableId)
         .eq('assigned_date', today)
         .eq('restaurant_id', restaurant.id);
-      await load(restaurant.id);
+      await load(restaurant.id, tz);
       return;
     }
 
@@ -89,7 +107,7 @@ export default function TablesPage() {
     }, { onConflict: 'restaurant_id,table_id,assigned_date' });
 
     if (error) { alert('Could not save assignment.'); return; }
-    await load(restaurant.id);
+    await load(restaurant.id, tz);
   }
 
   async function handleDelete(table: Table) {
@@ -97,7 +115,7 @@ export default function TablesPage() {
     const supabase = createClient();
     const { error } = await supabase.from('tables').delete().eq('id', table.id);
     if (error) { alert('Could not delete table.'); return; }
-    await load(restaurant!.id);
+    await load(restaurant!.id, restaurant!.timezone ?? 'Africa/Lagos');
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -124,7 +142,7 @@ export default function TablesPage() {
     setModalOpen(false);
     setTableNumber('');
     setTableLabel('');
-    await load(restaurant.id);
+    await load(restaurant.id, restaurant.timezone ?? 'Africa/Lagos');
   }
 
   if (!restaurant) return null;

@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     await admin.from('signup_attempts').insert({ ip });
 
-    const { restaurant_name, email, password, promo_code } = await req.json();
+    const { restaurant_name, email, password, promo_code, timezone } = await req.json();
 
     if (!restaurant_name?.trim() || !email?.trim() || !password) {
       return new Response(JSON.stringify({ error: 'Restaurant name, email, and password are required.' }), {
@@ -162,6 +162,10 @@ Deno.serve(async (req) => {
       owner_id: userId,
       trial_ends_at: trialEndsAt,
     };
+
+    if (timezone && typeof timezone === 'string' && timezone.trim()) {
+      restaurantRow.timezone = timezone.trim();
+    }
 
     if (promoRow) {
       restaurantRow.plan = promoRow.plan;

@@ -120,6 +120,7 @@ export default function SignupPage() {
           restaurant_name: restaurantName.trim(),
           email: email.trim(),
           password,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
       const result = await res.json();

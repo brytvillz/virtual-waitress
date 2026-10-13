@@ -12,6 +12,7 @@ const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000; // 8 hours
 type Restaurant = {
   id: string; name: string; slug: string; plan: string;
   plan_status: string | null; plan_expires_at: string | null; trial_ends_at: string | null;
+  timezone: string | null;
 } | null;
 
 function getTrialStatus(r: NonNullable<Restaurant>) {

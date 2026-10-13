@@ -17,12 +17,12 @@ type StaffMember = {
 
 type WaiterStats = { orders: number; revenue: number };
 
-function todayDate() {
+function fallbackDate() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function startOfToday() {
+function fallbackStartOfDay() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d.toISOString();
@@ -48,9 +48,18 @@ export default function StaffPage() {
   const [creating, setCreating] = useState(false);
   const [newWaiter, setNewWaiter] = useState<{ name: string; access_code: string } | null>(null);
 
-  const load = useCallback(async (restaurantId: string) => {
+  const load = useCallback(async (restaurantId: string, tz: string) => {
     const supabase = createClient();
-    const today = todayDate();
+
+    // Fetch server-authoritative business day window.
+    const { data: winRows } = await supabase.rpc('business_day_window', { p_restaurant_id: restaurantId });
+    type WinRow = { starts_at: string; ends_at: string };
+    const win = Array.isArray(winRows) && winRows[0] ? winRows[0] as WinRow : null;
+    const today = win
+      ? new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(win.starts_at))
+      : fallbackDate();
+    const winStart = win?.starts_at ?? fallbackStartOfDay();
+    const winEnd   = win?.ends_at   ?? new Date(Date.now() + 86400000).toISOString();
 
     const [{ data: staffList }, { data: assignments }, { data: orders }] = await Promise.all([
       supabase.from('staff').select('*').eq('restaurant_id', restaurantId).order('name'),
@@ -63,7 +72,8 @@ export default function StaffPage() {
         .from('orders')
         .select('handled_by, total')
         .eq('restaurant_id', restaurantId)
-        .gte('created_at', startOfToday()),
+        .gte('created_at', winStart)
+        .lt('created_at', winEnd),
     ]);
 
     const tables: Record<string, number[]> = {};
@@ -89,7 +99,15 @@ export default function StaffPage() {
 
   useEffect(() => {
     if (!restaurant) return;
-    load(restaurant.id);
+    const rid = restaurant.id;
+    const tz = restaurant.timezone ?? 'Africa/Lagos';
+    load(rid, tz);
+
+    function onVisible() {
+      if (document.visibilityState === 'visible') load(rid, tz);
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [restaurant, load]);
 
   async function handleCreate(e: React.FormEvent) {
@@ -120,7 +138,7 @@ export default function StaffPage() {
       setNewWaiter({ name: result.staff.name, access_code: result.staff.access_code });
       setModalOpen(false);
       setWaiterName('');
-      await load(restaurant.id);
+      await load(restaurant.id, restaurant.timezone ?? 'Africa/Lagos');
     } catch (err) {
       setAddError((err as Error).message || 'Something went wrong. Try again.');
     } finally {
@@ -139,14 +157,14 @@ export default function StaffPage() {
     if (!newCode) { alert('Could not generate a unique code — try again.'); return; }
     const { error } = await supabase.from('staff').update({ access_code: newCode }).eq('id', staffId);
     if (error) { alert('Failed to update code.'); return; }
-    await load(restaurant!.id);
+    await load(restaurant!.id, restaurant!.timezone ?? 'Africa/Lagos');
   }
 
   async function handleRemove(member: StaffMember) {
     if (!confirm(`Remove ${member.name}? Their code will stop working. Order history is kept.`)) return;
     const supabase = createClient();
     await supabase.from('staff').update({ access_code: null }).eq('id', member.id);
-    await load(restaurant!.id);
+    await load(restaurant!.id, restaurant!.timezone ?? 'Africa/Lagos');
   }
 
   if (!restaurant) return null;

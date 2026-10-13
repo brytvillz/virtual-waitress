@@ -27,6 +27,8 @@
  *   i) An order cannot be inserted onto a closed tab
  *   j) A direct PATCH setting tab_id is refused outside move_order_to_tab
  *   k) A settled tab cannot be settled again
+ *   l) A tab whose orders were all individually paid can still be closed
+ *   m) A payment recorded from the admin side has a non-null paid_by
  *
  * Cleanup: all live test orders are cancelled via cancel_order() and all
  * test tabs are voided via void_tab(). Zero-total stub orders cannot be
@@ -656,20 +658,89 @@ async function main() {
   console.log();
 
   // ══════════════════════════════════════════════════════════════════════════════
+  // SETUP — Tab LM for tests l and m
+  // ══════════════════════════════════════════════════════════════════════════════
+  let tabLM = null;
+  let orderLM = null;
+
+  {
+    const rLM = await rpc('open_tab', { p_restaurant_id: restaurantId, p_client_tab_id: null }, waiterAToken);
+    tabLM = extractUuid(rLM.data);
+    ok('setup: open tab LM (tests l, m)', rLM.ok && !!tabLM, errMsg(rLM.data));
+    if (tabLM) testTabIds.push(tabLM);
+
+    if (tabLM) {
+      orderLM = newOrder(tabLM);
+      testOrderIds.push(orderLM.id);
+      const iLM = await dbInsert('orders', orderLM, waiterAToken);
+      ok('setup: order on tab LM', iLM.ok, errMsg(iLM.data));
+      if (iLM.ok) {
+        // Individually pay the order via owner PATCH (as the admin UI does).
+        // enforce_payment_update trigger sets paid_at and paid_by = auth.uid().
+        const pLM = await dbPatch('orders', { id: `eq.${orderLM.id}` },
+          { is_paid: true, payment_method: 'cash' }, ownerToken);
+        ok('setup: individually pay order LM via owner PATCH', pLM.ok, errMsg(pLM.data));
+      }
+    }
+  }
+  console.log();
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // TEST L — Tab with all orders individually paid can still be closed
+  // ══════════════════════════════════════════════════════════════════════════════
+  console.log('l) Tab with all orders individually paid can still be closed via settle_tab');
+
+  if (tabLM && orderLM) {
+    const settleL = await rpc('settle_tab',
+      { p_tab_id: tabLM, p_payment_method: 'cash' }, waiterAToken);
+    ok('l-1: settle succeeds even though all orders are already paid', settleL.ok, errMsg(settleL.data));
+
+    const tabLResp = await dbSelect('tabs', { id: `eq.${tabLM}`, select: 'status' }, ownerToken);
+    ok('l-2: tab is closed', tabLResp.data?.[0]?.status === 'closed',
+      `status: ${tabLResp.data?.[0]?.status}`);
+  } else {
+    ok('l-1: (skipped — setup failed)', false, 'setup failed');
+    ok('l-2: (skipped — setup failed)', false, 'setup failed');
+  }
+  console.log();
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // TEST M — Admin-side payment has non-null paid_by
+  // ══════════════════════════════════════════════════════════════════════════════
+  console.log('m) Admin-side payment records non-null paid_by');
+
+  if (orderLM) {
+    const orderMResp = await dbSelect('orders',
+      { id: `eq.${orderLM.id}`, select: 'is_paid,paid_by,payment_method' }, ownerToken);
+    const mRow = orderMResp.data?.[0];
+    ok('m-1: is_paid is true', mRow?.is_paid === true, `is_paid: ${mRow?.is_paid}`);
+    ok('m-2: paid_by is not null (enforce_payment_update set it)', !!mRow?.paid_by,
+      `paid_by: ${mRow?.paid_by}`);
+    ok('m-3: payment_method is cash', mRow?.payment_method === 'cash',
+      `payment_method: ${mRow?.payment_method}`);
+  } else {
+    ['m-1', 'm-2', 'm-3'].forEach(n => ok(`${n}: (skipped — setup failed)`, false, 'setup failed'));
+  }
+  console.log();
+
+  // ══════════════════════════════════════════════════════════════════════════════
   // CLEANUP
   // ══════════════════════════════════════════════════════════════════════════════
   console.log('Cleaning up...');
 
   // Step 1: Cancel every order that is still live so void_tab can close the tabs.
-  const ordersToCancel = [orderD, orderG, orderH].filter(Boolean);
+  // orderLM is included: if test l failed (settle_tab raised), the order is paid
+  // but the tab is still open; void_tab requires all non-cancelled orders to be
+  // gone first, so cancel it here regardless of test outcome.
+  const ordersToCancel = [orderD, orderG, orderH, orderLM].filter(Boolean);
   for (const order of ordersToCancel) {
     const r = await rpc('cancel_order',
       { p_order_id: order.id, p_reason: 'test cleanup' }, ownerToken);
     if (!r.ok) console.warn(`  WARNING: could not cancel order ${order.id}: ${errMsg(r.data)}`);
   }
 
-  // Step 2: Void all tabs that are still open (tabCK and tabEF are already closed by settle).
-  const tabsToVoid = [tabD, tabG, tabG2, tabH, raceTab1, raceTab2].filter(Boolean);
+  // Step 2: Void all tabs that are still open (tabCK, tabEF, tabLM already closed by settle).
+  const tabsToVoid = [tabD, tabG, tabG2, tabH, raceTab1, raceTab2, tabLM].filter(Boolean);
   for (const tabId of tabsToVoid) {
     const r = await rpc('void_tab',
       { p_tab_id: tabId, p_reason: 'test cleanup' }, ownerToken);

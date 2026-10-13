@@ -12,10 +12,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!user) redirect('/login');
 
   // Load restaurant for this manager
-  const RESTAURANT_FIELDS = 'id, name, slug, plan, plan_status, plan_expires_at, trial_ends_at';
+  const RESTAURANT_FIELDS = 'id, name, slug, plan, plan_status, plan_expires_at, trial_ends_at, timezone';
   type Restaurant = {
     id: string; name: string; slug: string; plan: string;
     plan_status: string | null; plan_expires_at: string | null; trial_ends_at: string | null;
+    timezone: string | null;
   };
   let restaurant: Restaurant | null = null;
 
