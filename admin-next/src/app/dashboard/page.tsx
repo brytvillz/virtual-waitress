@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { orderLabel } from '@/lib/orderLabel';
 import { createClient } from '@/lib/supabase/client';
 import { useRestaurant } from '@/components/DashboardShell';
@@ -73,6 +74,31 @@ export default function AnalyticsPage() {
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [todaysVoids, setTodaysVoids] = useState<VoidEntry[]>([]);
   const [staffNameMap, setStaffNameMap] = useState<Record<string, string>>({});
+  const [customerOrderingEnabled, setCustomerOrderingEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!restaurant) return;
+    const supabase = createClient();
+    supabase
+      .from('restaurants')
+      .select('customer_ordering_enabled')
+      .eq('id', restaurant.id)
+      .single()
+      .then(({ data }) => {
+        setCustomerOrderingEnabled((data as { customer_ordering_enabled?: boolean } | null)?.customer_ordering_enabled ?? true);
+      });
+  }, [restaurant?.id]);
+
+  async function handleOrderingToggle(value: boolean) {
+    if (!restaurant) return;
+    setCustomerOrderingEnabled(value);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('restaurants')
+      .update({ customer_ordering_enabled: value })
+      .eq('id', restaurant.id);
+    if (error) setCustomerOrderingEnabled(!value);
+  }
 
   useEffect(() => {
     if (!restaurant) return;
@@ -232,21 +258,47 @@ export default function AnalyticsPage() {
         </p>
       </div>
 
-      {/* Menu link bar */}
+      {/* Your customer menu card */}
       {restaurant.slug && (() => {
         const menuUrl = `https://app.virtualwaitress.com/${restaurant.slug}/1`;
         return (
-          <div className="bg-[#161616] border border-white/[0.06] rounded-xl px-4 py-3 flex items-center gap-3 mb-8 flex-wrap">
-            <span className="text-[#6B6570] text-xs font-medium shrink-0">Your menu link:</span>
-            <a
-              href={menuUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#9a9098] text-xs hover:text-[#F0EDE8] transition-colors flex-1 truncate"
-            >
-              {menuUrl}
-            </a>
-            <CopyButton text={menuUrl} />
+          <div className="bg-[#161616] border border-white/[0.06] rounded-2xl p-5 mb-6">
+            <h3 className="text-[#F0EDE8] text-sm font-semibold mb-1">Your customer menu</h3>
+            <p className="text-[#6B6570] text-xs mb-4">Customers scan this to see what you sell.</p>
+            <div className="flex items-center gap-3 flex-wrap mb-3">
+              <a
+                href={menuUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#9a9098] text-xs hover:text-[#F0EDE8] transition-colors flex-1 truncate min-w-0"
+              >
+                {menuUrl}
+              </a>
+              <CopyButton text={menuUrl} />
+            </div>
+            <Link href="/dashboard/qr" className="text-[#C41E3A] text-xs hover:underline transition-colors">
+              Print QR codes
+            </Link>
+            {customerOrderingEnabled !== null && (
+              <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-start justify-between gap-4">
+                <p className="text-[#6B6570] text-xs leading-relaxed">
+                  Also let customers order from their phone without calling a waiter. Most bars leave this off.
+                </p>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={customerOrderingEnabled}
+                  onClick={() => handleOrderingToggle(!customerOrderingEnabled)}
+                  className={`relative shrink-0 w-11 h-6 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#C41E3A]/50 ${
+                    customerOrderingEnabled ? 'bg-[#C41E3A]' : 'bg-white/[0.12]'
+                  }`}
+                >
+                  <span className={`block w-5 h-5 rounded-full bg-white shadow-sm transition-transform absolute top-0.5 ${
+                    customerOrderingEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                  }`} />
+                </button>
+              </div>
+            )}
           </div>
         );
       })()}

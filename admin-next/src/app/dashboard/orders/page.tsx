@@ -136,6 +136,7 @@ export default function OrdersPage() {
 
   // Cancellation request state
   const [cancelReqs, setCancelReqs]           = useState<CancellationRequest[]>([]);
+  const [approvedCancelReasons, setApprovedCancelReasons] = useState<Record<string, string>>({});
   const [decidingId, setDecidingId]           = useState<string | null>(null);
   const [decisionError, setDecisionError]     = useState<Record<string, string>>({});
   const [resolvedMsgs, setResolvedMsgs]       = useState<ResolvedMsg[]>([]);
@@ -190,6 +191,17 @@ export default function OrdersPage() {
     setStaff((staffData ?? []) as Staff[]);
     setCancelReqs((cancelData ?? []) as CancellationRequest[]);
     setOpenTabs((tabData ?? []) as unknown as TabRow[]);
+
+    const { data: approvedReqs } = await supabase
+      .from('cancellation_requests')
+      .select('order_id, reason')
+      .eq('restaurant_id', restaurantId)
+      .eq('status', 'approved');
+    const reasonsMap: Record<string, string> = {};
+    for (const r of approvedReqs ?? []) {
+      if (r.order_id && r.reason) reasonsMap[r.order_id] = r.reason;
+    }
+    setApprovedCancelReasons(reasonsMap);
 
     if (user) {
       const { data: ownerRow } = await supabase
@@ -462,7 +474,8 @@ export default function OrdersPage() {
   const orderMap = Object.fromEntries(orders.map(o => [o.id, o]));
 
   const active    = orders.filter(o => o.status === 'pending' || o.status === 'preparing');
-  const completed = orders.filter(o => o.status === 'served' || o.status === 'cancelled');
+  const completed = orders.filter(o => o.status === 'served');
+  const cancelled = orders.filter(o => o.status === 'cancelled');
 
   const sharedCardProps = (order: Order) => ({
     order,
@@ -805,6 +818,25 @@ export default function OrdersPage() {
             </>
           )}
 
+          {/* ── Cancelled Today ───────────────────────────────────────────── */}
+          {cancelled.length > 0 && (
+            <>
+              <h2 className="text-[#6B6570] text-xs font-semibold uppercase tracking-wider mb-3 mt-5">
+                Cancelled today
+              </h2>
+              <div className="flex flex-col gap-2">
+                {cancelled.map(order => (
+                  <OrderCard
+                    key={order.id}
+                    {...sharedCardProps(order)}
+                    compact
+                    cancelReason={approvedCancelReasons[order.id]}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
           {orders.length === 0 && (
             <p className="text-[#4a4a4a] text-sm text-center py-8">No orders yet. When your waiter sends one from his phone, it appears here straight away.</p>
           )}
@@ -917,6 +949,7 @@ type CardProps = {
   advancing?: boolean;
   tick?: number;
   compact?: boolean;
+  cancelReason?: string;
   canManagePayments: boolean;
   isPayingThis: boolean;
   payingError: string | null;
@@ -948,6 +981,7 @@ function OrderCard({
   advancing,
   tick: _tick,
   compact,
+  cancelReason,
   canManagePayments,
   isPayingThis,
   payingError,
@@ -1031,6 +1065,11 @@ function OrderCard({
           <span className="text-[#6B6570] text-xs shrink-0">{timeAgo(order.created_at)}</span>
           <span className="text-[#9a9098] text-sm font-semibold shrink-0">{fmt(order.total)}</span>
         </div>
+        {isCancelled && cancelReason && (
+          <div className="px-4 pb-2.5 border-t border-white/[0.04] pt-2">
+            <p className="text-[#6B6570] text-xs">Reason: {cancelReason}</p>
+          </div>
+        )}
         {!isCancelled && (
           <div className="px-4 pb-3 border-t border-white/[0.04] pt-2.5 space-y-2">
             {paymentRow}

@@ -94,8 +94,6 @@ export default function SignupPage() {
 
   // Derived
   const slug    = toSlug(restaurantName);
-  const urlShow = slug ? `app.virtualwaitress.com/${slug}/1` : '';
-
   // Resend countdown
   useEffect(() => {
     if (resendCd <= 0) return;
@@ -298,12 +296,6 @@ export default function SignupPage() {
                     required
                     className="bg-[#1f1f1f] border border-white/[0.08] rounded-xl px-4 py-3 text-[#F0EDE8] text-sm placeholder-[#4a4a4a] outline-none focus:border-[#C41E3A]/50 transition-colors"
                   />
-                  {urlShow && (
-                    <p className="text-[#10b981] text-xs mt-0.5">app.virtualwaitress.com/{slug}</p>
-                  )}
-                  {!urlShow && (
-                    <p className="text-[#4a4a4a] text-xs mt-0.5">Your menu URL will appear here</p>
-                  )}
                 </div>
 
                 {/* Email */}

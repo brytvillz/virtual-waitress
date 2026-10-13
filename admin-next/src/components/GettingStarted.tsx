@@ -24,7 +24,6 @@ export default function GettingStarted({
   const [hasItems, setHasItems]       = useState(false);
   const [hasStaff, setHasStaff]       = useState(false);
   const [hasOrders, setHasOrders]     = useState(false);
-  const [optionalOpen, setOptionalOpen] = useState(false);
 
   const dismissKey = `vw_checklist_dismissed_${restaurantId}`;
 
@@ -180,36 +179,6 @@ export default function GettingStarted({
         ))}
       </div>
 
-      {/* Optional self-ordering card */}
-      <div className="mt-4 border-t border-white/[0.06] pt-4">
-        <button
-          onClick={() => setOptionalOpen(v => !v)}
-          className="flex items-center justify-between w-full text-left group"
-        >
-          <span className="text-[#6B6570] text-xs font-medium">Let customers order themselves (optional)</span>
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4a4a4a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            className={`shrink-0 transition-transform ${optionalOpen ? 'rotate-180' : ''}`}
-          >
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
-        </button>
-        {optionalOpen && (
-          <div className="mt-3">
-            <p className="text-[#6B6570] text-xs leading-relaxed mb-3">
-              If you want customers to scan a code and order without calling a waiter, set that up here. Most bars start without it.
-            </p>
-            <div className="flex gap-4">
-              <Link href="/dashboard/settings" className="text-[#C41E3A] text-xs hover:underline transition-colors">
-                Customer ordering
-              </Link>
-              <Link href="/dashboard/qr" className="text-[#C41E3A] text-xs hover:underline transition-colors">
-                QR codes
-              </Link>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
