@@ -167,10 +167,10 @@ function sanitiseSettleError(msg: string): string {
     return "No connection. Tap to try again.";
   }
   if (msg.includes('pending cancellation')) {
-    return 'One or more orders on this tab have a pending cancellation. A manager must decide those first before the tab can be settled.';
+    return 'One or more orders on this tab have a pending cancellation. A manager must decide those first before the tab can be paid.';
   }
   if (msg.includes('may settle it')) {
-    return 'Only the waiter who opened this tab, or a manager, can settle it.';
+    return 'Only the waiter who opened this tab, or a manager, can close it.';
   }
   return msg;
 }
@@ -891,7 +891,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       closeTabDetail();
       const rid = ridRef.current;
       if (rid) fetchTabs(rid);
-      addToast({ type: 'order', label: 'Tab settled', body: `${tabLabel} settled · ${PAYMENT_LABELS[method]}` });
+      addToast({ type: 'order', label: 'Tab paid', body: `${tabLabel} paid · ${PAYMENT_LABELS[method]}` });
     } catch {
       setSettleError("No connection. Tap to try again.");
     } finally {
@@ -1062,7 +1062,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const todayActiveOrders = todayOrders.filter(o => o.status !== 'cancelled');
   const todayHandledValue = todayActiveOrders.reduce((s, o) => s + o.total, 0);
   // Orders I settled today (paid_by = me)
-  const todaySettledOrders = settledOrders.filter(o => inWindow(o.created_at) && o.status !== 'cancelled');
+  const todaySettledOrders = settledOrders.filter(o => o.paid_at && inWindow(o.paid_at) && o.status !== 'cancelled');
   const todayRevenue = todaySettledOrders.reduce((s, o) => s + o.total, 0);
   // Still unpaid: orders I handled that no one has settled yet
   const todayUnpaidOrders = todayActiveOrders.filter(o => !o.is_paid);
@@ -1453,7 +1453,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                               {isVoided ? (
                                 <span className="w-item-void-meta">
                                   <span className={`w-void-badge${item.voided_while_served ? ' after-served' : ''}`}>
-                                    {item.voided_while_served ? 'voided after serving' : 'voided'}
+                                    {item.voided_while_served ? 'removed after serving' : 'removed'}
                                   </span>
                                   {item.void_reason && (
                                     <span className="w-void-reason-text">{item.void_reason}</span>
@@ -1471,7 +1471,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                                         setVoidError(null);
                                       }}
                                     >
-                                      Void
+                                      Remove item
                                     </button>
                                   )}
                                 </>
@@ -1509,11 +1509,11 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                   </button>
                   {canSettle ? (
                     <button className="w-action-btn primary" onClick={startSettle}>
-                      Settle
+                      Mark tab paid
                     </button>
                   ) : (
                     <div className="w-settle-readonly">
-                      <span className="w-settle-readonly-hint">Only {openerName} or a manager can settle this tab</span>
+                      <span className="w-settle-readonly-hint">Only {openerName} or a manager can close this tab</span>
                     </div>
                   )}
                 </div>
@@ -1566,7 +1566,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-white.svg" alt="Virtual Waitress" className="w-topbar-logo" />
           <span className="w-topbar-name">{staffName || 'Staff Dashboard'}</span>
-          <span className="w-topbar-table">{tableBadge}</span>
+          {myTables.size > 0 && <span className="w-topbar-table">{tableBadge}</span>}
         </div>
         <div className="w-topbar-right">
           <button className="w-icon-btn" onClick={handleRefresh} title="Refresh">
@@ -1722,14 +1722,14 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                             onClick={() => setPayingOrderId(order.id)}
                             disabled={hasPending}
                           >
-                            Mark Paid
+                            Mark paid
                           </button>
                         )}
                         <button
                           className={`w-action-btn ${order.is_paid ? 'primary' : 'secondary'}`}
-                          onClick={() => updateOrderStatus(order.id, isPreparing ? 'served' : 'preparing')}
+                          onClick={() => updateOrderStatus(order.id, 'served')}
                         >
-                          {isPreparing ? 'Mark Served' : 'Start Preparing'}
+                          Mark served
                         </button>
                       </div>
                     )}
@@ -1776,7 +1776,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                           className="w-cancel-req-btn"
                           onClick={() => openCancelPicker(order.id)}
                         >
-                          Request cancellation
+                          Ask manager to cancel
                         </button>
                       )}
                     </div>
@@ -1859,21 +1859,21 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
 
           <div className="w-shift-stats">
             <div className="w-stat-chip">
-              <div className="w-stat-label">Orders handled</div>
+              <div className="w-stat-label">Orders I took</div>
               <div className="w-stat-value">{todayActiveOrders.length}</div>
               <div className="w-stat-sub">{fmt(todayHandledValue)} value</div>
             </div>
             <div className="w-stat-chip">
-              <div className="w-stat-label">I collected</div>
+              <div className="w-stat-label">Money I collected</div>
               <div className="w-stat-value accent">{fmt(todayRevenue)}</div>
               {todaySettledOrders.length > 0 && (
                 <div className="w-stat-sub">{todaySettledOrders.length} order{todaySettledOrders.length !== 1 ? 's' : ''}</div>
               )}
             </div>
             <div className="w-stat-chip">
-              <div className="w-stat-label">Still Unpaid</div>
-              <div className={`w-stat-value${todayUnpaidOrders.length > 0 ? ' amber' : ''}`}>
-                {todayUnpaidOrders.length > 0 ? fmt(todayUnpaidRevenue) : '—'}
+              <div className="w-stat-label">Not yet paid</div>
+              <div className="w-stat-value">
+                {fmt(todayUnpaidRevenue)}
               </div>
               {todayUnpaidOrders.length > 0 && (
                 <div className="w-stat-sub">{todayUnpaidOrders.length} order{todayUnpaidOrders.length !== 1 ? 's' : ''}</div>
@@ -1928,7 +1928,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                                   className="w-action-btn pay"
                                   onClick={() => setPayingOrderId(order.id)}
                                 >
-                                  Mark Paid
+                                  Mark paid
                                 </button>
                               </div>
                             )}

@@ -56,13 +56,13 @@ const STATUS_META: Record<string, { label: string; dot: string; card: string }> 
 };
 
 const NEXT_STATUS: Partial<Record<string, string>> = {
-  pending:   'preparing',
+  pending:   'served',
   preparing: 'served',
 };
 
 const NEXT_LABEL: Partial<Record<string, string>> = {
-  pending:   'Start preparing',
-  preparing: 'Mark as served',
+  pending:   'Mark served',
+  preparing: 'Mark served',
 };
 
 const CANCEL_REASONS = [
@@ -141,6 +141,9 @@ export default function OrdersPage() {
   const [decisionError, setDecisionError]     = useState<Record<string, string>>({});
   const [resolvedMsgs, setResolvedMsgs]       = useState<ResolvedMsg[]>([]);
   const { decrement: decrementCancelCount }   = useCancelCount();
+  // paid-before-cancel: map order_id → { method, reason } (from order_history)
+  const [paidBeforeCancel, setPaidBeforeCancel] = useState<Record<string, { method: string; reason: string }>>({});
+
   // Cancel-order state (manager/owner direct cancel on a card)
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
   const [cancelStep, setCancelStep]           = useState<'pick' | 'other'>('pick');
@@ -211,6 +214,38 @@ export default function OrdersPage() {
       if (r.order_id && r.reason) reasonsMap[r.order_id] = r.reason;
     }
     setApprovedCancelReasons(reasonsMap);
+
+    // Query order_history to find orders that were paid before being cancelled,
+    // and the reason the cancellation was approved.
+    const cancelledIds = (orderData ?? [])
+      .filter((o: { status: string }) => o.status === 'cancelled')
+      .map((o: { id: string }) => o.id);
+    if (cancelledIds.length > 0) {
+      const { data: histRows } = await supabase
+        .from('order_history')
+        .select('order_id, change_type, field, old_value, new_value')
+        .in('order_id', cancelledIds)
+        .in('change_type', ['payment', 'cancellation']);
+      const wasPayedSet = new Set<string>();
+      const methodMap: Record<string, string> = {};
+      const cancelReasonMap: Record<string, string> = {};
+      for (const row of histRows ?? []) {
+        if (row.change_type === 'payment') {
+          if (row.field === 'is_paid' && row.old_value === 'true') wasPayedSet.add(row.order_id);
+          if (row.field === 'payment_method' && row.old_value) methodMap[row.order_id] = row.old_value;
+        }
+        if (row.change_type === 'cancellation' && row.field === 'reason' && row.new_value) {
+          cancelReasonMap[row.order_id] = row.new_value;
+        }
+      }
+      const paidMap: Record<string, { method: string; reason: string }> = {};
+      for (const id of wasPayedSet) {
+        paidMap[id] = { method: methodMap[id] ?? '', reason: cancelReasonMap[id] ?? '' };
+      }
+      setPaidBeforeCancel(paidMap);
+    } else {
+      setPaidBeforeCancel({});
+    }
 
     if (user) {
       const { data: ownerRow } = await supabase
@@ -669,14 +704,14 @@ export default function OrdersPage() {
                                   onClick={() => { setSettleTabId(tab.id); setSettleError(null); }}
                                   className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 border border-emerald-600/25 transition-colors"
                                 >
-                                  Settle tab
+                                  Mark tab paid
                                 </button>
                                 {canManagePayments && (
                                   <button
                                     onClick={() => { setVoidTabId(tab.id); setVoidReason(''); setVoidError(null); }}
                                     className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#ff6b6b]/10 hover:bg-[#ff6b6b]/20 text-[#ff6b6b] border border-[#ff6b6b]/20 transition-colors"
                                   >
-                                    Void tab
+                                    Cancel whole tab
                                   </button>
                                 )}
                               </div>
@@ -848,6 +883,7 @@ export default function OrdersPage() {
                     {...sharedCardProps(order)}
                     compact
                     cancelReason={approvedCancelReasons[order.id]}
+                    paidBeforeCancel={paidBeforeCancel[order.id]}
                   />
                 ))}
               </div>
@@ -916,7 +952,7 @@ function CancellationRequestCard({
           disabled={isDeciding}
           className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-[#ff6b6b]/15 hover:bg-[#ff6b6b]/25 text-[#ff6b6b] border border-[#ff6b6b]/25 hover:border-[#ff6b6b]/40 transition-colors disabled:opacity-50"
         >
-          {isDeciding ? 'Processing…' : 'Approve — cancel order'}
+          {isDeciding ? 'Processing…' : 'Approve cancellation'}
         </button>
         <button
           onClick={onDecline}
@@ -967,6 +1003,7 @@ type CardProps = {
   tick?: number;
   compact?: boolean;
   cancelReason?: string;
+  paidBeforeCancel?: { method: string; reason: string };
   canManagePayments: boolean;
   isPayingThis: boolean;
   payingError: string | null;
@@ -999,6 +1036,7 @@ function OrderCard({
   tick: _tick,
   compact,
   cancelReason,
+  paidBeforeCancel,
   canManagePayments,
   isPayingThis,
   payingError,
@@ -1037,7 +1075,7 @@ function OrderCard({
             onClick={onStartPayment}
             className="text-sm font-semibold bg-emerald-600/15 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-600/25 hover:border-emerald-500/50 px-4 py-2.5 rounded-xl transition-colors"
           >
-            Record payment
+            Mark paid
           </button>
         )}
         {order.is_paid && canManagePayments && !isConfirmingUnpaid && (
@@ -1082,9 +1120,16 @@ function OrderCard({
           <span className="text-[#6B6570] text-xs shrink-0">{timeAgo(order.created_at)}</span>
           <span className="text-[#9a9098] text-sm font-semibold shrink-0">{fmt(order.total)}</span>
         </div>
-        {isCancelled && cancelReason && (
-          <div className="px-4 pb-2.5 border-t border-white/[0.04] pt-2">
-            <p className="text-[#6B6570] text-xs">Reason: {cancelReason}</p>
+        {isCancelled && (cancelReason || paidBeforeCancel) && (
+          <div className="px-4 pb-2.5 border-t border-white/[0.04] pt-2 space-y-1">
+            {cancelReason && (
+              <p className="text-[#6B6570] text-xs">Reason: {cancelReason}</p>
+            )}
+            {paidBeforeCancel && (
+              <p className="text-emerald-400 text-xs">
+                Collected before cancellation · {PAYMENT_LABELS[paidBeforeCancel.method] ?? paidBeforeCancel.method} · {fmt(order.total)}{paidBeforeCancel.reason ? ` · ${paidBeforeCancel.reason}` : ''}
+              </p>
+            )}
           </div>
         )}
         {!isCancelled && (
@@ -1190,7 +1235,7 @@ function OrderCard({
               onClick={onStartCancel}
               className="text-xs text-[#4a4a4a] hover:text-[#ff6b6b] transition-colors"
             >
-              Cancel this order
+              Cancel order
             </button>
           )}
         </div>

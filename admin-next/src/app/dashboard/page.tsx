@@ -334,7 +334,7 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
             {/* Paid today — sum of is_paid=true, status != cancelled */}
             <KpiCard
-              label="Paid Today"
+              label="Paid today"
               value={fmt(paidTodayRevenue)}
               sub={`${paidTodayCount} order${paidTodayCount !== 1 ? 's' : ''}`}
               accent
@@ -346,12 +346,12 @@ export default function AnalyticsPage() {
               sub={`${unpaidTodayCount} order${unpaidTodayCount !== 1 ? 's' : ''}`}
             />
             <KpiCard
-              label="7-Day Revenue"
+              label="7-day revenue"
               value={fmt(totalRevLast7)}
               sub={`${totalOrdersLast7} orders`}
             />
             <KpiCard
-              label="All-Time Orders"
+              label="All-time orders"
               value={totalOrders.toLocaleString()}
               sub={fmt(totalRevenue) + ' total'}
             />
@@ -470,9 +470,9 @@ export default function AnalyticsPage() {
           {todaysVoids.length > 0 && (
             <div className="bg-[#161616] border border-red-500/10 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[#F0EDE8] text-sm font-semibold">Voids today</h2>
+                <h2 className="text-[#F0EDE8] text-sm font-semibold">Items removed today</h2>
                 <span className="text-[#6B6570] text-xs">
-                  {todaysVoids.length} void{todaysVoids.length !== 1 ? 's' : ''} · {fmt(todaysVoids.reduce((s, v) => s + v.quantity * v.price, 0))} removed
+                  {todaysVoids.length} item{todaysVoids.length !== 1 ? 's' : ''} · {fmt(todaysVoids.reduce((s, v) => s + v.quantity * v.price, 0))} removed
                 </span>
               </div>
               <div className="overflow-x-auto -mx-1">
