@@ -5,6 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const PILOT_MSG = 'Virtual Waitress is currently in a limited pilot. To request access, message us on WhatsApp: https://wa.me/2347018814381';
+
 function toSlug(name: string): string {
   return name
     .toLowerCase()
@@ -56,6 +58,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Access code is required ───────────────────────────────────────────────
+    if (!promo_code?.trim()) {
+      return new Response(JSON.stringify({ error: PILOT_MSG }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (password.length < 8) {
       return new Response(JSON.stringify({ error: 'Password must be at least 8 characters.' }), {
         status: 400,
@@ -71,11 +81,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Validate promo code (if provided) ────────────────────────────────────
+    // ── Validate access code (required) ──────────────────────────────────────
     type PromoRow = { id: string; plan: string; duration_days: number | null };
     let promoRow: PromoRow | null = null;
 
-    if (promo_code?.trim()) {
+    {
       const code = promo_code.trim().toUpperCase();
       const { data: promo } = await admin
         .from('promo_codes')
@@ -83,23 +93,13 @@ Deno.serve(async (req) => {
         .eq('code', code)
         .maybeSingle();
 
-      if (!promo) {
-        return new Response(JSON.stringify({ error: 'Invalid promo code. Please check and try again.' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
-        return new Response(JSON.stringify({ error: 'This promo code has expired.' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
-        return new Response(JSON.stringify({ error: 'This promo code has already been fully redeemed.' }), {
-          status: 400,
+      if (
+        !promo ||
+        (promo.expires_at && new Date(promo.expires_at) < new Date()) ||
+        (promo.max_uses !== null && promo.uses_count >= promo.max_uses)
+      ) {
+        return new Response(JSON.stringify({ error: PILOT_MSG }), {
+          status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -167,11 +167,10 @@ Deno.serve(async (req) => {
       restaurantRow.timezone = timezone.trim();
     }
 
-    if (promoRow) {
-      restaurantRow.plan = promoRow.plan;
-      restaurantRow.plan_status = 'active';
-      if (planExpiresAt) restaurantRow.plan_expires_at = planExpiresAt;
-    }
+    restaurantRow.plan = promoRow.plan;
+    restaurantRow.plan_status = 'active';
+    restaurantRow.signup_promo_id = promoRow.id;
+    if (planExpiresAt) restaurantRow.plan_expires_at = planExpiresAt;
 
     // ── Create restaurant record ──────────────────────────────────────────────
     const { data: restaurant, error: restaurantError } = await admin
@@ -202,17 +201,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Atomically claim promo (SQL checks limit+expiry before incrementing) ──
-    if (promoRow) {
-      await admin.rpc('claim_promo_uses', { p_promo_id: promoRow.id });
-    }
+    // ── Atomically claim access code (SQL checks limit+expiry before incrementing) ──
+    await admin.rpc('claim_promo_uses', { p_promo_id: promoRow.id });
 
     return new Response(JSON.stringify({
       success: true,
       slug,
       restaurant_id: restaurant.id,
-      promo_applied: !!promoRow,
-      promo_plan: promoRow?.plan ?? null,
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

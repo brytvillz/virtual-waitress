@@ -41,6 +41,12 @@ page and table assignment must disappear from the admin navigation entirely.
 
 ---
 
+## Known gaps — plan before fixing
+
+- **Pro plan expiry drops owner straight to view-only with no warning.** The 2-day grace period and the trial-warning countdown both run off `trial_ends_at`, which is already expired by the time a paid plan runs out. The fix is a second countdown banner driven by `plan_expires_at` — same logic as the `trial-warning` branch in `getTrialStatus`, checking `(plan_expires_at - now) ≤ 7 days`. Pilot codes will use `duration_days = null` (no expiry) so no pilot venue hits this wall.
+
+---
+
 ## Customer menu — plan before changing
 
 - Item descriptions don't show. Ichiban CSV has no description column, so likely no bug; decide whether descriptions are needed.

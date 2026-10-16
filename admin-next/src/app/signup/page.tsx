@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 const SUPABASE_URL     = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+const WA_CONTACT = '+234 701 881 4381';
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function toSlug(name: string) {
   return name.toLowerCase().trim()
@@ -70,6 +72,7 @@ export default function SignupPage() {
   const supabase = createClient();
 
   // Step 1 form state
+  const [accessCode,     setAccessCode]     = useState('');
   const [restaurantName, setRestaurantName] = useState('');
   const [email,          setEmail]          = useState('');
   const [password,       setPassword]       = useState('');
@@ -106,6 +109,7 @@ export default function SignupPage() {
     e.preventDefault();
     setStep1Error('');
 
+    if (!accessCode.trim())     { setStep1Error('Please enter your access code.'); return; }
     if (!restaurantName.trim()) { setStep1Error('Please enter your business name.'); return; }
     if (!email.trim())          { setStep1Error('Please enter your email address.'); return; }
     if (!passStrong(password))  { setStep1Error('Password must meet all requirements below.'); return; }
@@ -120,6 +124,7 @@ export default function SignupPage() {
           restaurant_name: restaurantName.trim(),
           email: email.trim(),
           password,
+          promo_code: accessCode.trim(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
@@ -281,6 +286,27 @@ export default function SignupPage() {
               <p className="text-[#6B6570] text-sm mb-8">Create your free account and go live today.</p>
 
               <form onSubmit={handleSignup} noValidate className="flex flex-col gap-5">
+
+                {/* Access code */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">
+                    Access code
+                  </label>
+                  <input
+                    type="text"
+                    value={accessCode}
+                    onChange={e => setAccessCode(e.target.value)}
+                    placeholder="Enter your access code"
+                    autoComplete="off"
+                    spellCheck={false}
+                    maxLength={40}
+                    required
+                    className="bg-[#1f1f1f] border border-white/[0.08] rounded-xl px-4 py-3 text-[#F0EDE8] text-sm placeholder-[#4a4a4a] outline-none focus:border-[#C41E3A]/50 transition-colors font-mono tracking-widest uppercase"
+                  />
+                  <p className="text-[#4a4a4a] text-xs leading-snug">
+                    Virtual Waitress is in a limited pilot. Message us on WhatsApp ({WA_CONTACT}) if you need a code.
+                  </p>
+                </div>
 
                 {/* Restaurant name */}
                 <div className="flex flex-col gap-1.5">
