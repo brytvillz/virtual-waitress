@@ -103,7 +103,7 @@ export default function ItemModal({ item, categoryId: _categoryId, categoryName,
         price: Number(price),
         description: description.trim(),
         ada_message: adaMessage.trim(),
-        station: station ?? 'bar',
+        station: station,
         file,
         removeImage,
       });
@@ -237,6 +237,28 @@ export default function ItemModal({ item, categoryId: _categoryId, categoryName,
               className="bg-[#111] border border-white/[0.08] rounded-xl px-4 py-3 text-[#F0EDE8] text-sm placeholder-[#4a4a4a] outline-none focus:border-[#C41E3A]/50 transition-colors resize-none"
             />
           </label>
+
+          {/* Station picker */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[#9a9098] text-xs font-medium uppercase tracking-wider">Station</span>
+            <span className="text-[#4a4a4a] text-xs -mt-0.5">Where this item is prepared</span>
+            <div className="flex gap-2">
+              {([['bar', 'Bar'], ['kitchen', 'Kitchen'], [null, 'All stations']] as const).map(([val, label]) => (
+                <button
+                  key={String(val)}
+                  type="button"
+                  onClick={() => setStation(val)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                    station === val
+                      ? 'bg-[#C41E3A]/15 border-[#C41E3A]/40 text-[#F0EDE8]'
+                      : 'border-white/[0.08] text-[#6B6570] hover:bg-white/[0.04]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {error && (
             <p className="text-[#ff6b6b] text-sm bg-[#ff6b6b]/10 border border-[#ff6b6b]/20 rounded-xl px-4 py-3">

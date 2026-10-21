@@ -52,6 +52,15 @@ const THEMES = [
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
+type Device = {
+  id: string;
+  name: string;
+  station_type: string;
+  last_seen_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+};
+
 function StatusMsg({ status, errorText }: { status: SaveStatus; errorText: string }) {
   if (status === 'idle') return null;
   if (status === 'saving') return <span className="text-[#6B6570] text-sm">Saving…</span>;
@@ -91,6 +100,14 @@ export default function SettingsPage() {
   const [accountMsg, setAccountMsg] = useState('');
   const [accountIsError, setAccountIsError] = useState(false);
 
+  // Station screens / devices
+  const [devices, setDevices]             = useState<Device[]>([]);
+  const [pairingCode, setPairingCode]     = useState<string | null>(null);
+  const [pairingExpiry, setPairingExpiry] = useState<string | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
+  const [codeError, setCodeError]         = useState('');
+  const [revoking, setRevoking]           = useState<Record<string, boolean>>({});
+
   // Delete account
   const [deleteOpen, setDeleteOpen]       = useState(false);
   const [deleteInput, setDeleteInput]     = useState('');
@@ -99,14 +116,32 @@ export default function SettingsPage() {
 
   const load = useCallback(async (restaurantId: string) => {
     const supabase = createClient();
-    const [{ data }, authResult] = await Promise.all([
+    const [{ data }, authResult, devResult, pcResult] = await Promise.all([
       supabase
         .from('restaurants')
         .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme, alert_staff_phones, alert_sound, owner_id')
         .eq('id', restaurantId)
         .single(),
       supabase.auth.getUser(),
+      supabase
+        .from('devices')
+        .select('id, name, station_type, last_seen_at, revoked_at, created_at')
+        .eq('restaurant_id', restaurantId)
+        .order('created_at'),
+      supabase
+        .from('device_pairing_codes')
+        .select('code, expires_at')
+        .eq('restaurant_id', restaurantId)
+        .is('used_at', null)
+        .gte('expires_at', new Date().toISOString())
+        .maybeSingle(),
     ]);
+
+    setDevices(devResult.data ?? []);
+    if (pcResult.data) {
+      setPairingCode(pcResult.data.code);
+      setPairingExpiry(pcResult.data.expires_at);
+    }
 
     const user = authResult.data.user;
     if (user) setUserEmail(user.email ?? '');
@@ -293,6 +328,47 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleGenerateCode() {
+    if (!restaurant) return;
+    setGeneratingCode(true);
+    setCodeError('');
+    const supabase = createClient();
+    // 32-char alphabet: uppercase A-Z minus I and O; digits 2-9 minus 0 and 1.
+    // Excludes ambiguous glyphs so the barman can read it aloud without confusion.
+    // 32^6 ≈ 1.07 billion combinations.
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    const { error } = await supabase.from('device_pairing_codes').insert({
+      restaurant_id: restaurant.id,
+      code,
+    });
+    if (error) {
+      if (error.code === '23505') {
+        setCodeError('There is already an active pairing code. Use it or wait 10 minutes for it to expire.');
+      } else {
+        setCodeError('Could not generate code — please try again.');
+      }
+    } else {
+      setPairingCode(code);
+      setPairingExpiry(new Date(Date.now() + 10 * 60000).toISOString());
+    }
+    setGeneratingCode(false);
+  }
+
+  async function handleRevoke(deviceId: string) {
+    setRevoking(prev => ({ ...prev, [deviceId]: true }));
+    const supabase = createClient();
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('devices')
+      .update({ revoked_at: now })
+      .eq('id', deviceId);
+    if (!error) {
+      setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, revoked_at: now } : d));
+    }
+    setRevoking(prev => { const n = { ...prev }; delete n[deviceId]; return n; });
+  }
+
   if (!restaurant) return null;
 
   return (
@@ -471,6 +547,82 @@ export default function SettingsPage() {
               onChange={v => handleAlertToggle('sound', v)}
             />
           </div>
+        </section>
+      )}
+
+      {/* ── Station Screens ── */}
+      {canManageAlerts && (
+        <section className="bg-[#161616] border border-white/[0.06] rounded-2xl p-6 mb-6">
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <h2 className="text-[#F0EDE8] text-sm font-semibold">Station Screens</h2>
+              <p className="text-[#4a4a4a] text-xs mt-0.5">Paired bar and kitchen screens</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleGenerateCode}
+              disabled={generatingCode}
+              className="bg-[#C41E3A] hover:bg-[#a01830] disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors"
+            >
+              {generatingCode ? 'Generating…' : 'New pairing code'}
+            </button>
+          </div>
+
+          {pairingCode && pairingExpiry && new Date(pairingExpiry) > new Date() && (
+            <div className="bg-[#111] border border-[#C41E3A]/20 rounded-xl p-4 mb-5">
+              <p className="text-[#9a9098] text-xs mb-2 uppercase tracking-wider font-medium">Pairing code — valid for 10 minutes</p>
+              <p className="text-[#F0EDE8] text-4xl font-black tracking-[0.25em] font-mono text-center py-2">{pairingCode}</p>
+              <p className="text-[#4a4a4a] text-xs text-center mt-1">Enter this code on the bar screen to connect it</p>
+            </div>
+          )}
+
+          {codeError && (
+            <p className="text-amber-400 text-xs bg-amber-400/10 border border-amber-400/20 rounded-xl px-3 py-2 mb-4">
+              {codeError}
+            </p>
+          )}
+
+          {devices.length === 0 ? (
+            <p className="text-[#4a4a4a] text-sm">No screens paired yet.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {devices.map(device => {
+                const isActive = !device.revoked_at;
+                return (
+                  <div
+                    key={device.id}
+                    className="flex items-center justify-between gap-4 px-4 py-3 bg-[#111] rounded-xl border border-white/[0.05]"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-500' : 'bg-[#555]'}`} />
+                        <span className="text-[#c4bec9] text-sm font-medium truncate">{device.name}</span>
+                        <span className="text-[#4a4a4a] text-xs capitalize">{device.station_type}</span>
+                      </div>
+                      {device.last_seen_at && (
+                        <p className="text-[#4a4a4a] text-xs mt-0.5 ml-4">
+                          Last seen {new Date(device.last_seen_at).toLocaleString()}
+                        </p>
+                      )}
+                      {!isActive && (
+                        <p className="text-[#555] text-xs mt-0.5 ml-4">Revoked</p>
+                      )}
+                    </div>
+                    {isActive && (
+                      <button
+                        type="button"
+                        onClick={() => handleRevoke(device.id)}
+                        disabled={!!revoking[device.id]}
+                        className="flex-shrink-0 border border-[#ff6b6b]/30 text-[#ff6b6b] text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#ff6b6b]/10 disabled:opacity-50 transition-colors"
+                      >
+                        {revoking[device.id] ? 'Revoking…' : 'Revoke'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
