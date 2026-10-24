@@ -6,6 +6,7 @@ export type Category = {
   ada_message: string;
   sort_order: number;
   restaurant_id: string;
+  image_url: string | null;
 };
 
 export type MenuItem = {

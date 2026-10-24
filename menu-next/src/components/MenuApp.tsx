@@ -51,7 +51,7 @@ interface MenuItem {
   name: string; price: number; description: string;
   ada: string; available: boolean; image_url: string | null;
 }
-interface MenuCategory { id: string; name: string; emoji: string; items: MenuItem[] }
+interface MenuCategory { id: string; name: string; emoji: string; image_url: string | null; items: MenuItem[] }
 interface RestaurantData {
   name: string; tagline: string; whatsapp: string; accentColor: string;
   cover_image: string | null; plan: string; plan_status: string;
@@ -220,9 +220,10 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         categoryMessages: catMsgs,
       },
       categories: (categories!).map((c: Record<string, unknown>) => ({
-        id:    c.slug as string,
-        name:  c.name as string,
-        emoji: c.emoji as string,
+        id:        c.slug as string,
+        name:      c.name as string,
+        emoji:     c.emoji as string,
+        image_url: (c.image_url as string) || null,
         items: (items!).filter((i: Record<string, unknown>) => i.category_id === c.id).map((i: Record<string, unknown>) => ({
           name:        i.name as string,
           price:       i.price as number,
@@ -654,7 +655,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     return (
       <>
         {categories.filter(c => c.items.length).map(cat => {
-          const catImg = CAT_IMAGES[cat.id] || null;
+          const catImg = cat.image_url || CAT_IMAGES[cat.id] || null;
           return (
             <section key={cat.id} className="mag-section" id={`cat-${cat.id}`} data-cat={cat.id}>
               <div className="mag-cat-banner">
