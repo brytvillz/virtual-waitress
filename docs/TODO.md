@@ -1,5 +1,9 @@
 # TODO
 
+## Before first real venue goes live
+
+- **Session replay decision:** decide whether session replay is wanted for support. If yes: add a clear disclosure to the privacy policy first, then switch it on in `admin-next/sentry.client.config.ts` (and `menu-next` if customer-facing replay is also wanted). Do not enable it before the disclosure is live.
+
 ## Before second customer
 
 - Turn on "Confirm email" in the Supabase dashboard (Authentication → Sign In / Providers → Email)
