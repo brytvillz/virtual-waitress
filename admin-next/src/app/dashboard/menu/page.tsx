@@ -6,6 +6,7 @@ import { useRestaurant } from '@/components/DashboardShell';
 import CategoryModal from '@/components/menu/CategoryModal';
 import ItemModal from '@/components/menu/ItemModal';
 import type { Category, MenuItem } from '@/types/menu';
+import { resizeImage } from '@/lib/image';
 import { fmtNaira } from '@/lib/fmt';
 
 function slugify(name: string) {
@@ -129,15 +130,40 @@ export default function MenuPage() {
     }
   }
 
-  async function saveCategory(data: { name: string; emoji: string; ada_message: string }) {
+  async function saveCategory(data: {
+    name: string; emoji: string; ada_message: string;
+    file: File | null; removeImage: boolean;
+  }) {
     if (!restaurant) return;
     const supabase = createClient();
-    if (categoryModal.open && categoryModal.category) {
-      const { error } = await supabase.from('menu_categories').update(data).eq('id', categoryModal.category.id);
+
+    const payload: Record<string, unknown> = {
+      name: data.name,
+      emoji: data.emoji,
+      ada_message: data.ada_message,
+    };
+
+    const catId = categoryModal.open && categoryModal.category ? categoryModal.category.id : null;
+
+    if (data.file) {
+      const uploadId = catId ?? `cat-${Date.now().toString(36)}`;
+      const path = `categories/${restaurant.id}/${uploadId}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('menu-images')
+        .upload(path, data.file, { upsert: true, contentType: 'image/jpeg' });
+      if (!uploadError) {
+        payload.image_url = supabase.storage.from('menu-images').getPublicUrl(path).data.publicUrl;
+      }
+    } else if (data.removeImage) {
+      payload.image_url = null;
+    }
+
+    if (catId) {
+      const { error } = await supabase.from('menu_categories').update(payload).eq('id', catId);
       if (error) throw new Error(error.message);
     } else {
       const { error } = await supabase.from('menu_categories').insert({
-        ...data,
+        ...payload,
         restaurant_id: restaurant.id,
         slug: slugify(data.name) + '-' + Date.now().toString(36),
         sort_order: categories.length + 1,
@@ -170,10 +196,10 @@ export default function MenuPage() {
     };
 
     if (data.file) {
-      const ext = (data.file.name.split('.').pop() || 'jpg').toLowerCase();
+      const resized = await resizeImage(data.file, 1200, 1200);
       const itemId = itemModal.item?.id ?? Date.now().toString();
-      const path = `${restaurant.id}/${itemId}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('menu-images').upload(path, data.file, { upsert: true });
+      const path = `${restaurant.id}/${itemId}.jpg`;
+      const { error: uploadError } = await supabase.storage.from('menu-images').upload(path, resized, { upsert: true, contentType: 'image/jpeg' });
       if (!uploadError) {
         payload.image_url = supabase.storage.from('menu-images').getPublicUrl(path).data.publicUrl;
       }
