@@ -26,7 +26,6 @@ type RestaurantSettings = {
   whatsapp: string;
   accent_color: string;
   max_tables_per_waiter: number;
-  menu_layout: string;
   menu_theme: string;
 };
 
@@ -75,7 +74,7 @@ export default function SettingsPage() {
   // Restaurant settings state
   const [settings, setSettings] = useState<RestaurantSettings>({
     name: '', tagline: '', whatsapp: '',
-    accent_color: '#C41E3A', max_tables_per_waiter: 3, menu_layout: 'magazine', menu_theme: 'nightlife-dark',
+    accent_color: '#C41E3A', max_tables_per_waiter: 3, menu_theme: 'nightlife-dark',
   });
   const [restStatus, setRestStatus] = useState<SaveStatus>('idle');
   const [restError, setRestError] = useState('');
@@ -119,7 +118,7 @@ export default function SettingsPage() {
     const [{ data }, authResult, devResult, pcResult] = await Promise.all([
       supabase
         .from('restaurants')
-        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_layout, menu_theme, alert_staff_phones, alert_sound, owner_id')
+        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_theme, alert_staff_phones, alert_sound, owner_id')
         .eq('id', restaurantId)
         .single(),
       supabase.auth.getUser(),
@@ -153,7 +152,6 @@ export default function SettingsPage() {
         whatsapp: data.whatsapp ?? '',
         accent_color: data.accent_color ?? '#C41E3A',
         max_tables_per_waiter: data.max_tables_per_waiter ?? 3,
-        menu_layout: data.menu_layout ?? 'magazine',
         menu_theme: data.menu_theme ?? 'nightlife-dark',
       });
 
@@ -196,7 +194,6 @@ export default function SettingsPage() {
       whatsapp: settings.whatsapp,
       accent_color: settings.accent_color,
       max_tables_per_waiter: settings.max_tables_per_waiter,
-      menu_layout: settings.menu_layout,
       menu_theme: settings.menu_theme,
     }).eq('id', restaurant.id);
 
@@ -435,25 +432,6 @@ export default function SettingsPage() {
               onChange={e => setSettings(s => ({ ...s, max_tables_per_waiter: Number(e.target.value) }))}
               className={`${inputCls} w-24`}
             />
-          </Field>
-
-          <Field label="Menu Layout">
-            <div className="flex gap-3">
-              {(['magazine', 'classic'] as const).map(layout => (
-                <button
-                  key={layout}
-                  type="button"
-                  onClick={() => setSettings(s => ({ ...s, menu_layout: layout }))}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors capitalize ${
-                    settings.menu_layout === layout
-                      ? 'bg-[#C41E3A]/15 border-[#C41E3A]/40 text-[#F0EDE8]'
-                      : 'border-white/[0.08] text-[#6B6570] hover:bg-white/[0.04]'
-                  }`}
-                >
-                  {layout}
-                </button>
-              ))}
-            </div>
           </Field>
 
           <div className="flex flex-col gap-2">

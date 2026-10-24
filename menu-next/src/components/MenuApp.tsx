@@ -9,28 +9,6 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL      = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-const CAT_IMAGES: Record<string, string> = {
-  soups: '/images/cat-soups.jpg',
-  swallows: '/images/cat-swallows.jpg',
-  rice: '/images/cat-rice.jpg',
-  grills: '/images/cat-grills.jpg',
-  'small-chops': '/images/cat-small-chops.jpg',
-  drinks: '/images/cat-drinks.jpg',
-};
-
-const CHARACTERS: Record<string, { src: string; name: string; role: string }> = {
-  ada:       { src: '/images/ada.png',       name: 'Ada',        role: 'Friendly & attentive' },
-  chisom:    { src: '/images/chisom.png',    name: 'Chisom',     role: 'Warm & welcoming' },
-  emeka:     { src: '/images/emeka.png',     name: 'Emeka',      role: 'Quick & sharp' },
-  mamachef:  { src: '/images/mamachef.png',  name: 'Mama Chef',  role: 'Knows every dish' },
-  cheftunde: { src: '/images/cheftunde.png', name: 'Chef Tunde', role: 'The grill master' },
-};
-
-const CATEGORY_CHARACTER: Record<string, string> = {
-  soups: 'ada', swallows: 'ada', rice: 'emeka',
-  grills: 'cheftunde', 'small-chops': 'chisom', drinks: 'chisom',
-};
-
 const THEME_ADA: Record<string, string> = {
   'nightlife-dark':   '/images/ada.png',
   'cafe-light':       '/images/chisom.png',
@@ -54,8 +32,8 @@ interface MenuItem {
 interface MenuCategory { id: string; name: string; emoji: string; image_url: string | null; items: MenuItem[] }
 interface RestaurantData {
   name: string; tagline: string; whatsapp: string; accentColor: string;
-  cover_image: string | null; plan: string; plan_status: string;
-  plan_expires_at: string | null; menu_layout: string; menu_theme: string;
+  plan: string; plan_status: string;
+  plan_expires_at: string | null; menu_theme: string;
   customer_ordering_enabled: boolean;
 }
 interface AdaData {
@@ -122,9 +100,9 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
   const [myOrders, setMyOrders]           = useState<MyOrder[]>([]);
   const [myOrdersLoading, setMyOrdersLoading] = useState(false);
 
-  // ── Active category (scroll spy) ──────────────────────────────────────────────
-  const [activeCat, setActiveCat]         = useState('');
-  const navInnerRef                       = useRef<HTMLDivElement>(null);
+  // ── Accordion category ────────────────────────────────────────────────────────
+  const [openCatId, setOpenCatId]         = useState<string | null>(null);
+  const catRefs                           = useRef<Record<string, HTMLDivElement | null>>({});
   const menuDataRef                       = useRef<MenuData | null>(null);
 
   // Stable supabase client
@@ -168,6 +146,19 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     }
   }, [adaSpeak]);
 
+  // ── Accordion toggle ──────────────────────────────────────────────────────────
+
+  const toggleCat = useCallback((id: string) => {
+    setOpenCatId(prev => {
+      if (prev === id) return null;
+      requestAnimationFrame(() => {
+        const el = catRefs.current[id];
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      return id;
+    });
+  }, []);
+
   // ── Side menu open/close ──────────────────────────────────────────────────────
 
   const openCmenu = useCallback(() => {
@@ -204,11 +195,9 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         tagline:         restaurant!.tagline as string,
         whatsapp:        restaurant!.whatsapp as string,
         accentColor:     restaurant!.accent_color as string,
-        cover_image:     (restaurant!.cover_image as string) || null,
         plan:            (restaurant!.plan as string)            || 'free',
         plan_status:     (restaurant!.plan_status as string)     || 'inactive',
         plan_expires_at: (restaurant!.plan_expires_at as string) || null,
-        menu_layout:     (restaurant!.menu_layout as string)     || 'magazine',
         menu_theme:      (restaurant!.menu_theme as string)      || 'nightlife-dark',
         customer_ordering_enabled: (restaurant!.customer_ordering_enabled as boolean) ?? true,
       },
@@ -309,42 +298,6 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Scroll spy + category nav ──────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!menuData) return;
-
-    const observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          if (!entry.isIntersecting) return;
-          const catId = (entry.target as HTMLElement).dataset.cat;
-          if (!catId) return;
-
-          setActiveCat(catId);
-
-          // Scroll active pill into view
-          if (navInnerRef.current) {
-            const pill = navInnerRef.current.querySelector(`[data-cat="${catId}"]`) as HTMLElement | null;
-            if (pill) pill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-          }
-
-          // Change character and have Ada speak
-          const charKey = CATEGORY_CHARACTER[catId] || 'ada';
-          setCharImg(CHARACTERS[charKey]?.src || '/images/ada.png');
-          const msg = menuDataRef.current?.ada?.categoryMessages?.[catId];
-          if (msg) adaSpeak(msg, 5000);
-        });
-      },
-      { threshold: 0.25, rootMargin: '-52px 0px -55% 0px' }
-    );
-
-    const sections = document.querySelectorAll('.mag-section, .classic-section, .vgrid-section');
-    sections.forEach(s => observer.observe(s));
-
-    return () => observer.disconnect();
-  }, [menuData, adaSpeak]);
-
   // ── Scroll hides Ada ───────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -389,7 +342,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
   const handlePlaceOrder = useCallback(async () => {
     const items = Object.entries(orderState);
     if (!items.length) {
-      adaSpeak("Your order is empty! Tap + next to a dish to add it first 😊", 5000);
+      adaSpeak("Your order is empty! Tap Add next to a dish to add it first 😊", 5000);
       resetIdleTimer();
       return;
     }
@@ -507,34 +460,38 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     function run() {
       if (!alive) return;
 
-      const cat1    = categories[0];
-      const cat2    = categories[1] ?? categories[0];
-      const sec1    = () => document.getElementById('cat-' + cat1.id);
-      const sec2    = () => document.getElementById('cat-' + cat2.id);
-      const plusIn  = (sec: Element | null) => sec?.querySelector('.qty-btn.qty-plus') as Element | null;
-      const waiter  = () => document.querySelector('.call-waiter-btn') as Element | null;
+      const cat1 = categories[0];
+      const cat2 = categories[1] ?? categories[0];
 
-      // Scroll to first category — use window.scrollTo to stay inside the iframe
+      const card       = (id: string) => document.getElementById('cat-' + id);
+      const cardHeader = (id: string) => card(id)?.querySelector('.cat-card-header') as Element | null;
+      const addBtn     = (id: string) => card(id)?.querySelector('.add-btn') as Element | null;
+      const plusBtn    = (id: string) => card(id)?.querySelector('.stepper-btn.stepper-plus') as Element | null;
+      const waiter     = () => document.querySelector('.call-waiter-btn') as Element | null;
+
       const scrollTo = (el: Element | null) => {
         if (!el) return;
         window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 72, behavior: 'smooth' });
       };
-      step(0, () => scrollTo(sec1()));
-      // Move to first + button
-      step(1000, () => at(plusIn(sec1())));
-      // Tap it
-      step(1700, () => tap(plusIn(sec1())));
-      // Tap it again
-      step(3000, () => tap(plusIn(sec1())));
-      // Scroll to second category
-      step(4500, () => scrollTo(sec2()));
-      // Move to second cat's first + button
-      step(5500, () => at(plusIn(sec2())));
-      // Tap it
-      step(6200, () => tap(plusIn(sec2())));
+
+      // Open first category card
+      step(0,     () => scrollTo(card(cat1.id)));
+      step(800,   () => tap(cardHeader(cat1.id)));
+      // After card opens, move to Add button
+      step(2000,  () => at(addBtn(cat1.id)));
+      // Tap Add
+      step(2700,  () => tap(addBtn(cat1.id)));
+      // Tap + to add a second
+      step(4000,  () => tap(plusBtn(cat1.id)));
+      // Open second category card
+      step(5500,  () => scrollTo(card(cat2.id)));
+      step(6300,  () => tap(cardHeader(cat2.id)));
+      // Tap Add in second category
+      step(7800,  () => at(addBtn(cat2.id)));
+      step(8500,  () => tap(addBtn(cat2.id)));
       // Move to call waiter — visual only, no DB write
-      step(7800, () => at(waiter()));
-      step(8500, () => {
+      step(10000, () => at(waiter()));
+      step(10700, () => {
         const btn = waiter();
         if (btn) at(btn);
         cursor.style.transform = 'translate(-50%,-50%) scale(0.68)';
@@ -544,12 +501,13 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         }, 220));
       });
       // Hide cursor, reset, loop
-      step(13000, () => {
+      step(15000, () => {
         cursor.style.opacity = '0';
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setOrderState({});
+        setOpenCatId(null);
       });
-      step(14500, () => { if (alive) run(); });
+      step(16500, () => { if (alive) run(); });
     }
 
     timers.push(setTimeout(run, 1200));
@@ -613,10 +571,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     loadMyOrders();
   }, [loadMyOrders]);
 
-  // Poll for order status updates while the modal is open.
-  // postgres_changes subscriptions are wired up in startRealtime once
-  // the supabase_realtime publication includes the orders table; until then
-  // this 15-second poll is the live-update mechanism.
+  // Poll for order status updates while the modal is open (15-second interval).
   useEffect(() => {
     if (!myOrderOpen) return;
     const iv = setInterval(loadMyOrders, 15000);
@@ -625,171 +580,104 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
 
   // ── Rendering helpers ──────────────────────────────────────────────────────────
 
-  function QtyStepper({ item, isMag }: { item: MenuItem; isMag?: boolean }) {
+  const restaurant      = menuData?.restaurant;
+  const paid            = restaurant ? isPaidPlan(restaurant) : false;
+  const orderingEnabled = restaurant?.customer_ordering_enabled ?? true;
+
+  function AddControl({ item }: { item: MenuItem }) {
     if (item.available === false) return <span className="item-sold-out-tag">Sold Out</span>;
     if (!orderingEnabled) return null;
     const qty = (orderState[item.name] || {}).qty || 0;
-    return (
-      <div
-        className={`qty-stepper${isMag ? ' mag-stepper' : ''}`}
-        data-item={item.name}
-        data-price={item.price}
-      >
+    if (qty === 0) {
+      return (
         <button
-          className="qty-btn qty-minus"
-          aria-label="Remove"
+          className="add-btn"
+          aria-label={`Add ${item.name}`}
+          onClick={e => { e.stopPropagation(); changeQty(item.name, item.price, 1); }}
+        >
+          Add
+        </button>
+      );
+    }
+    return (
+      <div className="item-stepper">
+        <button
+          className="stepper-btn stepper-minus"
+          aria-label="Remove one"
           onClick={e => { e.stopPropagation(); changeQty(item.name, item.price, -1); }}
         >−</button>
-        <span className="qty-value">{qty}</span>
+        <span className="stepper-count">{qty}</span>
         <button
-          className="qty-btn qty-plus"
-          aria-label="Add"
+          className="stepper-btn stepper-plus"
+          aria-label="Add one more"
           onClick={e => { e.stopPropagation(); changeQty(item.name, item.price, 1); }}
         >+</button>
       </div>
     );
   }
 
-  function MagazineLayout({ categories }: { categories: MenuCategory[] }) {
+  function ItemRow({ item }: { item: MenuItem }) {
+    return (
+      <div
+        className={`item-row${item.available === false ? ' item-sold-out' : ''}`}
+        onClick={() => { if (item.ada) { adaSpeak(item.ada, 5500); resetIdleTimer(); } }}
+      >
+        {item.image_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="item-thumb" src={item.image_url} alt={item.name} loading="lazy" />
+        )}
+        <div className="item-info">
+          <p className="item-name">{item.name}</p>
+          {item.description && <p className="item-desc">{item.description}</p>}
+          <p className="item-price">{fmt(item.price)}</p>
+        </div>
+        <div className="item-controls">
+          <AddControl item={item} />
+        </div>
+      </div>
+    );
+  }
+
+  function CategoryList({ categories }: { categories: MenuCategory[] }) {
     if (!categories.length) return <div className="mag-empty">Menu coming soon — check back shortly.</div>;
     return (
-      <>
+      <div className="cat-list">
         {categories.filter(c => c.items.length).map(cat => {
-          const catImg = cat.image_url || CAT_IMAGES[cat.id] || null;
+          const isOpen = openCatId === cat.id;
           return (
-            <section key={cat.id} className="mag-section" id={`cat-${cat.id}`} data-cat={cat.id}>
-              <div className="mag-cat-banner">
-                {catImg && <img className="mag-cat-banner-img" src={catImg} alt={cat.name} loading="lazy" />}
-                <div className="mag-cat-banner-overlay" />
-                <div className="mag-cat-banner-body">
-                  <span className="mag-cat-banner-emoji">{cat.emoji || '🍽️'}</span>
-                  <h2 className="mag-cat-banner-name">{cat.name}</h2>
+            <div
+              key={cat.id}
+              id={`cat-${cat.id}`}
+              className={`cat-card${isOpen ? ' open' : ''}`}
+              ref={el => { catRefs.current[cat.id] = el; }}
+            >
+              <div className="cat-card-header" onClick={() => toggleCat(cat.id)}>
+                <div className="cat-card-img-wrap">
+                  {cat.image_url
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img className="cat-card-img" src={cat.image_url} alt={cat.name} loading="lazy" />
+                    : <div className="cat-card-emoji-bg">{cat.emoji || '🍽️'}</div>
+                  }
+                </div>
+                <div className="cat-card-row">
+                  <div>
+                    <p className="cat-card-name">{cat.name}</p>
+                    <p className="cat-card-count">{cat.items.filter(i => i.available !== false).length} items</p>
+                  </div>
+                  <span className="cat-card-chevron">▾</span>
                 </div>
               </div>
-              <div className="mag-grid">
-                {cat.items.map(item => (
-                  <div
-                    key={item.name}
-                    className={`mag-card${item.available === false ? ' sold-out' : ''}`}
-                    data-item={item.name}
-                    data-cat={cat.id}
-                    onClick={() => { if (item.ada) { adaSpeak(item.ada, 5500); resetIdleTimer(); } }}
-                  >
-                    <div className="mag-card-img-wrap">
-                      {item.image_url && <img className="mag-card-img" src={item.image_url} alt={item.name} loading="lazy" />}
-                    </div>
-                    <div className="mag-card-body">
-                      <p className="mag-card-name">{item.name}</p>
-                      <div className="mag-card-footer">
-                        <span className="mag-card-price">{fmt(item.price)}</span>
-                        <QtyStepper item={item} isMag />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          );
-        })}
-      </>
-    );
-  }
-
-  function ClassicLayout({ categories }: { categories: MenuCategory[] }) {
-    if (!categories.length) return <div className="mag-empty">Menu coming soon — check back shortly.</div>;
-    return (
-      <>
-        {categories.filter(c => c.items.length).map(cat => (
-          <section key={cat.id} className="classic-section" id={`cat-${cat.id}`} data-cat={cat.id}>
-            <div className="classic-cat-header">
-              <span className="classic-cat-emoji">{cat.emoji || ''}</span>
-              <h2 className="classic-cat-name">{cat.name}</h2>
-            </div>
-            <div className="classic-items">
-              {cat.items.map(item => (
-                <div
-                  key={item.name}
-                  className={`classic-item${item.available === false ? ' sold-out' : ''}`}
-                  data-item={item.name}
-                  data-cat={cat.id}
-                  onClick={() => { if (item.ada) { adaSpeak(item.ada, 5500); resetIdleTimer(); } }}
-                >
-                  <div className="classic-item-body">
-                    <p className="classic-item-name">{item.name}</p>
-                    {item.description && <p className="classic-item-desc">{item.description}</p>}
-                  </div>
-                  <div className="classic-item-right">
-                    <p className="classic-item-price">{fmt(item.price)}</p>
-                    <QtyStepper item={item} />
-                  </div>
+              {isOpen && (
+                <div className="cat-items">
+                  {cat.items.map(item => <ItemRow key={item.name} item={item} />)}
                 </div>
-              ))}
+              )}
             </div>
-          </section>
-        ))}
-      </>
-    );
-  }
-
-  function VisualGridLayout({ categories }: { categories: MenuCategory[] }) {
-    if (!categories.length) return <div className="mag-empty">Menu coming soon — check back shortly.</div>;
-    return (
-      <>
-        {categories.filter(c => c.items.length).map(cat => {
-          const fallback = CAT_IMAGES[cat.id] || null;
-          return (
-            <section key={cat.id} className="vgrid-section" id={`cat-${cat.id}`} data-cat={cat.id}>
-              <div className="vgrid-cat-header">
-                <span className="vgrid-cat-emoji">{cat.emoji || ''}</span>
-                <h2 className="vgrid-cat-name">{cat.name}</h2>
-              </div>
-              <div className="vgrid-items">
-                {cat.items.map(item => {
-                  const imgSrc = item.image_url || fallback;
-                  return (
-                    <div
-                      key={item.name}
-                      className={`vgrid-card${item.available === false ? ' sold-out' : ''}`}
-                      data-item={item.name}
-                      data-cat={cat.id}
-                      onClick={() => { if (item.ada) { adaSpeak(item.ada, 5500); resetIdleTimer(); } }}
-                    >
-                      <div className="vgrid-img-wrap">
-                        {imgSrc
-                          ? <img className="vgrid-img" src={imgSrc} alt={item.name} loading="lazy" />
-                          : <div className="vgrid-img-placeholder">🍽️</div>
-                        }
-                        {item.available === false && <span className="vgrid-sold-badge">Sold Out</span>}
-                      </div>
-                      <div className="vgrid-body">
-                        <p className="vgrid-name">{item.name}</p>
-                        <div className="vgrid-footer">
-                          <span className="vgrid-price">{fmt(item.price)}</span>
-                          <QtyStepper item={item} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
           );
         })}
-      </>
+      </div>
     );
   }
-
-  function MenuContent() {
-    const categories = menuData?.categories ?? [];
-    const layout     = menuData?.restaurant?.menu_layout || 'magazine';
-    if (layout === 'classic') return <ClassicLayout categories={categories} />;
-    if (layout === 'grid')    return <VisualGridLayout categories={categories} />;
-    return <MagazineLayout categories={categories} />;
-  }
-
-  const restaurant     = menuData?.restaurant;
-  const paid           = restaurant ? isPaidPlan(restaurant) : false;
-  const orderingEnabled = restaurant?.customer_ordering_enabled ?? true;
 
   // ── JSX ────────────────────────────────────────────────────────────────────────
 
@@ -817,25 +705,6 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
           </div>
         </header>
 
-        {/* ── Category pill nav ──────────────────────────────────────── */}
-        <nav className="mag-nav" aria-label="Menu categories">
-          <div className="mag-nav-inner" ref={navInnerRef}>
-            {menuData?.categories.filter(c => c.items.length).map(c => (
-              <button
-                key={c.id}
-                className={`mag-pill${activeCat === c.id ? ' active' : ''}`}
-                data-cat={c.id}
-                onClick={() => {
-                  const section = document.getElementById('cat-' + c.id);
-                  if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-              >
-                {c.emoji || ''} {c.name}
-              </button>
-            ))}
-          </div>
-        </nav>
-
         {/* ── Menu content ──────────────────────────────────────────── */}
         <main id="magContent" className="mag-content">
           {!menuData && !dataError ? (
@@ -845,7 +714,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
               ))}
             </div>
           ) : menuData ? (
-            <MenuContent />
+            <CategoryList categories={menuData.categories} />
           ) : null}
         </main>
 
@@ -981,7 +850,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
                 <div className="my-order-empty-state">
                   <p className="my-order-empty-icon">🍽️</p>
                   <p className="my-order-empty-text">No orders yet at this table.</p>
-                  <p className="my-order-empty-sub">Tap the + on any dish to start your order.</p>
+                  <p className="my-order-empty-sub">Tap Add on any dish to start your order.</p>
                 </div>
               ) : (
                 <>
