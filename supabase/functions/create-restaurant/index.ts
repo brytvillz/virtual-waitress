@@ -7,6 +7,15 @@ const corsHeaders = {
 
 const PILOT_MSG = 'Virtual Waitress is currently in a limited pilot. To request access, message us on WhatsApp: https://wa.me/2347018814381';
 
+function pilotReject(reason: string, admin: ReturnType<typeof createClient>, ip: string) {
+  console.log(reason);
+  admin.from('signup_attempts').insert({ ip, rejection_reason: reason });
+  return new Response(JSON.stringify({ error: PILOT_MSG }), {
+    status: 403,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
 function toSlug(name: string): string {
   return name
     .toLowerCase()
@@ -47,11 +56,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    await admin.from('signup_attempts').insert({ ip });
-
     const { restaurant_name, email, password, promo_code, timezone } = await req.json();
 
     if (!restaurant_name?.trim() || !email?.trim() || !password) {
+      await admin.from('signup_attempts').insert({ ip });
       return new Response(JSON.stringify({ error: 'Restaurant name, email, and password are required.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -60,6 +68,7 @@ Deno.serve(async (req) => {
 
     // ── Access code is required ───────────────────────────────────────────────
     if (!promo_code?.trim()) {
+      await admin.from('signup_attempts').insert({ ip });
       return new Response(JSON.stringify({ error: PILOT_MSG }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -67,6 +76,7 @@ Deno.serve(async (req) => {
     }
 
     if (password.length < 8) {
+      await admin.from('signup_attempts').insert({ ip });
       return new Response(JSON.stringify({ error: 'Password must be at least 8 characters.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -75,13 +85,14 @@ Deno.serve(async (req) => {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      await admin.from('signup_attempts').insert({ ip });
       return new Response(JSON.stringify({ error: 'Please enter a valid email address.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // ── Validate access code (required) ──────────────────────────────────────
+    // ── Validate access code — each failure reason logged separately ─────────
     type PromoRow = { id: string; plan: string; duration_days: number | null };
     let promoRow: PromoRow | null = null;
 
@@ -93,15 +104,14 @@ Deno.serve(async (req) => {
         .eq('code', code)
         .maybeSingle();
 
-      if (
-        !promo ||
-        (promo.expires_at && new Date(promo.expires_at) < new Date()) ||
-        (promo.max_uses !== null && promo.uses_count >= promo.max_uses)
-      ) {
-        return new Response(JSON.stringify({ error: PILOT_MSG }), {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      if (!promo) {
+        return pilotReject('code_not_found', admin, ip);
+      }
+      if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+        return pilotReject('code_expired', admin, ip);
+      }
+      if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
+        return pilotReject('code_exhausted', admin, ip);
       }
 
       promoRow = { id: promo.id, plan: promo.plan, duration_days: promo.duration_days };
@@ -110,6 +120,7 @@ Deno.serve(async (req) => {
     // ── Generate unique slug ──────────────────────────────────────────────────
     const baseSlug = toSlug(restaurant_name.trim());
     if (!baseSlug) {
+      await admin.from('signup_attempts').insert({ ip });
       return new Response(JSON.stringify({ error: 'Restaurant name must contain letters or numbers.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -137,6 +148,7 @@ Deno.serve(async (req) => {
     });
 
     if (authError) {
+      await admin.from('signup_attempts').insert({ ip });
       const msg = authError.message.includes('already registered')
         ? 'An account with this email already exists. Please log in instead.'
         : authError.message;
@@ -181,6 +193,7 @@ Deno.serve(async (req) => {
 
     if (restaurantError) {
       await admin.auth.admin.deleteUser(userId);
+      await admin.from('signup_attempts').insert({ ip });
       return new Response(JSON.stringify({ error: 'Failed to create restaurant. Please try again.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -195,14 +208,18 @@ Deno.serve(async (req) => {
     if (staffError) {
       await admin.auth.admin.deleteUser(userId);
       await admin.from('restaurants').delete().eq('id', restaurant.id);
+      await admin.from('signup_attempts').insert({ ip });
       return new Response(JSON.stringify({ error: 'Failed to set up your account. Please try again.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // ── Atomically claim access code (SQL checks limit+expiry before incrementing) ──
+    // ── Atomically claim access code ──────────────────────────────────────────
     await admin.rpc('claim_promo_uses', { p_promo_id: promoRow.id });
+
+    // Record successful attempt (no rejection_reason)
+    await admin.from('signup_attempts').insert({ ip });
 
     return new Response(JSON.stringify({
       success: true,

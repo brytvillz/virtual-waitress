@@ -70,6 +70,7 @@ export default function AnalyticsPage() {
   const [chartData, setChartData] = useState<DailyData[]>(last7Days());
   const [staff, setStaff] = useState<Staff[]>([]);
   const [waiterStats, setWaiterStats] = useState<Record<string, { orders: number; revenue: number }>>({});
+  const [counterStats, setCounterStats] = useState<{ orders: number; revenue: number }>({ orders: 0, revenue: 0 });
   const [bestSellers, setBestSellers] = useState<{ name: string; qty: number; revenue: number }[]>([]);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [todaysVoids, setTodaysVoids] = useState<VoidEntry[]>([]);
@@ -173,7 +174,7 @@ export default function AnalyticsPage() {
       supabase.from('orders').select('id, total, status, table_number, tab_id, tab_number, created_at, handled_by, is_paid, order_items(item_name, quantity, price)').eq('restaurant_id', restaurantId).order('created_at', { ascending: false }).limit(10),
       supabase.from('staff').select('id, name, role').eq('restaurant_id', restaurantId).order('name'),
       // is_paid and status needed so chart revenue counts paid non-cancelled only
-      supabase.from('orders').select('total, created_at, handled_by, is_paid, status').eq('restaurant_id', restaurantId).gte('created_at', sevenDaysAgo),
+      supabase.from('orders').select('total, created_at, handled_by, is_paid, status, source').eq('restaurant_id', restaurantId).gte('created_at', sevenDaysAgo),
       // Voids today — joined through orders to scope by restaurant
       supabase.from('order_items')
         .select('id, item_name, quantity, price, void_reason, voided_while_served, voided_at, voided_by, orders!inner(restaurant_id)')
@@ -216,9 +217,10 @@ export default function AnalyticsPage() {
     // 7-day chart:  revenue = paid, non-cancelled only;  orders = all non-cancelled
     // Waiter stats: order value = all non-cancelled they handled (not filtered to paid —
     //   this is the value of work they did, not cash they collected)
-    type SevenRow = { total: number; created_at: string; handled_by: string; is_paid: boolean; status: string };
+    type SevenRow = { total: number; created_at: string; handled_by: string; is_paid: boolean; status: string; source: string };
     const days = last7Days();
     const ws: Record<string, { orders: number; revenue: number }> = {};
+    const cs = { orders: 0, revenue: 0 };
     (sevenDayOrders ?? [] as SevenRow[]).forEach((o: SevenRow) => {
       if (o.status === 'cancelled') return;
       const label = new Date(o.created_at).toLocaleDateString('en-US', { weekday: 'short' });
@@ -227,7 +229,10 @@ export default function AnalyticsPage() {
         days[idx].orders++;
         if (o.is_paid) days[idx].revenue += o.total || 0;
       }
-      if (o.handled_by) {
+      if (o.source === 'counter') {
+        cs.orders++;
+        cs.revenue += o.total || 0;
+      } else if (o.handled_by) {
         if (!ws[o.handled_by]) ws[o.handled_by] = { orders: 0, revenue: 0 };
         ws[o.handled_by].orders++;
         ws[o.handled_by].revenue += o.total || 0;
@@ -235,6 +240,7 @@ export default function AnalyticsPage() {
     });
     setChartData([...days]);
     setWaiterStats(ws);
+    setCounterStats(cs);
     setStaff((staffList ?? []).filter((s: Staff) => s.role === 'waiter'));
 
     // Best sellers
@@ -426,6 +432,23 @@ export default function AnalyticsPage() {
                         </div>
                       );
                     })}
+                  {counterStats.orders > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[#4a4a4a] text-xs w-3"></span>
+                          <div className="w-7 h-7 rounded-full bg-white/[0.04] flex items-center justify-center shrink-0">
+                            <span className="text-[#6B6570] text-xs font-bold">C</span>
+                          </div>
+                          <p className="text-[#6B6570] text-sm font-medium">Counter entry</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[#F0EDE8] text-sm font-semibold">{fmt(counterStats.revenue)}</p>
+                          <p className="text-[#6B6570] text-xs">{counterStats.orders} order{counterStats.orders !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

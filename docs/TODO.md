@@ -51,6 +51,12 @@ page and table assignment must disappear from the admin navigation entirely.
 
 ---
 
+## Known and accepted
+
+- **"Anyone can view menu items" (menu_items, role: public, qual: true).** Any anonymous caller — including unauthenticated browsers and paired devices — can SELECT all rows from `menu_items`, including names, prices, and photos, for every venue on the platform. This is intentional: the customer-facing menu screen runs anonymously, and a menu is a public document. No changes planned.
+
+---
+
 ## Customer menu — plan before changing
 
 - Item descriptions don't show. Ichiban CSV has no description column, so likely no bug; decide whether descriptions are needed.
