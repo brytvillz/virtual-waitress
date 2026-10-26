@@ -7,9 +7,9 @@ const corsHeaders = {
 
 const PILOT_MSG = 'Virtual Waitress is currently in a limited pilot. To request access, message us on WhatsApp: https://wa.me/2347018814381';
 
-function pilotReject(reason: string, admin: ReturnType<typeof createClient>, ip: string) {
+async function pilotReject(reason: string, admin: ReturnType<typeof createClient>, ip: string) {
   console.log(reason);
-  admin.from('signup_attempts').insert({ ip, rejection_reason: reason });
+  await admin.from('signup_attempts').insert({ ip, rejection_reason: reason });
   return new Response(JSON.stringify({ error: PILOT_MSG }), {
     status: 403,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },

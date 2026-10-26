@@ -55,6 +55,8 @@ page and table assignment must disappear from the admin navigation entirely.
 
 - **"Anyone can view menu items" (menu_items, role: public, qual: true).** Any anonymous caller — including unauthenticated browsers and paired devices — can SELECT all rows from `menu_items`, including names, prices, and photos, for every venue on the platform. This is intentional: the customer-facing menu screen runs anonymously, and a menu is a public document. No changes planned.
 
+- **No rate limit on order creation (orders, anon_insert_orders).** Any anonymous caller can insert orders against a `customer_ordering_enabled = true` venue with no throttle. A determined attacker could flood an enabled venue's order queue with fake orders. The `create-restaurant` edge function has a 5-per-hour IP rate limit on signups; no equivalent exists on order inserts. A database-level throttle (e.g. max N pending orders per IP per hour) would require a trigger or a separate edge function for order placement. Not building this now.
+
 ---
 
 ## Customer menu — plan before changing
