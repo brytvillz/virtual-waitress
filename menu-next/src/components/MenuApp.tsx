@@ -30,7 +30,7 @@ const ACCENT_OVERRIDE_THEMES = new Set(['nightlife-dark', 'custom']);
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface MenuItem {
-  name: string; price: number; description: string;
+  id: string; name: string; price: number; description: string;
   ada: string; available: boolean; image_url: string | null;
 }
 interface MenuCategory { id: string; name: string; emoji: string; image_url: string | null; items: MenuItem[] }
@@ -114,7 +114,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
   const orderItems = Object.values(orderState);
   const itemCount  = orderItems.reduce((s, i) => s + i.qty, 0);
   const orderTotal = orderItems.reduce((s, i) => s + i.qty * i.price, 0);
-  const cacheKey   = `vw_menu_cache_${slug}`;
+  const cacheKey   = `vw_menu_cache_v2_${slug}`;
 
   // ── Ada control ───────────────────────────────────────────────────────────────
 
@@ -214,6 +214,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         emoji:     c.emoji as string,
         image_url: (c.image_url as string) || null,
         items: (items!).filter((i: Record<string, unknown>) => i.category_id === c.id).map((i: Record<string, unknown>) => ({
+          id:          i.id as string,
           name:        i.name as string,
           price:       i.price as number,
           description: i.description as string,
