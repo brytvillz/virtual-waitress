@@ -108,8 +108,8 @@ const S = {
   // pairing
   pairPage:       { background: '#0a0a0a', minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, -apple-system, sans-serif', padding: 24 },
   pairBox:        { width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column' as const, gap: 24 },
-  pairTitle:      { color: '#F0EDE8', fontSize: 24, fontWeight: 800, textAlign: 'center' as const, letterSpacing: '-0.01em' },
-  pairSub:        { color: '#6B6570', fontSize: 14, textAlign: 'center' as const, marginTop: -16 },
+  pairTitle:      { color: '#F0EDE8', fontSize: 24, fontWeight: 800, textAlign: 'center' as const, letterSpacing: '-0.01em', margin: 0 },
+  pairSub:        { color: '#6B6570', fontSize: 14, textAlign: 'center' as const, marginTop: 8 },
   pairInput:      { background: '#1a1a1a', border: '1px solid #333', borderRadius: 12, padding: '18px 20px', color: '#F0EDE8', fontSize: 28, fontWeight: 700, textAlign: 'center' as const, letterSpacing: '0.2em', outline: 'none', width: '100%', boxSizing: 'border-box' as const, textTransform: 'uppercase' as const },
   pairBtn:        { width: '100%', padding: '16px 0', background: '#C41E3A', border: 'none', borderRadius: 12, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', boxSizing: 'border-box' as const },
   pairErr:        { background: '#dc2626/10', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '12px 16px', color: '#f87171', fontSize: 14, textAlign: 'center' as const },
@@ -158,6 +158,7 @@ export default function BarApp() {
   const prevCountRef     = useRef(0);
   const audioUnlockedRef = useRef(false);
   const cleanupRef       = useRef<(() => void) | null>(null);
+  const counterSavingRef = useRef(false);
 
   // Clock tick for elapsed times
   useEffect(() => {
@@ -348,9 +349,11 @@ export default function BarApp() {
   }
 
   async function loadMenu() {
+    if (!restaurantId) return;
     const { data } = await db
       .from('menu_items')
       .select('id, name, price, station, available, category_id, menu_categories(id, name, emoji)')
+      .eq('restaurant_id', restaurantId)
       .order('sort_order');
     if (!data) return;
     const cats: MenuCategory[] = [];
@@ -375,6 +378,8 @@ export default function BarApp() {
     if (!deviceId || !restaurantId) return;
     const cartEntries = Object.entries(cart).filter(([, c]) => c.qty > 0);
     if (cartEntries.length === 0) return;
+    if (counterSavingRef.current) return;
+    counterSavingRef.current = true;
     setCounterSaving(true);
     setCounterError(null);
     try {
@@ -416,6 +421,7 @@ export default function BarApp() {
     } catch (err: unknown) {
       setCounterError(err instanceof Error ? err.message : 'Something went wrong. Try again.');
     } finally {
+      counterSavingRef.current = false;
       setCounterSaving(false);
     }
   }
