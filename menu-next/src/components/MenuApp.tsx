@@ -9,6 +9,10 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL      = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { storageKey: 'vw_customer_auth' },
+});
+
 const THEME_ADA: Record<string, string> = {
   'nightlife-dark':   '/images/ada.png',
   'cafe-light':       '/images/chisom.png',
@@ -41,8 +45,8 @@ interface AdaData {
   categoryMessages: Record<string, string>;
 }
 interface MenuData { restaurant: RestaurantData; ada: AdaData; categories: MenuCategory[] }
-interface OrderItem { qty: number; price: number }
-type OrderState = Record<string, OrderItem>;
+interface OrderItem { qty: number; price: number; item_name: string }
+type OrderState = Record<string, OrderItem>;  // keyed by menu_item_id (uuid)
 interface MyOrder {
   id: string; status: string; total: number; created_at: string; table_number: number;
   order_items: { item_name: string; quantity: number; price: number }[];
@@ -105,10 +109,6 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
   const catRefs                           = useRef<Record<string, HTMLDivElement | null>>({});
   const menuDataRef                       = useRef<MenuData | null>(null);
 
-  // Stable supabase client
-  const db = useRef(createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { storageKey: 'vw_customer_auth' },
-  })).current;
 
   // Derived order values
   const orderItems = Object.values(orderState);
@@ -308,13 +308,13 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
 
   // ── Qty change ─────────────────────────────────────────────────────────────────
 
-  const changeQty = useCallback((name: string, price: number, delta: number) => {
+  const changeQty = useCallback((id: string, item_name: string, price: number, delta: number) => {
     setOrderState(prev => {
-      const current = prev[name] || { qty: 0, price };
+      const current = prev[id] || { qty: 0, price, item_name };
       const next    = Math.max(0, current.qty + delta);
       const updated = { ...prev };
-      if (next === 0) delete updated[name];
-      else updated[name] = { qty: next, price };
+      if (next === 0) delete updated[id];
+      else updated[id] = { qty: next, price, item_name };
       return updated;
     });
   }, []);
@@ -346,34 +346,26 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
       resetIdleTimer();
       return;
     }
-    const total   = items.reduce((s, [, i]) => s + i.qty * i.price, 0);
-    const orderId = crypto.randomUUID();
+    const total         = items.reduce((s, [, i]) => s + i.qty * i.price, 0);
+    const clientOrderId = crypto.randomUUID();
     setPlaceOrderDisabled(true);
 
-    const { error: orderError } = await db.from('orders').insert({
-      id: orderId, restaurant_id: restaurantId, table_number: Number(table), status: 'pending', total,
+    const { data: dbOrderId, error } = await db.rpc('customer_place_order', {
+      p_client_order_id: clientOrderId,
+      p_restaurant_id:   restaurantId,
+      p_table_number:    table ? Number(table) : null,
+      p_items:           items.map(([id, i]) => ({ menu_item_id: id, quantity: i.qty })),
     });
 
-    if (orderError) {
-      setPlaceOrderDisabled(false);
+    setPlaceOrderDisabled(false);
+
+    if (error || !dbOrderId) {
       adaSpeak("Hmm, that didn't go through — please try again 🙏", 5500);
       resetIdleTimer();
       return;
     }
 
-    const { error: itemsError } = await db.from('order_items').insert(
-      items.map(([name, i]) => ({ order_id: orderId, item_name: name, quantity: i.qty, price: i.price }))
-    );
-
-    setPlaceOrderDisabled(false);
-
-    if (itemsError) {
-      adaSpeak("Order started but something went wrong — please call your waiter to confirm 🙏", 6000);
-      resetIdleTimer();
-      return;
-    }
-
-    // Persist the placed order ID so "My orders" survives a page refresh.
+    // Persist the database-generated order id so "My orders" survives a page refresh.
     // Key is per-restaurant so a device visiting multiple restaurants keeps
     // separate histories. Each entry stores the table for display; entries
     // older than 24 hours are pruned on the next read.
@@ -384,7 +376,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         const entries: StoredOrder[] = raw ? JSON.parse(raw) : [];
         const cutoff = Date.now() - 24 * 60 * 60 * 1000;
         const fresh = entries.filter(e => e.placedAt > cutoff);
-        fresh.push({ id: orderId, table, placedAt: Date.now() });
+        fresh.push({ id: dbOrderId as string, table, placedAt: Date.now() });
         localStorage.setItem(lsKey, JSON.stringify(fresh));
       } catch (_) { /* storage unavailable or quota full */ }
     }
@@ -587,13 +579,13 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
   function AddControl({ item }: { item: MenuItem }) {
     if (item.available === false) return <span className="item-sold-out-tag">Sold Out</span>;
     if (!orderingEnabled) return null;
-    const qty = (orderState[item.name] || {}).qty || 0;
+    const qty = (orderState[item.id] || {}).qty || 0;
     if (qty === 0) {
       return (
         <button
           className="add-btn"
           aria-label={`Add ${item.name}`}
-          onClick={e => { e.stopPropagation(); changeQty(item.name, item.price, 1); }}
+          onClick={e => { e.stopPropagation(); changeQty(item.id, item.name, item.price, 1); }}
         >
           Add
         </button>
@@ -604,13 +596,13 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         <button
           className="stepper-btn stepper-minus"
           aria-label="Remove one"
-          onClick={e => { e.stopPropagation(); changeQty(item.name, item.price, -1); }}
+          onClick={e => { e.stopPropagation(); changeQty(item.id, item.name, item.price, -1); }}
         >−</button>
         <span className="stepper-count">{qty}</span>
         <button
           className="stepper-btn stepper-plus"
           aria-label="Add one more"
-          onClick={e => { e.stopPropagation(); changeQty(item.name, item.price, 1); }}
+          onClick={e => { e.stopPropagation(); changeQty(item.id, item.name, item.price, 1); }}
         >+</button>
       </div>
     );

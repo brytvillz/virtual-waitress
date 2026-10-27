@@ -53,6 +53,8 @@ page and table assignment must disappear from the admin navigation entirely.
 
 ## Known and accepted
 
+- **`menu-images` write policies are not scoped to the caller's own restaurant.** The INSERT, UPDATE, and DELETE policies on `storage.objects` for the `menu-images` bucket check only `bucket_id = 'menu-images'`. They do not verify that the caller owns or works at the venue whose images they are touching. Any authenticated user on the platform — owner, waiter, or device — can upload to this bucket, and can update or delete any object in it, including another venue's menu photographs. Reads being public is expected. Writes being unscoped is not. Delete is the worse half: a waiter at one venue could remove another venue's images, and nothing in the current policies would attribute it. Must be scoped (e.g. `(storage.foldername(name))[1]` tied to `restaurant_id`) before any venue that is not mine goes live.
+
 - **"Anyone can view menu items" (menu_items, role: public, qual: true).** Any anonymous caller — including unauthenticated browsers and paired devices — can SELECT all rows from `menu_items`, including names, prices, and photos, for every venue on the platform. This is intentional: the customer-facing menu screen runs anonymously, and a menu is a public document. No changes planned.
 
 - **`menu_item_id` FK accepts cross-venue items (order_items, fk to menu_items).** The `menu_item_id` column is a plain FK to `menu_items(id)` with no restaurant-level scope check. A client that sends a `menu_item_id` belonging to a different venue will have it accepted by the database. After the BarApp menu filter fix the interface will never offer a cross-venue item, but the database would still accept one sent directly. No constraint built tonight. Needs a CHECK or trigger before any venue that is not mine goes live.
@@ -60,6 +62,14 @@ page and table assignment must disappear from the admin navigation entirely.
 - **PRE-PILOT BLOCKER — Order board is open to flooding. Any caller with a venue's menu URL can insert orders with items onto that venue's board, as fast as the API allows, with no account, no verification, and no limit. Nothing in RLS, no trigger, and no application code prevents or limits this. The `anon_insert_orders` policy requires only that `customer_ordering_enabled = true`, which is true for every live venue by definition. Migration 037 closed nothing for enabled venues; the trigger (`trg_customer_ordering_gate`, migration 023) only gates disabled venues and does not apply here. The bar screen is the product's enforcement point. A board that can be flooded is a product failure, not only a security one: a waiter managing 40 real orders and 400 fake ones cannot work. This must be closed before any venue that is not mine goes live. Design the throttle deliberately — do not bolt it on.**
 
 ---
+
+## Close of night screen
+
+- **Junk-dismissal reason convention for cancel_order.** The admin dashboard already calls `cancel_order(order_id, reason)`, which records the cancellation in `order_history` with `changed_by` and the reason. Once the close-of-night screen exists, it should show dismissals (flood junk cleared by owner or manager) on their own line, separate from legitimate cancellations. A simple convention: agree on a reserved reason string (e.g. `'__dismiss__'`) so the report can count them without a schema change. Do not build this now — wait until the report screen is designed.
+
+## Service worker
+
+- **`sw.js` fetch handler has no `.catch()`.** The handler in `public/sw.js` is `caches.match(req).then(cached => cached || fetch(req))` with no `.catch()`. If a same-origin resource is not in the cache and the network is down, `fetch` rejects, the `FetchEvent` rejects, and the browser shows a generic network error page — not a cached fallback or a readable error. This happens in any bar with intermittent wifi. The customer currently sees whatever the browser renders for a failed FetchEvent (typically a "No internet" error page). Fix by adding `.catch(() => caches.match('/offline.html'))` or equivalent, and ensuring an offline fallback page is pre-cached in the `install` handler.
 
 ## Customer menu — plan before changing
 
