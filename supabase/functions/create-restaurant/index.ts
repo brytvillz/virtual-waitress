@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       if (!promo) {
         return pilotReject('code_not_found', admin, ip);
       }
-      if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+      if (promo.expires_at !== null && new Date(promo.expires_at) < new Date()) {
         return pilotReject('code_expired', admin, ip);
       }
       if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
