@@ -371,6 +371,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
 
   const [staffName,       setStaffName]       = useState('');
   const [restaurantName,  setRestaurantName]  = useState('');
+  const [suspendedOut,    setSuspendedOut]    = useState(false);
   const [isManager,  setIsManager]  = useState(false);
   const [myTables,   setMyTables]   = useState<Set<number>>(new Set());
   const [orders,     setOrders]     = useState<Order[]>([]);
@@ -507,6 +508,25 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     if (othersRef.current.size > 0)
       q = q.or(`table_number.is.null,table_number.not.in.(${[...othersRef.current].join(',')})`);
     const { data } = await q;
+
+    if (!data || data.length === 0) {
+      // Distinguish a quiet night from a suspended account.
+      // "Staff can view their own row" (id = auth.uid()) is not gated on suspended_at,
+      // so this query returns the row even after suspension.
+      const { data: { user } } = await db.auth.getUser();
+      if (user) {
+        const { data: me } = await db.from('staff').select('suspended_at').eq('id', user.id).maybeSingle();
+        if (me?.suspended_at) {
+          setSuspendedOut(true);
+          await db.auth.signOut();
+          if (rtRef.current) { db.removeChannel(rtRef.current); rtRef.current = null; }
+          ridRef.current = null;
+          setIsLoggedIn(false);
+          return;
+        }
+      }
+    }
+
     setOrders(data || []);
   }
 
@@ -729,7 +749,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   // ── Actions ──────────────────────────────────────────────────────────────────
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setLoginError(''); setLoginLoading(true);
+    setLoginError(''); setSuspendedOut(false); setLoginLoading(true);
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/waiter-login`, {
         method: 'POST',
@@ -1100,7 +1120,13 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
             <div className="w-login-sub">Staff Portal</div>
           </div>
           <h1 className="w-login-title">Sign in</h1>
-          <p className="w-login-desc">Enter your access code to view your live dashboard.</p>
+          {suspendedOut ? (
+            <p className="w-login-desc" style={{ color: '#f87171' }}>
+              Your access has been removed. Speak to your manager.
+            </p>
+          ) : (
+            <p className="w-login-desc">Enter your access code to view your live dashboard.</p>
+          )}
           <div className="w-field">
             <label htmlFor="wCode">Access Code</label>
             <input

@@ -12,6 +12,7 @@ type StaffMember = {
   name: string;
   role: 'waiter' | 'manager';
   access_code: string | null;
+  suspended_at: string | null;
   restaurant_id: string;
 };
 
@@ -47,6 +48,9 @@ export default function StaffPage() {
   const [addError, setAddError] = useState('');
   const [creating, setCreating] = useState(false);
   const [newWaiter, setNewWaiter] = useState<{ name: string; access_code: string } | null>(null);
+  const [confirmSuspend, setConfirmSuspend] = useState<string | null>(null);
+  const [suspending, setSuspending]         = useState<Record<string, boolean>>({});
+  const [suspendWarning, setSuspendWarning] = useState<string | null>(null);
 
   const load = useCallback(async (restaurantId: string, tz: string) => {
     const supabase = createClient();
@@ -160,11 +164,36 @@ export default function StaffPage() {
     await load(restaurant!.id, restaurant!.timezone ?? 'Africa/Lagos');
   }
 
-  async function handleRemove(member: StaffMember) {
-    if (!confirm(`Remove ${member.name}? Their code will stop working. Order history is kept.`)) return;
+  async function handleSuspend(member: StaffMember) {
+    setSuspending(prev => ({ ...prev, [member.id]: true }));
+    setSuspendWarning(null);
     const supabase = createClient();
-    await supabase.from('staff').update({ access_code: null }).eq('id', member.id);
-    await load(restaurant!.id, restaurant!.timezone ?? 'Africa/Lagos');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setSuspending(prev => { const n = { ...prev }; delete n[member.id]; return n; }); return; }
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/suspend-staff`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ staff_id: member.id }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok || result.error) {
+        setSuspendWarning(`Could not suspend ${member.name}: ${result.error || 'server error'}`);
+      } else {
+        if (!result.session_killed) {
+          setSuspendWarning(`${member.name} suspended. Their active session could not be terminated — it will expire on its own.`);
+        }
+        await load(restaurant!.id, restaurant!.timezone ?? 'Africa/Lagos');
+      }
+    } catch {
+      setSuspendWarning(`Network error suspending ${member.name} — check your connection.`);
+    } finally {
+      setSuspending(prev => { const n = { ...prev }; delete n[member.id]; return n; });
+      setConfirmSuspend(null);
+    }
   }
 
   if (!restaurant) return null;
@@ -269,58 +298,101 @@ export default function StaffPage() {
         <div className="flex flex-col gap-3">
 
           {/* Waiters */}
+          {suspendWarning && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 mb-2">
+              <p className="text-amber-400 text-xs">{suspendWarning}</p>
+            </div>
+          )}
+
           {waiters.map(member => {
             const tables = (waiterTables[member.id] ?? []).sort((a, b) => a - b);
             const stats = waiterStats[member.id] ?? { orders: 0, revenue: 0 };
+            const isSuspended = !!member.suspended_at;
+            const confirming = confirmSuspend === member.id;
             return (
-              <div key={member.id} className="bg-[#161616] border border-white/[0.06] rounded-2xl p-5">
+              <div key={member.id} className={`border rounded-2xl p-5 ${isSuspended ? 'bg-[#111] border-white/[0.03] opacity-60' : 'bg-[#161616] border-white/[0.06]'}`}>
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-[#C41E3A]/15 flex items-center justify-center shrink-0">
-                      <span className="text-[#C41E3A] text-sm font-bold">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isSuspended ? 'bg-white/[0.04]' : 'bg-[#C41E3A]/15'}`}>
+                      <span className={`text-sm font-bold ${isSuspended ? 'text-[#555]' : 'text-[#C41E3A]'}`}>
                         {(member.name || '?')[0].toUpperCase()}
                       </span>
                     </div>
                     <div>
-                      <p className="text-[#F0EDE8] text-sm font-semibold">{member.name || 'Unnamed'}</p>
-                      <span className="inline-block mt-0.5 bg-[#C41E3A]/10 text-[#C41E3A] text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                        waiter
-                      </span>
+                      <p className={`text-sm font-semibold ${isSuspended ? 'text-[#555]' : 'text-[#F0EDE8]'}`}>{member.name || 'Unnamed'}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider ${isSuspended ? 'bg-white/[0.04] text-[#555]' : 'bg-[#C41E3A]/10 text-[#C41E3A]'}`}>
+                          waiter
+                        </span>
+                        {isSuspended && (
+                          <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-md bg-[#ff6b6b]/10 text-[#ff6b6b] border border-[#ff6b6b]/20">
+                            Suspended
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Today's stats */}
-                  <div className="text-right shrink-0">
-                    <p className="text-[#F0EDE8] text-sm font-semibold">{fmt(stats.revenue)}</p>
-                    <p className="text-[#6B6570] text-xs">{stats.orders} order{stats.orders !== 1 ? 's' : ''} today</p>
-                  </div>
+                  {!isSuspended && (
+                    <div className="text-right shrink-0">
+                      <p className="text-[#F0EDE8] text-sm font-semibold">{fmt(stats.revenue)}</p>
+                      <p className="text-[#6B6570] text-xs">{stats.orders} order{stats.orders !== 1 ? 's' : ''} today</p>
+                    </div>
+                  )}
                 </div>
 
-                {/* Tables today */}
-                <p className="text-[#6B6570] text-xs mb-3">
-                  {tables.length
-                    ? 'Tables today: ' + tables.join(', ')
-                    : 'No tables assigned today'}
-                </p>
+                {!isSuspended && (
+                  <p className="text-[#6B6570] text-xs mb-3">
+                    {tables.length
+                      ? 'Tables today: ' + tables.join(', ')
+                      : 'No tables assigned today'}
+                  </p>
+                )}
 
-                {/* Access code row */}
+                {/* Access code / action row */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="bg-[#1f1f1f] border border-white/[0.08] text-[#F0EDE8] font-mono text-sm px-3 py-1.5 rounded-lg">
-                    {member.access_code ?? 'Deactivated'}
-                  </span>
-                  {member.access_code && <CopyButton text={member.access_code} />}
-                  <button
-                    onClick={() => handleRegenCode(member.id)}
-                    className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white/[0.05] text-[#9a9098] border border-white/[0.08] hover:bg-white/[0.08] transition-colors"
-                  >
-                    ↺ New code
-                  </button>
-                  <button
-                    onClick={() => handleRemove(member)}
-                    className="px-2.5 py-1 rounded-lg text-xs font-medium border border-[#ff6b6b]/20 text-[#ff6b6b] hover:bg-[#ff6b6b]/10 transition-colors ml-auto"
-                  >
-                    Remove
-                  </button>
+                  {!isSuspended && (
+                    <>
+                      <span className="bg-[#1f1f1f] border border-white/[0.08] text-[#F0EDE8] font-mono text-sm px-3 py-1.5 rounded-lg">
+                        {member.access_code ?? 'No code'}
+                      </span>
+                      {member.access_code && <CopyButton text={member.access_code} />}
+                      <button
+                        onClick={() => handleRegenCode(member.id)}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white/[0.05] text-[#9a9098] border border-white/[0.08] hover:bg-white/[0.08] transition-colors"
+                      >
+                        ↺ New code
+                      </button>
+                    </>
+                  )}
+
+                  {!isSuspended && !confirming && (
+                    <button
+                      onClick={() => { setConfirmSuspend(member.id); setSuspendWarning(null); }}
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium border border-[#ff6b6b]/20 text-[#ff6b6b] hover:bg-[#ff6b6b]/10 transition-colors ml-auto"
+                    >
+                      Suspend
+                    </button>
+                  )}
+
+                  {!isSuspended && confirming && (
+                    <div className="flex items-center gap-2 ml-auto flex-wrap">
+                      <span className="text-[#c4bec9] text-xs whitespace-nowrap">Suspend {member.name}?</span>
+                      <button
+                        onClick={() => handleSuspend(member)}
+                        disabled={!!suspending[member.id]}
+                        className="border border-[#ff6b6b]/50 bg-[#ff6b6b]/10 text-[#ff6b6b] text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff6b6b]/20 disabled:opacity-50 transition-colors"
+                      >
+                        {suspending[member.id] ? 'Suspending…' : 'Yes, suspend'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmSuspend(null)}
+                        className="text-[#6B6570] text-xs px-2 py-1.5 rounded-lg hover:text-[#c4bec9] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

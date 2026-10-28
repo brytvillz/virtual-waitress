@@ -45,6 +45,12 @@ page and table assignment must disappear from the admin navigation entirely.
 
 ---
 
+## Pre-pilot blockers
+
+- ~~**PRE-PILOT BLOCKER — Waiter session not killed on Remove.** `access_code = null` only blocked new logins; Supabase auth refresh ran independently and a removed waiter's session renewed indefinitely. Fix: `suspended_at` column (nullable timestamp) on `staff`; `current_staff_restaurant()` and `current_staff_role()` return NULL when set; `revoke_staff_sessions()` SECURITY DEFINER RPC kills refresh tokens and sets `not_after`; `suspend-staff` edge function calls RPC then sets `suspended_at` and nulls `access_code`; WaiterApp detects `suspended_at` on empty-fetch and returns to login screen; admin button renamed to "Suspend" with inline confirmation. Migration 041. [landed]~~
+
+---
+
 ## Known gaps — plan before fixing
 
 - **Pro plan expiry drops owner straight to view-only with no warning.** The 2-day grace period and the trial-warning countdown both run off `trial_ends_at`, which is already expired by the time a paid plan runs out. The fix is a second countdown banner driven by `plan_expires_at` — same logic as the `trial-warning` branch in `getTrialStatus`, checking `(plan_expires_at - now) ≤ 7 days`. Pilot codes will use `duration_days = null` (no expiry) so no pilot venue hits this wall.
