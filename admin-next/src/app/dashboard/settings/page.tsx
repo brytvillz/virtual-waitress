@@ -106,6 +106,7 @@ export default function SettingsPage() {
   const [generatingCode, setGeneratingCode] = useState(false);
   const [codeError, setCodeError]         = useState('');
   const [revoking, setRevoking]           = useState<Record<string, boolean>>({});
+  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
 
   // Delete account
   const [deleteOpen, setDeleteOpen]       = useState(false);
@@ -566,15 +567,16 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-3">
               {devices.map(device => {
                 const isActive = !device.revoked_at;
+                const confirming = confirmRevoke === device.id;
                 return (
                   <div
                     key={device.id}
-                    className="flex items-center justify-between gap-4 px-4 py-3 bg-[#111] rounded-xl border border-white/[0.05]"
+                    className={`flex items-center justify-between gap-4 px-4 py-3 rounded-xl border ${isActive ? 'bg-[#111] border-white/[0.05]' : 'bg-[#0d0d0d] border-white/[0.03] opacity-60'}`}
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-500' : 'bg-[#555]'}`} />
-                        <span className="text-[#c4bec9] text-sm font-medium truncate">{device.name}</span>
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-emerald-500' : 'bg-[#444]'}`} />
+                        <span className={`text-sm font-medium truncate ${isActive ? 'text-[#c4bec9]' : 'text-[#555]'}`}>{device.name}</span>
                         <span className="text-[#4a4a4a] text-xs capitalize">{device.station_type}</span>
                       </div>
                       {device.last_seen_at && (
@@ -582,19 +584,40 @@ export default function SettingsPage() {
                           Last seen {new Date(device.last_seen_at).toLocaleString()}
                         </p>
                       )}
-                      {!isActive && (
-                        <p className="text-[#555] text-xs mt-0.5 ml-4">Revoked</p>
-                      )}
                     </div>
-                    {isActive && (
+                    {!isActive && (
+                      <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-md bg-[#ff6b6b]/10 text-[#ff6b6b] border border-[#ff6b6b]/20">
+                        Revoked
+                      </span>
+                    )}
+                    {isActive && !confirming && (
                       <button
                         type="button"
-                        onClick={() => handleRevoke(device.id)}
-                        disabled={!!revoking[device.id]}
-                        className="flex-shrink-0 border border-[#ff6b6b]/30 text-[#ff6b6b] text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#ff6b6b]/10 disabled:opacity-50 transition-colors"
+                        onClick={() => setConfirmRevoke(device.id)}
+                        className="flex-shrink-0 border border-[#ff6b6b]/30 text-[#ff6b6b] text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#ff6b6b]/10 transition-colors"
                       >
-                        {revoking[device.id] ? 'Revoking…' : 'Revoke'}
+                        Revoke
                       </button>
+                    )}
+                    {isActive && confirming && (
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-[#c4bec9] text-xs whitespace-nowrap">Revoke {device.name}?</span>
+                        <button
+                          type="button"
+                          onClick={() => { setConfirmRevoke(null); handleRevoke(device.id); }}
+                          disabled={!!revoking[device.id]}
+                          className="border border-[#ff6b6b]/50 bg-[#ff6b6b]/10 text-[#ff6b6b] text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff6b6b]/20 disabled:opacity-50 transition-colors"
+                        >
+                          {revoking[device.id] ? 'Revoking…' : 'Yes, revoke'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmRevoke(null)}
+                          className="text-[#6B6570] text-xs px-2 py-1.5 rounded-lg hover:text-[#c4bec9] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
