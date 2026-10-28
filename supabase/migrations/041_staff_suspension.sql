@@ -58,5 +58,14 @@ AS $$
 $$;
 
 -- Lock down the new function: only the service role may call it.
-REVOKE ALL ON FUNCTION public.revoke_staff_sessions(UUID) FROM PUBLIC;
+--
+-- On Supabase projects, ALTER DEFAULT PRIVILEGES sets anon, authenticated,
+-- and service_role as grantees on every new function in the public schema.
+-- REVOKE ALL FROM PUBLIC removes the PUBLIC entry but leaves the explicit
+-- anon and authenticated entries intact, because they come from a separate
+-- DEFAULT PRIVILEGES grant, not from PUBLIC inheritance.
+-- The correct pattern on Supabase is to revoke all three individually.
+REVOKE EXECUTE ON FUNCTION public.revoke_staff_sessions(UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.revoke_staff_sessions(UUID) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.revoke_staff_sessions(UUID) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.revoke_staff_sessions(UUID) TO service_role;
