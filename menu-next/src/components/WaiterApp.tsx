@@ -369,7 +369,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   const [loginError,   setLoginError]   = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
-  const [staffName,  setStaffName]  = useState('');
+  const [staffName,       setStaffName]       = useState('');
+  const [restaurantName,  setRestaurantName]  = useState('');
   const [isManager,  setIsManager]  = useState(false);
   const [myTables,   setMyTables]   = useState<Set<number>>(new Set());
   const [orders,     setOrders]     = useState<Order[]>([]);
@@ -662,8 +663,9 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
   async function startDashboard(rid: string) {
     ridRef.current = rid;
     // Seed timezone before loadAssignments derives assigned_date from the window.
-    const { data: tzData } = await db.from('restaurants').select('timezone').eq('id', rid).single();
+    const { data: tzData } = await db.from('restaurants').select('timezone, name').eq('id', rid).single();
     if (tzData?.timezone) restaurantTimezoneRef.current = tzData.timezone;
+    if (tzData?.name) setRestaurantName(tzData.name);
     await loadAssignments(rid);
     await Promise.all([
       loadProfile(rid),
@@ -1566,6 +1568,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-white.svg" alt="Virtual Waitress" className="w-topbar-logo" />
           <span className="w-topbar-name">{staffName || 'Staff Dashboard'}</span>
+          {restaurantName && <span className="w-topbar-venue">{restaurantName}</span>}
           {myTables.size > 0 && <span className="w-topbar-table">{tableBadge}</span>}
         </div>
         <div className="w-topbar-right">

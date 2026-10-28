@@ -2456,6 +2456,17 @@ body {
   max-width: 160px;
 }
 
+.w-topbar-venue {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--w-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  flex-shrink: 1;
+}
+
 .w-topbar-table {
   background: var(--w-accent-dim);
   color: var(--w-accent);

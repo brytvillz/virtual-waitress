@@ -146,6 +146,8 @@ export default function BarApp() {
   // counter entry
   const [deviceId, setDeviceId]         = useState<string | null>(null);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [restaurantName, setRestaurantName] = useState('');
+  const [stationType,    setStationType]    = useState('');
   const [menuItems, setMenuItems]       = useState<MenuItem[]>([]);
   const [menuCats, setMenuCats]         = useState<MenuCategory[]>([]);
   const [counterOpen, setCounterOpen]   = useState(false);
@@ -173,7 +175,7 @@ export default function BarApp() {
       if (!session) { setPhase('pair'); return; }
       const { data: device } = await db
         .from('devices')
-        .select('id, restaurant_id, revoked_at')
+        .select('id, restaurant_id, revoked_at, station_type, restaurants(name)')
         .eq('auth_user_id', session.user.id)
         .maybeSingle();
       if (!device || device.revoked_at) {
@@ -183,6 +185,9 @@ export default function BarApp() {
       }
       setDeviceId(device.id);
       setRestaurantId(device.restaurant_id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setRestaurantName((device.restaurants as any)?.name ?? '');
+      setStationType(device.station_type ?? '');
       setPhase('live');
     })();
   }, []);
@@ -315,10 +320,16 @@ export default function BarApp() {
       if (newSess) {
         const { data: dev } = await db
           .from('devices')
-          .select('id, restaurant_id')
+          .select('id, restaurant_id, station_type, restaurants(name)')
           .eq('auth_user_id', newSess.user.id)
           .maybeSingle();
-        if (dev) { setDeviceId(dev.id); setRestaurantId(dev.restaurant_id); }
+        if (dev) {
+          setDeviceId(dev.id);
+          setRestaurantId(dev.restaurant_id);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setRestaurantName((dev.restaurants as any)?.name ?? '');
+          setStationType(dev.station_type ?? '');
+        }
       }
       setPhase('live');
     } catch {
@@ -497,7 +508,9 @@ export default function BarApp() {
       <div style={S.header}>
         <div style={S.headerLeft}>
           <div style={{ ...S.connDot, background: connected ? '#22c55e' : '#555' }} />
-          <span style={S.headerLabel}>Bar Screen</span>
+          <span style={S.headerLabel}>
+            {restaurantName ? `${restaurantName} · ${stationType || 'bar'}` : 'Bar Screen'}
+          </span>
         </div>
         <div style={S.headerRight}>
           {!audioUnlocked && (
