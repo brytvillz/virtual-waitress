@@ -134,6 +134,7 @@ const S = {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function BarApp() {
   const [phase, setPhase]               = useState<'checking' | 'pair' | 'live'>('checking');
+  const [revokedOut, setRevokedOut]     = useState(false);
   const [pairCode, setPairCode]         = useState('');
   const [pairError, setPairError]       = useState('');
   const [pairLoading, setPairLoading]   = useState(false);
@@ -232,6 +233,17 @@ export default function BarApp() {
         playChime();
       } else {
         setPendingChime(true);
+      }
+    }
+
+    if (enriched.length === 0) {
+      const { data: active } = await db.rpc('is_active_device');
+      if (active === false) {
+        setConnected(false);
+        setRevokedOut(true);
+        await db.auth.signOut();
+        setPhase('pair');
+        return;
       }
     }
 
@@ -466,6 +478,12 @@ export default function BarApp() {
             <h1 style={S.pairTitle}>Bar Screen</h1>
             <p style={S.pairSub}>Enter the pairing code from your manager</p>
           </div>
+
+          {revokedOut && (
+            <p style={{ color: '#f87171', fontSize: 13, textAlign: 'center', margin: 0 }}>
+              This screen has been signed out. Ask your manager for a new pairing code.
+            </p>
+          )}
 
           <form onSubmit={handlePair} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <input
