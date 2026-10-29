@@ -69,6 +69,10 @@ page and table assignment must disappear from the admin navigation entirely.
 
 ---
 
+## Staff event log
+
+Staff suspension has no history. Reactivating clears `suspended_at`, so only the most recent reactivation survives and the suspensions themselves leave no record. Orders have `order_history`; staff access events have nothing equivalent. A staff event log before any venue with more than two or three staff. Do not build now.
+
 ## Close of night screen
 
 - **Junk-dismissal reason convention for cancel_order.** The admin dashboard already calls `cancel_order(order_id, reason)`, which records the cancellation in `order_history` with `changed_by` and the reason. Once the close-of-night screen exists, it should show dismissals (flood junk cleared by owner or manager) on their own line, separate from legitimate cancellations. A simple convention: agree on a reserved reason string (e.g. `'__dismiss__'`) so the report can count them without a schema change. Do not build this now — wait until the report screen is designed.

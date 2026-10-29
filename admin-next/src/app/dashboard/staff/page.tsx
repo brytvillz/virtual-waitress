@@ -51,6 +51,10 @@ export default function StaffPage() {
   const [confirmSuspend, setConfirmSuspend] = useState<string | null>(null);
   const [suspending, setSuspending]         = useState<Record<string, boolean>>({});
   const [suspendWarning, setSuspendWarning] = useState<string | null>(null);
+  const [confirmReactivate, setConfirmReactivate] = useState<string | null>(null);
+  const [reactivating, setReactivating]           = useState<Record<string, boolean>>({});
+  const [reactivateWarning, setReactivateWarning] = useState<string | null>(null);
+  const [reactivatedWaiter, setReactivatedWaiter] = useState<{ name: string; access_code: string } | null>(null);
 
   const load = useCallback(async (restaurantId: string, tz: string) => {
     const supabase = createClient();
@@ -196,6 +200,36 @@ export default function StaffPage() {
     }
   }
 
+  async function handleReactivate(member: StaffMember) {
+    setReactivating(prev => ({ ...prev, [member.id]: true }));
+    setReactivateWarning(null);
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setReactivating(prev => { const n = { ...prev }; delete n[member.id]; return n; }); return; }
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/reactivate-staff`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ staff_id: member.id }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok || result.error) {
+        setReactivateWarning(`Could not reactivate ${member.name}: ${result.error || 'server error'}`);
+      } else {
+        setReactivatedWaiter({ name: member.name, access_code: result.access_code });
+        await load(restaurant!.id, restaurant!.timezone ?? 'Africa/Lagos');
+      }
+    } catch {
+      setReactivateWarning(`Network error reactivating ${member.name} — check your connection.`);
+    } finally {
+      setReactivating(prev => { const n = { ...prev }; delete n[member.id]; return n; });
+      setConfirmReactivate(null);
+    }
+  }
+
   if (!restaurant) return null;
 
   const waiters = staff.filter(s => s.role === 'waiter');
@@ -275,6 +309,30 @@ export default function StaffPage() {
         );
       })()}
 
+      {/* Reactivated waiter banner */}
+      {reactivatedWaiter && restaurant.slug && (() => {
+        const waiterUrl = `${APP_ORIGIN}/${restaurant.slug}/waiter`;
+        const shareMsg = `Hi ${reactivatedWaiter.name}! You've been reactivated on ${restaurant.name}.\n\n🔗 Link: ${waiterUrl}\n🔑 Code: ${reactivatedWaiter.access_code}\n\nOpen the link on your phone and enter the code to start receiving orders.`;
+        return (
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5 mb-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <p className="text-emerald-400 text-sm font-semibold">Reactivated — {reactivatedWaiter.name}</p>
+              <button onClick={() => setReactivatedWaiter(null)} className="text-[#4a4a4a] hover:text-[#9a9098] transition-colors shrink-0 p-1">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="flex items-center gap-3 bg-black/20 rounded-xl px-4 py-2.5 mb-4">
+              <span className="text-[#6B6570] text-xs shrink-0">New code:</span>
+              <span className="text-[#F0EDE8] font-mono font-bold text-sm flex-1">{reactivatedWaiter.access_code}</span>
+              <CopyButton text={reactivatedWaiter.access_code} />
+            </div>
+            <CopyButton text={shareMsg} label="Copy message to send waiter" />
+          </div>
+        );
+      })()}
+
       {loading ? (
         <div className="flex items-center gap-2 text-[#6B6570] text-sm">
           <span className="w-4 h-4 border-2 border-[#6B6570] border-t-transparent rounded-full animate-spin" />
@@ -303,12 +361,18 @@ export default function StaffPage() {
               <p className="text-amber-400 text-xs">{suspendWarning}</p>
             </div>
           )}
+          {reactivateWarning && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 mb-2">
+              <p className="text-amber-400 text-xs">{reactivateWarning}</p>
+            </div>
+          )}
 
           {waiters.map(member => {
             const tables = (waiterTables[member.id] ?? []).sort((a, b) => a - b);
             const stats = waiterStats[member.id] ?? { orders: 0, revenue: 0 };
             const isSuspended = !!member.suspended_at;
             const confirming = confirmSuspend === member.id;
+            const confirmingReactivate = confirmReactivate === member.id;
             return (
               <div key={member.id} className={`border rounded-2xl p-5 ${isSuspended ? 'bg-[#111] border-white/[0.03] opacity-60' : 'bg-[#161616] border-white/[0.06]'}`}>
                 <div className="flex items-start justify-between gap-4 mb-3">
@@ -387,6 +451,34 @@ export default function StaffPage() {
                       </button>
                       <button
                         onClick={() => setConfirmSuspend(null)}
+                        className="text-[#6B6570] text-xs px-2 py-1.5 rounded-lg hover:text-[#c4bec9] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+
+                  {isSuspended && !confirmingReactivate && (
+                    <button
+                      onClick={() => { setConfirmReactivate(member.id); setReactivateWarning(null); }}
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                    >
+                      Reactivate…
+                    </button>
+                  )}
+
+                  {isSuspended && confirmingReactivate && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[#c4bec9] text-xs whitespace-nowrap">Reactivate {member.name}?</span>
+                      <button
+                        onClick={() => handleReactivate(member)}
+                        disabled={!!reactivating[member.id]}
+                        className="border border-emerald-500/50 bg-emerald-500/10 text-emerald-400 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-emerald-500/20 disabled:opacity-50 transition-colors"
+                      >
+                        {reactivating[member.id] ? 'Reactivating…' : 'Yes, reactivate'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmReactivate(null)}
                         className="text-[#6B6570] text-xs px-2 py-1.5 rounded-lg hover:text-[#c4bec9] transition-colors"
                       >
                         Cancel
