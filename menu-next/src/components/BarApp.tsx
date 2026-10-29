@@ -76,6 +76,10 @@ function elapsed(iso: string, now: number): string {
   return `${h}h ${m % 60}m`;
 }
 
+function orderTableLabel(order: BarOrder): string {
+  return order.table_number != null ? `Table ${order.table_number}` : 'No table';
+}
+
 function urgency(iso: string, now: number): 'normal' | 'warn' | 'urgent' {
   const m = (now - new Date(iso).getTime()) / 60000;
   if (m > 8) return 'urgent';
@@ -129,6 +133,20 @@ const S = {
   counterTableInput:  { background: '#1a1a1a', border: '1px solid #333', borderRadius: 10, padding: '12px 16px', color: '#F0EDE8', fontSize: 15, outline: 'none', width: '100%', boxSizing: 'border-box' as const },
   counterSaveBtn:     { width: '100%', padding: '16px 0', background: '#C41E3A', border: 'none', borderRadius: 12, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', touchAction: 'manipulation' as const },
   counterCancelBtn:   { width: '100%', padding: '12px 0', background: 'transparent', border: '1px solid #2a2a2a', borderRadius: 12, color: '#6B6570', fontSize: 15, cursor: 'pointer' },
+  // undo strip
+  undoStrip:          { position: 'fixed' as const, bottom: 0, left: 0, right: 0, background: '#1a1a1a', borderTop: '1px solid #2a2a2a', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 90 },
+  undoText:           { color: '#F0EDE8', fontSize: 15, fontWeight: 600 },
+  undoCountdown:      { color: '#6B6570', fontSize: 13, fontVariantNumeric: 'tabular-nums' as const },
+  undoBtn:            { padding: '8px 18px', background: 'transparent', border: '1px solid #C41E3A', borderRadius: 8, color: '#C41E3A', fontSize: 14, fontWeight: 700, cursor: 'pointer', touchAction: 'manipulation' as const },
+  // recently ready
+  recentHd:           { gridColumn: '1 / -1' as const, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 6px', cursor: 'pointer', userSelect: 'none' as const },
+  recentHdLabel:      { color: '#444', fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' as const },
+  recentHdChevron:    { color: '#444', fontSize: 11 },
+  recentList:         { gridColumn: '1 / -1' as const, display: 'flex', flexDirection: 'column' as const, gap: 6, paddingBottom: 12 },
+  recentItem:         { background: '#0e0e0e', border: '1px solid #1a1a1a', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 },
+  recentItemLabel:    { color: '#444', fontSize: 14, fontWeight: 700, minWidth: 80 },
+  recentItemItems:    { color: '#333', fontSize: 13, flex: 1, overflow: 'hidden', whiteSpace: 'nowrap' as const, textOverflow: 'ellipsis' },
+  recentItemTime:     { color: '#2a2a2a', fontSize: 12, fontVariantNumeric: 'tabular-nums' as const, flexShrink: 0 },
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -156,12 +174,16 @@ export default function BarApp() {
   const [counterTable, setCounterTable] = useState('');
   const [counterSaving, setCounterSaving] = useState(false);
   const [counterError, setCounterError] = useState<string | null>(null);
+  const [undoEntry, setUndoEntry]       = useState<{ id: string; label: string; items: BarItem[]; deadline: number } | null>(null);
+  const [recentReady, setRecentReady]   = useState<{ id: string; label: string; items: BarItem[]; readiedAt: number }[]>([]);
+  const [recentReadyOpen, setRecentReadyOpen] = useState(false);
 
   const rtRef            = useRef<ReturnType<typeof db.channel> | null>(null);
   const prevCountRef     = useRef(0);
   const audioUnlockedRef = useRef(false);
   const cleanupRef       = useRef<(() => void) | null>(null);
   const counterSavingRef = useRef(false);
+  const undoTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clock tick for elapsed times
   useEffect(() => {
@@ -252,6 +274,7 @@ export default function BarApp() {
 
   function startLive() {
     loadOrders();
+    loadRecentReady();
 
     const pollIv = setInterval(loadOrders, 30000);
 
@@ -364,11 +387,64 @@ export default function BarApp() {
     if (!audioUnlockedRef.current) unlockAudio();
     setReadying(prev => ({ ...prev, [orderId]: true }));
     try {
+      const order = orders.find(o => o.id === orderId);
       await db.from('orders').update({ status: 'ready' }).eq('id', orderId);
       setOrders(prev => prev.filter(o => o.id !== orderId));
+      if (order) {
+        const label = orderTableLabel(order);
+        const deadline = Date.now() + 20000;
+        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+        setUndoEntry({ id: orderId, label, items: order.items, deadline });
+        setRecentReady(prev => [{ id: orderId, label, items: order.items, readiedAt: Date.now() }, ...prev].slice(0, 5));
+        undoTimerRef.current = setTimeout(() => {
+          setUndoEntry(null);
+          undoTimerRef.current = null;
+        }, 20000);
+      }
     } finally {
       setReadying(prev => { const n = { ...prev }; delete n[orderId]; return n; });
     }
+  }
+
+  async function handleUndo() {
+    if (!undoEntry) return;
+    const { id } = undoEntry;
+    if (undoTimerRef.current) { clearTimeout(undoTimerRef.current); undoTimerRef.current = null; }
+    setUndoEntry(null);
+    setRecentReady(prev => prev.filter(r => r.id !== id));
+    // Trigger clears ready_at and handled_by server-side (migration 045).
+    await db.from('orders').update({ status: 'pending' }).eq('id', id);
+  }
+
+  async function loadRecentReady() {
+    const { data: rawOrders } = await db
+      .from('orders')
+      .select('id, table_number, ready_at')
+      .eq('status', 'ready')
+      .order('ready_at', { ascending: false });
+    if (!rawOrders || rawOrders.length === 0) { setRecentReady([]); return; }
+    const orderIds = rawOrders.map(o => o.id);
+    const { data: rawItems } = await db
+      .from('order_items_for_device')
+      .select('id, order_id, item_name, quantity, item_status, station')
+      .in('order_id', orderIds);
+    const itemsByOrder: Record<string, BarItem[]> = {};
+    for (const item of rawItems ?? []) {
+      if (item.item_status === 'void') continue;
+      if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
+      itemsByOrder[item.order_id].push(item);
+    }
+    setRecentReady(
+      rawOrders
+        .filter(o => (itemsByOrder[o.id]?.length ?? 0) > 0)
+        .slice(0, 5)
+        .map(o => ({
+          id: o.id,
+          label: o.table_number != null ? `Table ${o.table_number}` : 'No table',
+          items: itemsByOrder[o.id] ?? [],
+          readiedAt: o.ready_at ? new Date(o.ready_at).getTime() : Date.now(),
+        }))
+    );
   }
 
   async function loadMenu() {
@@ -546,7 +622,7 @@ export default function BarApp() {
       </div>
 
       {/* Order board */}
-      <div style={S.board}>
+      <div style={{ ...S.board, paddingBottom: undoEntry ? 72 : 16 }}>
         {orders.length === 0 ? (
           <div style={S.empty}>No pending orders</div>
         ) : (
@@ -597,7 +673,39 @@ export default function BarApp() {
             );
           })
         )}
+
+        {/* Recently ready */}
+        {recentReady.length > 0 && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={S.recentHd} onClick={() => setRecentReadyOpen(p => !p)}>
+              <span style={S.recentHdLabel}>Recently ready ({recentReady.length})</span>
+              <span style={S.recentHdChevron}>{recentReadyOpen ? '▲' : '▼'}</span>
+            </div>
+            {recentReadyOpen && (
+              <div style={S.recentList}>
+                {recentReady.map(entry => (
+                  <div key={entry.id + entry.readiedAt} style={S.recentItem}>
+                    <span style={S.recentItemLabel}>{entry.label}</span>
+                    <span style={S.recentItemItems}>{entry.items.map(i => `${i.quantity}× ${i.item_name}`).join(' · ')}</span>
+                    <span style={S.recentItemTime}>{elapsed(new Date(entry.readiedAt).toISOString(), now)} ago</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Undo strip */}
+      {undoEntry && (
+        <div style={S.undoStrip}>
+          <span style={S.undoText}>{undoEntry.label} marked ready</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={S.undoCountdown}>{Math.max(0, Math.ceil((undoEntry.deadline - now) / 1000))}s</span>
+            <button style={S.undoBtn} onClick={handleUndo}>Undo</button>
+          </div>
+        </div>
+      )}
 
       {/* Counter entry panel */}
       {counterOpen && (
