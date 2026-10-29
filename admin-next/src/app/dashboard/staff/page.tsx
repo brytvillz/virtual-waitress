@@ -156,6 +156,11 @@ export default function StaffPage() {
 
   async function handleRegenCode(staffId: string) {
     const supabase = createClient();
+    const { data: target } = await supabase.from('staff').select('suspended_at').eq('id', staffId).maybeSingle();
+    if (target?.suspended_at) {
+      alert('This account is suspended. Use Reactivate to restore access.');
+      return;
+    }
     let newCode = '';
     for (let i = 0; i < 5; i++) {
       const candidate = generateCode();

@@ -154,18 +154,23 @@ function tabRoundCount(tab: TabRow): number {
   return (tab.orders || []).filter(o => o.status !== 'cancelled').length;
 }
 
+const ACCESS_REMOVED = 'Your access has been removed. Speak to your manager.';
+
 // Strip function-name prefix from RPC error messages; replace network errors with plain language.
 function sanitiseOrderError(msg: string): string {
   if (!msg || msg.includes('supabase.co') || msg.startsWith('TypeError') || msg.startsWith('FetchError')) {
     return "No connection. Tap 'Yes, send' to try again.";
   }
-  return msg.replace(/^waiter_place_order:\s*/i, '');
+  const stripped = msg.replace(/^waiter_place_order:\s*/i, '');
+  if (stripped.includes('caller has no restaurant')) return ACCESS_REMOVED;
+  return stripped;
 }
 
 function sanitiseSettleError(msg: string): string {
   if (!msg || msg.includes('supabase.co') || msg.startsWith('TypeError') || msg.startsWith('FetchError')) {
     return "No connection. Tap to try again.";
   }
+  if (msg.includes('caller has no restaurant')) return ACCESS_REMOVED;
   if (msg.includes('pending cancellation')) {
     return 'One or more orders on this tab have a pending cancellation. A manager must decide those first before the tab can be paid.';
   }
@@ -179,6 +184,7 @@ function sanitiseOpenTabError(msg: string): string {
   if (!msg || msg.includes('supabase.co') || msg.startsWith('TypeError') || msg.startsWith('FetchError')) {
     return "No connection. Tap 'Open tab' to try again.";
   }
+  if (msg.includes('caller has no restaurant')) return ACCESS_REMOVED;
   return msg;
 }
 
@@ -509,21 +515,19 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       q = q.or(`table_number.is.null,table_number.not.in.(${[...othersRef.current].join(',')})`);
     const { data } = await q;
 
-    if (!data || data.length === 0) {
-      // Distinguish a quiet night from a suspended account.
-      // "Staff can view their own row" (id = auth.uid()) is not gated on suspended_at,
-      // so this query returns the row even after suspension.
-      const { data: { user } } = await db.auth.getUser();
-      if (user) {
-        const { data: me } = await db.from('staff').select('suspended_at').eq('id', user.id).maybeSingle();
-        if (me?.suspended_at) {
-          setSuspendedOut(true);
-          await db.auth.signOut();
-          if (rtRef.current) { db.removeChannel(rtRef.current); rtRef.current = null; }
-          ridRef.current = null;
-          setIsLoggedIn(false);
-          return;
-        }
+    // Always check suspension, not only when the queue is empty.
+    // A suspended waiter's own row is readable regardless of suspended_at,
+    // so this is the only reliable mid-session detection.
+    const { data: { user } } = await db.auth.getUser();
+    if (user) {
+      const { data: me } = await db.from('staff').select('suspended_at').eq('id', user.id).maybeSingle();
+      if (me?.suspended_at) {
+        setSuspendedOut(true);
+        await db.auth.signOut();
+        if (rtRef.current) { db.removeChannel(rtRef.current); rtRef.current = null; }
+        ridRef.current = null;
+        setIsLoggedIn(false);
+        return;
       }
     }
 
@@ -705,7 +709,12 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
     async function init() {
       const { data: { session } } = await db.auth.getSession();
       if (session) {
-        const { data: row } = await db.from('staff').select('restaurant_id').eq('id', session.user.id).single();
+        const { data: row } = await db.from('staff').select('restaurant_id, suspended_at').eq('id', session.user.id).single();
+        if (row?.suspended_at) {
+          setSuspendedOut(true);
+          await db.auth.signOut();
+          return;
+        }
         if (row?.restaurant_id) { await startDashboard(row.restaurant_id); setIsLoggedIn(true); }
       }
     }
@@ -939,7 +948,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
         p_reason:        voidReason.trim(),
       });
       if (error) {
-        setVoidError(error.message.replace(/^void_order_item: /, ''));
+        const voidMsg = error.message.replace(/^void_order_item: /, '');
+        setVoidError(voidMsg.includes('caller has no restaurant') ? ACCESS_REMOVED : voidMsg);
         return;
       }
       setVoidingItemId(null);
