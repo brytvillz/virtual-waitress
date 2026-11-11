@@ -29,7 +29,7 @@
   --nav-border: rgba(255,255,255,0.06);
   --card-glass: rgba(10, 2, 5, 0.52);
   --stepper-bg: #111;
-  --bg-texture: url('/images/bg-texture-new.jpg');
+  --bg-texture: image-set(url('/images/bg-texture-new.webp') type('image/webp'), url('/images/bg-texture-new.jpg') type('image/jpeg'));
   --hero-bg-opacity: 0.18;
   --bubble-bg: rgba(10, 2, 5, 0.72);
   --bubble-border: rgba(255,255,255,0.10);
@@ -93,16 +93,6 @@ body {
   border-bottom: 1px solid var(--header-border);
 }
 
-.hero-bg {
-  position: absolute;
-  inset: 0;
-  background-image: url('/images/bg-hero.jpg');
-  background-size: cover;
-  background-position: center 35%;
-  opacity: var(--hero-bg-opacity);
-  filter: blur(1.5px) saturate(1.1);
-  z-index: 0;
-}
 
 .hero-section::after {
   content: '';
@@ -1705,7 +1695,6 @@ body {
   position: absolute;
   inset: 0;
   background-color: #1a0a02;
-  background-image: url('/images/bg-hero.jpg');
   background-size: cover;
   background-position: center;
   transform: scale(1.04);

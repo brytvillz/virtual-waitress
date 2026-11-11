@@ -14,13 +14,13 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 const THEME_ADA: Record<string, string> = {
-  'nightlife-dark':   '/images/ada.png',
-  'cafe-light':       '/images/chisom.png',
-  'street-energy':    '/images/emeka.png',
-  'heritage-gold':    '/images/mamachef.png',
-  'pure-luxury':      '/images/cheftunde.png',
-  'tropical-bright':  '/images/ada.png',
-  'custom':           '/images/ada.png',
+  'nightlife-dark':   '/images/ada.webp',
+  'cafe-light':       '/images/chisom.webp',
+  'street-energy':    '/images/emeka.webp',
+  'heritage-gold':    '/images/mamachef.webp',
+  'pure-luxury':      '/images/cheftunde.webp',
+  'tropical-bright':  '/images/ada.webp',
+  'custom':           '/images/ada.webp',
 };
 
 // Themes where the restaurant's own accent_color should override the CSS variable.
@@ -78,7 +78,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
   const [dataError, setDataError]         = useState<string | null>(null);
 
   // ── Character ─────────────────────────────────────────────────────────────────
-  const [charImg, setCharImg]             = useState('/images/ada.png');
+  const [charImg, setCharImg]             = useState('/images/ada.webp');
 
   // ── Ada ───────────────────────────────────────────────────────────────────────
   const [adaVisible, setAdaVisible]       = useState(false);
@@ -239,7 +239,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
     } else {
       document.documentElement.style.removeProperty('--accent');
     }
-    setCharImg(THEME_ADA[theme] || '/images/ada.png');
+    setCharImg(THEME_ADA[theme] || '/images/ada.webp');
   }
 
   useEffect(() => {
@@ -728,8 +728,11 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
               resetIdleTimer();
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={charImg} alt="Virtual waitress" className="ada-img" />
+            <picture>
+              <source srcSet={charImg} type="image/webp" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={charImg.replace('.webp', '.jpg')} alt="Virtual waitress" className="ada-img" />
+            </picture>
           </button>
         </div>
 

@@ -1,31 +1,18 @@
 // Virtual Waitress — Service Worker
 // Caches all assets so the menu works even with poor network (common in restaurants)
 
-const CACHE = 'vw-v67';
+const CACHE = 'vw-v68';
+// Three files. Each earns its place:
+//   '/'              — the HTML shell; without it, offline shows the browser error page
+//   '/manifest.json' — PWA install prompt and home-screen icon (500 bytes)
+//   '/icons/icon.svg'— referenced directly in the push handler below (310 bytes)
+//
+// Everything else (images, logos, Next.js chunks) caches on first request via the
+// fetch handler. No hand-kept list means no drift when files are added or renamed.
 const ASSETS = [
   '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/app.js',
-  '/js/vendor/supabase.js',
   '/manifest.json',
-  '/icons/icon.svg',
-  '/images/ada.png',
-  '/images/chisom.png',
-  '/images/emeka.png',
-  '/images/mamachef.png',
-  '/images/cheftunde.png',
-  '/images/splash-waitress.png',
-  '/images/splash-chef.png',
-  '/images/bg-hero.jpg',
-  '/images/bg-food.jpg',
-  '/images/bg-texture-new.jpg',
-  '/images/cat-soups.jpg',
-  '/images/cat-swallows.jpg',
-  '/images/cat-rice.jpg',
-  '/images/cat-grills.jpg',
-  '/images/cat-small-chops.jpg',
-  '/images/cat-drinks.jpg'
+  '/icons/icon.svg'
 ];
 
 // Install: cache everything on first load
@@ -54,7 +41,9 @@ self.addEventListener('fetch', e => {
   if (url.origin !== self.location.origin || e.request.method !== 'GET') return;
 
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(e.request)
+      .then(cached => cached || fetch(e.request))
+      .catch(() => new Response('', { status: 503, statusText: 'Offline' }))
   );
 });
 

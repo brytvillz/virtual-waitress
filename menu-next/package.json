@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "measure:weight": "node scripts/measure-weight.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.65.0",
@@ -19,6 +20,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "playwright": "^1.65.0",
     "typescript": "^5"
   }
 }
