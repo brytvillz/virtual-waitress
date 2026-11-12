@@ -728,11 +728,8 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
               resetIdleTimer();
             }}
           >
-            <picture>
-              <source srcSet={charImg} type="image/webp" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={charImg.replace('.webp', '.jpg')} alt="Virtual waitress" className="ada-img" />
-            </picture>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={charImg} alt="Virtual waitress" className="ada-img" />
           </button>
         </div>
 
