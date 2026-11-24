@@ -560,7 +560,12 @@ export default function SettingsPage() {
             <div className="bg-[#111] border border-[#C41E3A]/20 rounded-xl p-4 mb-5">
               <p className="text-[#9a9098] text-xs mb-2 uppercase tracking-wider font-medium">Pairing code — valid for 10 minutes</p>
               <p className="text-[#F0EDE8] text-4xl font-black tracking-[0.25em] font-mono text-center py-2">{pairingCode}</p>
-              <p className="text-[#4a4a4a] text-xs text-center mt-1">Enter this code on the bar screen to connect it</p>
+              <p className="text-[#9a9098] text-sm text-center mt-3 mb-2">
+                Open this address on the bar tablet, then enter the code:
+              </p>
+              <p className="text-[#F0EDE8] text-xl font-mono font-semibold text-center select-all break-all">
+                app.virtualwaitress.com/bar
+              </p>
             </div>
           )}
 

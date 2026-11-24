@@ -328,10 +328,16 @@ export default function StaffPage() {
                 </svg>
               </button>
             </div>
-            <div className="flex items-center gap-3 bg-black/20 rounded-xl px-4 py-2.5 mb-4">
-              <span className="text-[#6B6570] text-xs shrink-0">New code:</span>
-              <span className="text-[#F0EDE8] font-mono font-bold text-sm flex-1">{reactivatedWaiter.access_code}</span>
-              <CopyButton text={reactivatedWaiter.access_code} />
+            <div className="flex flex-col gap-2 mb-4">
+              <div className="flex items-center gap-3 bg-black/20 rounded-xl px-4 py-2.5">
+                <span className="text-[#6B6570] text-xs shrink-0">Login link:</span>
+                <span className="text-[#9a9098] text-xs flex-1 truncate">{waiterUrl}</span>
+              </div>
+              <div className="flex items-center gap-3 bg-black/20 rounded-xl px-4 py-2.5">
+                <span className="text-[#6B6570] text-xs shrink-0">New code:</span>
+                <span className="text-[#F0EDE8] font-mono font-bold text-sm flex-1">{reactivatedWaiter.access_code}</span>
+                <CopyButton text={reactivatedWaiter.access_code} />
+              </div>
             </div>
             <CopyButton text={shareMsg} label="Copy message to send waiter" />
           </div>
