@@ -130,7 +130,7 @@ const S = {
   counterQtyBtn:      { width: 44, height: 44, borderRadius: 12, border: 'none', fontSize: 22, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' as const },
   counterQtyNum:      { color: '#F0EDE8', fontSize: 17, fontWeight: 700, minWidth: 22, textAlign: 'center' as const },
   counterFooter:      { padding: '16px 20px 20px', borderTop: '1px solid #1f1f1f', flexShrink: 0, display: 'flex', flexDirection: 'column' as const, gap: 10 },
-  counterTableInput:  { background: '#1a1a1a', border: '1px solid #333', borderRadius: 10, padding: '12px 16px', color: '#F0EDE8', fontSize: 15, outline: 'none', width: '100%', boxSizing: 'border-box' as const },
+  counterTableInput:  { background: '#1a1a1a', border: '1px solid #333', borderRadius: 10, padding: '12px 16px', color: '#F0EDE8', fontSize: 16, outline: 'none', width: '100%', boxSizing: 'border-box' as const },
   counterSaveBtn:     { width: '100%', padding: '16px 0', background: '#C41E3A', border: 'none', borderRadius: 12, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', touchAction: 'manipulation' as const },
   counterCancelBtn:   { width: '100%', padding: '12px 0', background: 'transparent', border: '1px solid #2a2a2a', borderRadius: 12, color: '#6B6570', fontSize: 15, cursor: 'pointer' },
   // undo strip

@@ -4585,3 +4585,11 @@ body {
   cursor: pointer;
 }
 .w-void-submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* iOS Safari zooms the page when a focused input has font-size < 16px.
+   Raise all form fields to 1rem on mobile to prevent that. */
+@media screen and (max-width: 767px) {
+  input, select, textarea {
+    font-size: 1rem;
+  }
+}
