@@ -265,7 +265,6 @@ export default function SignupPage() {
           <FeatureItem>Works on any phone — no app download needed</FeatureItem>
           <FeatureItem>Orders go live to your waiter dashboard instantly</FeatureItem>
           <FeatureItem>Setup takes less than an hour</FeatureItem>
-          <FeatureItem>14-day free trial — no credit card required</FeatureItem>
         </div>
       </div>
 
