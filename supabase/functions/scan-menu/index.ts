@@ -6,8 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GEMINI_MODEL = 'gemini-3.8-flash';
-const GEMINI_BASE  = 'https://generativelanguage.googleapis.com/v1beta/models';
+// Try models in order. Fall through only on overload / rate-limit.
+const GEMINI_MODELS = [
+  'gemini-3.6-flash',  // primary — previous gen, less contended
+  'gemini-3.8-flash',  // fallback
+  'gemini-2.5-flash',  // last resort
+];
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const SYSTEM_PROMPT = `You are a menu digitizer. The user has photographed a physical restaurant menu.
 Extract all menu categories and items visible in the image.
@@ -21,6 +26,50 @@ Rules:
 
 Response format:
 {"categories":[{"name":"Category Name","items":[{"name":"Item Name","price":1500,"description":""}]}]}`;
+
+function isOverload(status: number, body: { error?: { message?: string } }): boolean {
+  if (status === 429 || status === 503) return true;
+  const msg = (body?.error?.message ?? '').toLowerCase();
+  return msg.includes('high demand') || msg.includes('overloaded');
+}
+
+async function geminiScan(parts: unknown[], apiKey: string): Promise<string> {
+  const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+  for (const model of GEMINI_MODELS) {
+    for (let attempt = 0; attempt <= 1; attempt++) {
+      if (attempt === 1) await sleep(2000);
+      const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              ...(parts as unknown[]),
+            ],
+          }],
+          generationConfig: {
+            maxOutputTokens: 4096,
+            temperature: 0.1,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (isOverload(res.status, data)) {
+          if (attempt === 1) break; // retry exhausted → try next model
+          continue;                 // wait 2 s then retry same model
+        }
+        // Genuine error (bad key, bad request, etc.) — surface immediately.
+        throw new Error(data?.error?.message || `Gemini returned ${res.status}`);
+      }
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+      if (!text) throw new Error('AI returned an empty response. Please try a clearer photo.');
+      console.log(`[scan-menu] answered by ${model}`);
+      return text;
+    }
+  }
+  throw new Error('AI is currently overloaded — please try again in a moment.');
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -58,32 +107,13 @@ serve(async (req) => {
       return json({ error: 'Unsupported image type. Use JPEG, PNG, or WEBP.' }, 400);
     }
 
-    const res = await fetch(`${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inlineData: { mimeType, data: image } },
-            { text: SYSTEM_PROMPT },
-          ],
-        }],
-        generationConfig: {
-          maxOutputTokens: 4096,
-          temperature: 0.1,
-        },
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      const msg = data?.error?.message || `Gemini returned ${res.status}`;
-      return json({ error: `AI error: ${msg}` }, 500);
-    }
-
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
-    if (!raw) return json({ error: 'AI returned an empty response. Please try a clearer photo.' }, 500);
+    const raw = await geminiScan(
+      [
+        { inlineData: { mimeType, data: image } },
+        { text: SYSTEM_PROMPT },
+      ],
+      API_KEY,
+    );
 
     const cleaned = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/i, '').trim();
 

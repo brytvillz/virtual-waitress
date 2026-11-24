@@ -6,26 +6,49 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GEMINI_MODEL = 'gemini-3.8-flash';
-const GEMINI_BASE  = 'https://generativelanguage.googleapis.com/v1beta/models';
+// Try models in order. Fall through only on overload / rate-limit.
+const GEMINI_MODELS = [
+  'gemini-3.6-flash',  // primary — previous gen, less contended
+  'gemini-3.8-flash',  // fallback
+  'gemini-2.5-flash',  // last resort
+];
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-async function gemini(model: string, parts: unknown[], apiKey: string, maxTokens = 256): Promise<string> {
-  const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts }],
-      generationConfig: { maxOutputTokens: maxTokens },
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    const msg = data?.error?.message || `Gemini returned ${res.status}`;
-    throw new Error(`AI error: ${msg}`);
+function isOverload(status: number, body: { error?: { message?: string } }): boolean {
+  if (status === 429 || status === 503) return true;
+  const msg = (body?.error?.message ?? '').toLowerCase();
+  return msg.includes('high demand') || msg.includes('overloaded');
+}
+
+async function gemini(parts: unknown[], apiKey: string, maxTokens = 256): Promise<string> {
+  const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+  for (const model of GEMINI_MODELS) {
+    for (let attempt = 0; attempt <= 1; attempt++) {
+      if (attempt === 1) await sleep(2000);
+      const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: { maxOutputTokens: maxTokens },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (isOverload(res.status, data)) {
+          if (attempt === 1) break; // retry exhausted → try next model
+          continue;                 // wait 2 s then retry same model
+        }
+        // Genuine error (bad key, bad request, etc.) — surface immediately.
+        throw new Error(data?.error?.message || `Gemini returned ${res.status}`);
+      }
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      if (!text) throw new Error('AI returned an empty response. Please try again.');
+      console.log(`[claude-ai] answered by ${model}`);
+      return text;
+    }
   }
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!text) throw new Error('AI returned an empty response. Please try again.');
-  return text;
+  throw new Error('AI is currently overloaded — please try again in a moment.');
 }
 
 serve(async (req) => {
@@ -68,7 +91,7 @@ serve(async (req) => {
         `\n2. "ada_message": A warm, friendly 1-sentence message that a virtual waitress named Ada would say to a customer who taps this dish. Include one emoji at the end.` +
         `\n\nReturn ONLY a single-line JSON object with no formatting or newlines: {"description":"...","ada_message":"..."}`;
 
-      const raw = await gemini(GEMINI_MODEL, [{ text: prompt }], API_KEY, 2048);
+      const raw = await gemini([{ text: prompt }], API_KEY, 2048);
       let result: { description: string; ada_message: string };
       try {
         const clean = raw.replace(/^```[a-z]*\n?/i, '').replace(/\n?```$/, '').trim();
@@ -90,7 +113,7 @@ serve(async (req) => {
         (itemList ? ` This section includes: ${itemList}.` : '') +
         ` Be warm, conversational, and appetising. No emojis. No quotation marks. Write only the message.`;
 
-      const message = await gemini(GEMINI_MODEL, [{ text: prompt }], API_KEY, 128);
+      const message = await gemini([{ text: prompt }], API_KEY, 128);
       return json({ message });
     }
 
@@ -106,7 +129,7 @@ serve(async (req) => {
         ' "description" (string, empty if none), "category" (string, your best guess).' +
         ' Example: [{"name":"Egusi Soup","price":2500,"description":"","category":"Soups"}]';
 
-      const raw = await gemini(GEMINI_MODEL, [
+      const raw = await gemini([
         { inline_data: { mime_type: media_type, data: image_base64 } },
         { text: prompt },
       ], API_KEY, 1024);
