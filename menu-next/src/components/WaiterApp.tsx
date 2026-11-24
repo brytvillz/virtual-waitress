@@ -369,6 +369,9 @@ function HourlyChart({ orders }: { orders: Order[] }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
+// Set to true to restore the live orders/calls feed in the Menu tab.
+const SHOW_LIVE_FEED = false;
+
 export default function WaiterApp({ slug }: { slug: string | null }) {
   const [isLoggedIn,   setIsLoggedIn]   = useState(false);
   const [loginCode,    setLoginCode]    = useState('');
@@ -1635,8 +1638,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
           className={`w-tab${activeTab === 'live' ? ' active' : ''}`}
           onClick={() => handleTabChange('live')}
         >
-          <span className="w-live-dot" />
-          Live
+          Menu
         </button>
         <button
           className={`w-tab${activeTab === 'tabs' ? ' active' : ''}`}
@@ -1659,8 +1661,8 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
       {activeTab === 'live' && (
         <div className="w-live">
 
-          {/* Calls column */}
-          <div className="w-col">
+          {/* Calls column — hidden while SHOW_LIVE_FEED is false */}
+          {SHOW_LIVE_FEED && <div className="w-col">
             <div className="w-col-head">
               <span className="w-col-title">Calls</span>
               <span className={`w-col-count${calls.length > 0 ? ' has-items' : ''}`}>{calls.length}</span>
@@ -1691,10 +1693,10 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                 );
               })}
             </div>
-          </div>
+          </div>}
 
-          {/* Orders column */}
-          <div className="w-col">
+          {/* Orders column — hidden while SHOW_LIVE_FEED is false */}
+          {SHOW_LIVE_FEED && <div className="w-col">
             <div className="w-col-head">
               <span className="w-col-title">Orders</span>
               <span className={`w-col-count${orders.length > 0 ? ' has-items' : ''}`}>{orders.length}</span>
@@ -1824,7 +1826,7 @@ export default function WaiterApp({ slug }: { slug: string | null }) {
                 );
               })}
             </div>
-          </div>
+          </div>}
 
           {/* Menu column */}
           <div className="w-col">
