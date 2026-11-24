@@ -30,13 +30,15 @@ type RestaurantSettings = {
 };
 
 type AlertSettings = {
-  staff_phones: boolean;
-  sound: boolean;
+  staff_phones:      boolean;
+  sound:             boolean;
+  allow_call_waiter: boolean;
 };
 
 const ALERT_DB_KEY: Record<keyof AlertSettings, string> = {
-  staff_phones: 'alert_staff_phones',
-  sound:        'alert_sound',
+  staff_phones:      'alert_staff_phones',
+  sound:             'alert_sound',
+  allow_call_waiter: 'allow_call_waiter',
 };
 
 const THEMES = [
@@ -80,7 +82,7 @@ export default function SettingsPage() {
   const [restError, setRestError] = useState('');
 
   // Alert settings state
-  const [alerts, setAlerts] = useState<AlertSettings>({ staff_phones: false, sound: true });
+  const [alerts, setAlerts] = useState<AlertSettings>({ staff_phones: false, sound: true, allow_call_waiter: false });
   const [canManageAlerts, setCanManageAlerts] = useState(false);
   const [alertStatus, setAlertStatus] = useState<SaveStatus>('idle');
   const [alertError, setAlertError] = useState('');
@@ -119,7 +121,7 @@ export default function SettingsPage() {
     const [{ data }, authResult, devResult, pcResult] = await Promise.all([
       supabase
         .from('restaurants')
-        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_theme, alert_staff_phones, alert_sound, owner_id')
+        .select('name, tagline, whatsapp, accent_color, max_tables_per_waiter, menu_theme, alert_staff_phones, alert_sound, allow_call_waiter, owner_id')
         .eq('id', restaurantId)
         .single(),
       supabase.auth.getUser(),
@@ -157,8 +159,9 @@ export default function SettingsPage() {
       });
 
       const loaded: AlertSettings = {
-        staff_phones: data.alert_staff_phones ?? false,
-        sound:        data.alert_sound ?? true,
+        staff_phones:      data.alert_staff_phones ?? false,
+        sound:             data.alert_sound ?? true,
+        allow_call_waiter: (data as { allow_call_waiter?: boolean }).allow_call_waiter ?? false,
       };
       setAlerts(loaded);
 
@@ -524,6 +527,12 @@ export default function SettingsPage() {
               hint="Plays a chime in the admin dashboard when a new order arrives"
               checked={alerts.sound}
               onChange={v => handleAlertToggle('sound', v)}
+            />
+            <AlertToggle
+              label="Let customers call a waiter from their phone"
+              hint="Shows the Call Waiter button on your customer menu. Off by default."
+              checked={alerts.allow_call_waiter}
+              onChange={v => handleAlertToggle('allow_call_waiter', v)}
             />
           </div>
         </section>

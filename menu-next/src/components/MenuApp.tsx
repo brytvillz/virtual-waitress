@@ -39,6 +39,7 @@ interface RestaurantData {
   plan: string; plan_status: string;
   plan_expires_at: string | null; menu_theme: string;
   customer_ordering_enabled: boolean;
+  allow_call_waiter: boolean;
 }
 interface AdaData {
   name: string; emoji: string; welcome: string; idle: string;
@@ -200,6 +201,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
         plan_expires_at: (restaurant!.plan_expires_at as string) || null,
         menu_theme:      (restaurant!.menu_theme as string)      || 'nightlife-dark',
         customer_ordering_enabled: (restaurant!.customer_ordering_enabled as boolean) ?? true,
+        allow_call_waiter:         (restaurant!.allow_call_waiter as boolean)         ?? false,
       },
       ada: {
         name:    restaurant!.ada_name as string,
@@ -741,14 +743,16 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
 
         {/* ── Action bar ────────────────────────────────────────────── */}
         <div className="action-bar">
-          <button
-            className="call-waiter-btn"
-            onClick={handleCallWaiter}
-            disabled={callWaiterDisabled}
-          >
-            <span className="btn-icon">📲</span>
-            <span>Call Waiter</span>
-          </button>
+          {menuData?.restaurant.allow_call_waiter && (
+            <button
+              className="call-waiter-btn"
+              onClick={handleCallWaiter}
+              disabled={callWaiterDisabled}
+            >
+              <span className="btn-icon">📲</span>
+              <span>Call Waiter</span>
+            </button>
+          )}
           {orderingEnabled ? (
             <button
               className="place-order-btn"
@@ -806,14 +810,16 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
               <span className="cmenu-item-arrow">›</span>
             </button>
           )}
-          <button
-            className="cmenu-item"
-            onClick={() => { closeCmenu(); handleCallWaiter(); }}
-          >
-            <span className="cmenu-item-icon">📲</span>
-            <span className="cmenu-item-label">Call Waiter</span>
-            <span className="cmenu-item-arrow">›</span>
-          </button>
+          {menuData?.restaurant.allow_call_waiter && (
+            <button
+              className="cmenu-item"
+              onClick={() => { closeCmenu(); handleCallWaiter(); }}
+            >
+              <span className="cmenu-item-icon">📲</span>
+              <span className="cmenu-item-label">Call Waiter</span>
+              <span className="cmenu-item-arrow">›</span>
+            </button>
+          )}
         </div>
         <p className="cmenu-footer">Powered by Virtual Waitress</p>
       </nav>
