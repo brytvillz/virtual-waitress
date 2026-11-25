@@ -44,22 +44,30 @@ export default function ResetPasswordPage() {
   const [reqError,    setReqError]    = useState('');
 
   useEffect(() => {
-    // Implicit flow: Supabase fires PASSWORD_RECOVERY when hash contains a valid recovery token
+    // Fires PASSWORD_RECOVERY for implicit-flow links and for token_hash sessions
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setScreen('form');
       }
     });
 
-    // Check for error in URL hash (e.g. otp_expired)
+    const params = new URLSearchParams(window.location.search);
+
+    // /auth/confirm redirects here with this param when verifyOtp fails
+    if (params.get('error') === 'link_expired') {
+      setScreen('invalid');
+      return () => subscription.unsubscribe();
+    }
+
+    // Check for error in URL hash (e.g. otp_expired from implicit flow)
     const hash = new URLSearchParams(window.location.hash.slice(1));
     if (hash.get('error')) {
       setScreen('request');
       return () => subscription.unsubscribe();
     }
 
-    // PKCE flow: reset link arrives as ?code=xxx — exchange it for a session
-    const code = new URLSearchParams(window.location.search).get('code');
+    // PKCE fallback: reset link opened in the same browser that requested it
+    const code = params.get('code');
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
         setScreen(error ? 'request' : 'form');
@@ -67,10 +75,16 @@ export default function ResetPasswordPage() {
       return () => subscription.unsubscribe();
     }
 
-    // Fallback: if no recovery event within 6 seconds, show request form
+    // token_hash flow: /auth/confirm called verifyOtp server-side and set a session
+    // in cookies before redirecting here. getSession() detects it immediately.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setScreen(s => s === 'checking' ? 'form' : s);
+    });
+
+    // Fallback: show request form if nothing resolves within 4 seconds
     const timeout = setTimeout(() => {
       setScreen(s => s === 'checking' ? 'request' : s);
-    }, 6000);
+    }, 4000);
 
     return () => {
       subscription.unsubscribe();
@@ -190,15 +204,23 @@ export default function ResetPasswordPage() {
           </div>
           <h1 className="text-[#F0EDE8] text-xl font-bold tracking-tight mb-2">Link expired</h1>
           <p className="text-[#6B6570] text-sm mb-8 leading-relaxed">
-            This password reset link is invalid or has expired.<br />
-            Request a new one from the login page.
+            This password reset link has expired or has already been used.<br />
+            Request a new one below.
           </p>
-          <a
-            href="/login"
-            className="inline-block bg-[#161616] border border-white/[0.08] text-[#F0EDE8] text-sm font-medium rounded-xl px-6 py-3 hover:border-white/[0.14] transition-colors"
-          >
-            Back to Login
-          </a>
+          <div className="flex flex-col sm:flex-row items-center gap-3 justify-center">
+            <button
+              onClick={() => setScreen('request')}
+              className="bg-[#C41E3A] hover:bg-[#a01830] text-white text-sm font-semibold rounded-xl px-6 py-3 transition-colors"
+            >
+              Request a new link
+            </button>
+            <a
+              href="/login"
+              className="inline-block bg-[#161616] border border-white/[0.08] text-[#F0EDE8] text-sm font-medium rounded-xl px-6 py-3 hover:border-white/[0.14] transition-colors"
+            >
+              Back to Login
+            </a>
+          </div>
         </div>
       </div>
     );
