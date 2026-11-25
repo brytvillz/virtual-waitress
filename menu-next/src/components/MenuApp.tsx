@@ -9,6 +9,9 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL      = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+// Set to true to restore the Sign In link in the customer menu header.
+const SHOW_HEADER_SIGNIN = false;
+
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { storageKey: 'vw_customer_auth' },
 });
@@ -695,7 +698,7 @@ export default function MenuApp({ slug, table }: { slug: string; table: string }
             {table && <span className="mag-header-table">Table {table}</span>}
           </div>
           <div className="mag-header-right">
-            <a href="https://dashboard.virtualwaitress.com" className="mag-header-signin">Sign In</a>
+            {SHOW_HEADER_SIGNIN && <a href="https://dashboard.virtualwaitress.com" className="mag-header-signin">Sign In</a>}
             <button className="mag-header-menu-btn" onClick={openCmenu} aria-label="Open menu">☰</button>
           </div>
         </header>
