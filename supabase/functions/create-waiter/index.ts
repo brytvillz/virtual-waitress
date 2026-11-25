@@ -89,7 +89,9 @@ Deno.serve(async (req) => {
         .from("staff")
         .select("id", { count: "exact", head: true })
         .eq("restaurant_id", restaurantId)
-        .eq("role", "waiter");
+        .eq("role", "waiter")
+        .is("suspended_at", null)
+        .is("removed_at", null);
 
       if ((count || 0) >= limit) {
         const planLabel = plan === "free" ? "Free plan (1 waiter)" : "Growth plan (5 waiters)";

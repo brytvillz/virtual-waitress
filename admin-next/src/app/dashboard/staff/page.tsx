@@ -13,6 +13,7 @@ type StaffMember = {
   role: 'waiter' | 'manager';
   access_code: string | null;
   suspended_at: string | null;
+  removed_at: string | null;
   restaurant_id: string;
 };
 
@@ -55,6 +56,10 @@ export default function StaffPage() {
   const [reactivating, setReactivating]           = useState<Record<string, boolean>>({});
   const [reactivateWarning, setReactivateWarning] = useState<string | null>(null);
   const [reactivatedWaiter, setReactivatedWaiter] = useState<{ name: string; access_code: string } | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<Record<string, boolean>>({});
+  const [removeWarning, setRemoveWarning] = useState<string | null>(null);
+  const [removeEligibility, setRemoveEligibility] = useState<Record<string, { canDelete: boolean } | 'checking'>>({});
 
   const load = useCallback(async (restaurantId: string, tz: string) => {
     const supabase = createClient();
@@ -235,10 +240,58 @@ export default function StaffPage() {
     }
   }
 
+  async function checkRemoveEligibility(waiterId: string) {
+    setRemoveEligibility(prev => ({ ...prev, [waiterId]: 'checking' }));
+    const supabase = createClient();
+    const [{ count: c1 }, { count: c2 }, { count: c3 }, { count: c4 }, { count: c5 }] =
+      await Promise.all([
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('handled_by', waiterId),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('ordered_by', waiterId),
+        supabase.from('void_requests').select('id', { count: 'exact', head: true }).eq('requested_by', waiterId),
+        supabase.from('void_requests').select('id', { count: 'exact', head: true }).eq('decided_by', waiterId),
+        supabase.from('waiter_calls').select('id', { count: 'exact', head: true }).eq('acknowledged_by', waiterId),
+      ]);
+    const canDelete = (c1 || 0) + (c2 || 0) + (c3 || 0) + (c4 || 0) + (c5 || 0) === 0;
+    setRemoveEligibility(prev => ({ ...prev, [waiterId]: { canDelete } }));
+  }
+
+  async function handleRemove(member: StaffMember) {
+    const eligibility = removeEligibility[member.id];
+    const action = typeof eligibility === 'object' && eligibility.canDelete ? 'delete' : 'remove';
+    setRemoving(prev => ({ ...prev, [member.id]: true }));
+    setRemoveWarning(null);
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setRemoving(prev => { const n = { ...prev }; delete n[member.id]; return n; }); return; }
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/remove-staff`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ staff_id: member.id, action }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok || result.error) {
+        setRemoveWarning(`Could not remove ${member.name}: ${result.error || 'server error'}`);
+      } else {
+        await load(restaurant!.id, restaurant!.timezone ?? 'Africa/Lagos');
+      }
+    } catch {
+      setRemoveWarning(`Network error removing ${member.name} — check your connection.`);
+    } finally {
+      setRemoving(prev => { const n = { ...prev }; delete n[member.id]; return n; });
+      setConfirmRemove(null);
+      setRemoveEligibility(prev => { const n = { ...prev }; delete n[member.id]; return n; });
+    }
+  }
+
   if (!restaurant) return null;
 
-  const waiters = staff.filter(s => s.role === 'waiter');
+  const waiters = staff.filter(s => s.role === 'waiter' && !s.removed_at);
   const managers = staff.filter(s => s.role === 'manager');
+  const removedWaiters = staff.filter(s => s.role === 'waiter' && !!s.removed_at);
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -248,7 +301,7 @@ export default function StaffPage() {
         <div>
           <h1 className="text-[#F0EDE8] text-2xl font-bold tracking-tight">Staff</h1>
           <p className="text-[#6B6570] text-sm mt-1">
-            {waiters.length} waiter{waiters.length !== 1 ? 's' : ''} · {managers.length} manager{managers.length !== 1 ? 's' : ''}
+            {waiters.length} waiter{waiters.length !== 1 ? 's' : ''} · {managers.length} manager{managers.length !== 1 ? 's' : ''}{removedWaiters.length > 0 ? ` · ${removedWaiters.length} past` : ''}
           </p>
         </div>
         <button
@@ -377,6 +430,11 @@ export default function StaffPage() {
               <p className="text-amber-400 text-xs">{reactivateWarning}</p>
             </div>
           )}
+          {removeWarning && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 mb-2">
+              <p className="text-amber-400 text-xs">{removeWarning}</p>
+            </div>
+          )}
 
           {waiters.map(member => {
             const tables = (waiterTables[member.id] ?? []).sort((a, b) => a - b);
@@ -384,6 +442,8 @@ export default function StaffPage() {
             const isSuspended = !!member.suspended_at;
             const confirming = confirmSuspend === member.id;
             const confirmingReactivate = confirmReactivate === member.id;
+            const confirmingRemove = confirmRemove === member.id;
+            const eligibility = removeEligibility[member.id];
             return (
               <div key={member.id} className={`border rounded-2xl p-5 ${isSuspended ? 'bg-[#111] border-white/[0.03] opacity-60' : 'bg-[#161616] border-white/[0.06]'}`}>
                 <div className="flex items-start justify-between gap-4 mb-3">
@@ -441,16 +501,24 @@ export default function StaffPage() {
                     </>
                   )}
 
-                  {!isSuspended && !confirming && (
-                    <button
-                      onClick={() => { setConfirmSuspend(member.id); setSuspendWarning(null); }}
-                      className="px-2.5 py-1 rounded-lg text-xs font-medium border border-[#ff6b6b]/20 text-[#ff6b6b] hover:bg-[#ff6b6b]/10 transition-colors ml-auto"
-                    >
-                      Suspend
-                    </button>
+                  {!isSuspended && !confirming && !confirmingRemove && (
+                    <div className="flex items-center gap-2 ml-auto">
+                      <button
+                        onClick={() => { setConfirmSuspend(member.id); setSuspendWarning(null); }}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium border border-[#ff6b6b]/20 text-[#ff6b6b] hover:bg-[#ff6b6b]/10 transition-colors"
+                      >
+                        Suspend
+                      </button>
+                      <button
+                        onClick={() => { setConfirmRemove(member.id); setRemoveWarning(null); checkRemoveEligibility(member.id); }}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium border border-white/[0.08] text-[#6B6570] hover:text-[#9a9098] hover:bg-white/[0.05] transition-colors"
+                      >
+                        Remove…
+                      </button>
+                    </div>
                   )}
 
-                  {!isSuspended && confirming && (
+                  {!isSuspended && confirming && !confirmingRemove && (
                     <div className="flex items-center gap-2 ml-auto flex-wrap">
                       <span className="text-[#c4bec9] text-xs whitespace-nowrap">Suspend {member.name}?</span>
                       <button
@@ -469,13 +537,21 @@ export default function StaffPage() {
                     </div>
                   )}
 
-                  {isSuspended && !confirmingReactivate && (
-                    <button
-                      onClick={() => { setConfirmReactivate(member.id); setReactivateWarning(null); }}
-                      className="px-2.5 py-1 rounded-lg text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-                    >
-                      Reactivate…
-                    </button>
+                  {isSuspended && !confirmingReactivate && !confirmingRemove && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => { setConfirmReactivate(member.id); setReactivateWarning(null); }}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                      >
+                        Reactivate…
+                      </button>
+                      <button
+                        onClick={() => { setConfirmRemove(member.id); setRemoveWarning(null); checkRemoveEligibility(member.id); }}
+                        className="px-2.5 py-1 rounded-lg text-xs font-medium border border-white/[0.08] text-[#6B6570] hover:text-[#9a9098] hover:bg-white/[0.05] transition-colors"
+                      >
+                        Remove…
+                      </button>
+                    </div>
                   )}
 
                   {isSuspended && confirmingReactivate && (
@@ -497,6 +573,57 @@ export default function StaffPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Remove confirm block */}
+                {confirmingRemove && (
+                  <div className="mt-3 border-t border-white/[0.06] pt-3">
+                    {eligibility === 'checking' ? (
+                      <p className="text-[#6B6570] text-xs">Checking records…</p>
+                    ) : typeof eligibility === 'object' && eligibility.canDelete ? (
+                      <>
+                        <p className="text-[#c4bec9] text-xs mb-2.5">
+                          Delete {member.name} permanently? This waiter has no past orders or records. Their account will be erased completely. This cannot be undone.
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => handleRemove(member)}
+                            disabled={!!removing[member.id]}
+                            className="border border-[#ff6b6b]/50 bg-[#ff6b6b]/10 text-[#ff6b6b] text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff6b6b]/20 disabled:opacity-50 transition-colors"
+                          >
+                            {removing[member.id] ? 'Deleting…' : 'Yes, delete permanently'}
+                          </button>
+                          <button
+                            onClick={() => { setConfirmRemove(null); setRemoveEligibility(prev => { const n = { ...prev }; delete n[member.id]; return n; }); }}
+                            className="text-[#6B6570] text-xs px-2 py-1.5 rounded-lg hover:text-[#c4bec9] transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-[#c4bec9] text-xs mb-2.5">
+                          Remove {member.name}? They will lose access immediately and disappear from this list. Their past orders will stay in your records with their name attached. You can see them under Past staff below.
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => handleRemove(member)}
+                            disabled={!!removing[member.id]}
+                            className="border border-amber-500/50 bg-amber-500/10 text-amber-400 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-500/20 disabled:opacity-50 transition-colors"
+                          >
+                            {removing[member.id] ? 'Removing…' : 'Yes, remove'}
+                          </button>
+                          <button
+                            onClick={() => { setConfirmRemove(null); setRemoveEligibility(prev => { const n = { ...prev }; delete n[member.id]; return n; }); }}
+                            className="text-[#6B6570] text-xs px-2 py-1.5 rounded-lg hover:text-[#c4bec9] transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -517,6 +644,33 @@ export default function StaffPage() {
               </div>
             </div>
           ))}
+
+          {/* Past staff */}
+          {removedWaiters.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[#6B6570] text-[11px] font-semibold uppercase tracking-wider mb-2 px-1">Past staff</p>
+              {removedWaiters.map(member => (
+                <div key={member.id} className="bg-[#111] border border-white/[0.03] rounded-2xl px-4 py-3 flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-white/[0.03] flex items-center justify-center shrink-0">
+                    <span className="text-xs font-bold text-[#444]">
+                      {(member.name || '?')[0].toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[#555] text-sm font-medium">{member.name || 'Unnamed'}</p>
+                    <p className="text-[#444] text-xs">
+                      Removed {member.removed_at
+                        ? new Date(member.removed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : ''}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/[0.03] text-[#444] uppercase tracking-wider shrink-0">
+                    waiter
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
